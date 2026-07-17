@@ -59,7 +59,12 @@ namespace AdieLab.AffectCounsel
             yield return new WaitForSecondsRealtime(captureDelay);
             if (sessionState != "briefing")
             {
-                InvokeButton(sessionState.StartsWith("evaluation", System.StringComparison.Ordinal) ? "StartEvaluation" : "StartPractice");
+                string startButton = sessionState.StartsWith("evaluation", System.StringComparison.Ordinal)
+                    ? "StartEvaluation"
+                    : sessionState.StartsWith("focused", System.StringComparison.Ordinal)
+                        ? "StartFocusOne"
+                        : "StartPractice";
+                InvokeButton(startButton);
                 yield return new WaitForSecondsRealtime(0.3f);
             }
 
@@ -99,11 +104,15 @@ namespace AdieLab.AffectCounsel
                 CounselingSessionController session = FindAnyObjectByType<CounselingSessionController>();
                 if (input != null && session != null)
                 {
-                    input.text = autoplayAdvice
-                        ? "그런 생각은 잊고 매일 운동하면서 긍정적으로 생각하세요."
-                        : "회사에 들어가는 순간부터 긴장되고 숨이 막히는 느낌이 드시는군요. 그때 가장 먼저 떠오르는 생각은 무엇인가요?";
-                    session.Submit();
-                    yield return new WaitForSecondsRealtime(1f);
+                    int submissions = sessionState == "focused-complete" || sessionState == "focused-partial-assessment" ? 3 : 1;
+                    for (int submission = 0; submission < submissions; submission++)
+                    {
+                        input.text = autoplayAdvice
+                            ? "그런 생각은 잊고 매일 운동하면서 긍정적으로 생각하세요."
+                            : "회사에 들어가는 순간부터 긴장되고 숨이 막히는 느낌이 드시는군요. 그때 가장 먼저 떠오르는 생각은 무엇인가요?";
+                        session.Submit();
+                        yield return new WaitForSecondsRealtime(1f);
+                    }
                 }
             }
 
@@ -112,14 +121,29 @@ namespace AdieLab.AffectCounsel
                 InvokeButton("PauseSession");
                 yield return new WaitForSecondsRealtime(0.3f);
             }
-            else if (sessionState == "debrief" || sessionState == "evaluation-debrief")
+            else if (sessionState == "debrief" || sessionState == "evaluation-debrief" ||
+                     sessionState == "reflection" || sessionState == "self-assessment" ||
+                     sessionState == "replay" || sessionState == "replay-result" ||
+                     sessionState == "focused-partial-assessment")
             {
-                InvokeButton("PauseSession");
-                yield return new WaitForSecondsRealtime(0.15f);
-                InvokeButton("ResumeSession");
-                yield return new WaitForSecondsRealtime(0.15f);
                 InvokeButton("EndSession");
                 yield return new WaitForSecondsRealtime(0.3f);
+                if (sessionState == "self-assessment" || sessionState == "replay" || sessionState == "replay-result" ||
+                    sessionState == "focused-partial-assessment")
+                {
+                    InvokeButton("AssessRetry");
+                    yield return new WaitForSecondsRealtime(0.2f);
+                }
+                if (sessionState == "replay" || sessionState == "replay-result")
+                {
+                    InvokeButton("ReplaySelected");
+                    yield return new WaitForSecondsRealtime(0.3f);
+                }
+                if (sessionState == "replay-result")
+                {
+                    StartSubmission();
+                    yield return new WaitForSecondsRealtime(1f);
+                }
             }
 
             MaskWebcamPreview();

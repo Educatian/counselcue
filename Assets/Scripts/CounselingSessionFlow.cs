@@ -3,7 +3,9 @@ namespace AdieLab.AffectCounsel
     public enum TrainingMode
     {
         Practice,
-        Evaluation
+        Evaluation,
+        FocusedPractice,
+        SceneReplay
     }
 
     public enum TrainingSessionPhase
@@ -76,8 +78,20 @@ namespace AdieLab.AffectCounsel
             }
         }
 
-        public static string ModeLabel(TrainingMode mode) =>
-            mode == TrainingMode.Practice ? "연습 모드" : "평가 모드";
+        public static string ModeLabel(TrainingMode mode)
+        {
+            switch (mode)
+            {
+                case TrainingMode.Evaluation:
+                    return "평가 모드";
+                case TrainingMode.FocusedPractice:
+                    return "집중연습";
+                case TrainingMode.SceneReplay:
+                    return "장면 재연습";
+                default:
+                    return "연습 모드";
+            }
+        }
     }
 
     public static class CounselingSubmissionGuard

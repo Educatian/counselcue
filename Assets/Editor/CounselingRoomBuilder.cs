@@ -18,6 +18,7 @@ namespace AdieLab.AffectCounsel.Editor
         private const string AvatarPath = "Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Female_Adult_05/Export/Female_Adult_05_facial.fbx";
         private const string FontPath = "Assets/Fonts/NotoSansKR-VF.ttf";
         private const string ControllerPath = "Assets/Animations/CounselingClient.controller";
+        private const string CasePath = "Assets/Data/Cases/WorkplaceAnxietyCase.asset";
 
         private static Material cream;
         private static Material warmWhite;
@@ -52,6 +53,7 @@ namespace AdieLab.AffectCounsel.Editor
             RuntimeAnimatorController controller = CreateAnimatorController();
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            CounselingCaseDefinition caseDefinition = CreateDefaultCaseDefinition();
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = new Color(0.66f, 0.65f, 0.58f);
             RenderSettings.ambientEquatorColor = new Color(0.40f, 0.35f, 0.29f);
@@ -72,14 +74,16 @@ namespace AdieLab.AffectCounsel.Editor
             WebcamSignalMonitor webcam = runtime.AddComponent<WebcamSignalMonitor>();
             FacialActionUnitMonitor actionUnits = runtime.AddComponent<FacialActionUnitMonitor>();
             GptRealtimeConversationEngine realtime = runtime.AddComponent<GptRealtimeConversationEngine>();
+            CounselingReflectionController reflection = runtime.AddComponent<CounselingReflectionController>();
             CounselingSessionOrchestrator orchestrator = runtime.AddComponent<CounselingSessionOrchestrator>();
             CounselingSessionController session = runtime.AddComponent<CounselingSessionController>();
             CounselingCameraZoom cameraZoom = runtime.AddComponent<CounselingCameraZoom>();
             runtime.AddComponent<DemoCaptureController>();
             WireWebcam(webcam, ui);
             WireActionUnits(actionUnits, ui);
-            WireSession(session, orchestrator, client, webcam, actionUnits, realtime, ui);
-            WireSessionOrchestrator(orchestrator, session, ui);
+            WireSession(session, orchestrator, caseDefinition, client, webcam, actionUnits, realtime, ui);
+            WireSessionOrchestrator(orchestrator, session, reflection, caseDefinition, ui);
+            WireReflection(reflection, orchestrator, ui);
             WireCameraZoom(cameraZoom, camera, ui);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -279,7 +283,7 @@ namespace AdieLab.AffectCounsel.Editor
             RectTransform controlCard = CreatePanel("ActiveControlCard", canvas.transform, new Vector2(26f, -122f), new Vector2(354f, 80f), new Vector2(0f, 1f), panelSprite, HudGlass);
             refs.activeControlCard = controlCard.gameObject;
             CreateAccentBar("ControlAccent", controlCard, 80f, HudGold);
-            refs.stageLabel = CreateText("StageLabel", "연습 모드 · 관계 형성 · 0/10턴", controlCard, new Vector2(18f, -8f), new Vector2(205f, 25f), font, 13, HudText, FontStyle.Bold);
+            refs.stageLabel = CreateText("StageLabel", "연습 모드 · 관계 형성 · 0/10턴", controlCard, new Vector2(18f, -8f), new Vector2(318f, 25f), font, 13, HudText, FontStyle.Bold);
             refs.timerLabel = CreateText("TimerLabel", "15:00", controlCard, new Vector2(18f, -38f), new Vector2(82f, 28f), font, 20, HudGold, FontStyle.Bold);
             refs.pauseButton = CreateButton("PauseSession", controlCard, new Vector2(108f, -34f), new Vector2(104f, 36f), "일시정지", font, panelSprite, 13);
             refs.endButton = CreateButton("EndSession", controlCard, new Vector2(220f, -34f), new Vector2(112f, 36f), "종료", font, panelSprite, 13);
@@ -313,22 +317,28 @@ namespace AdieLab.AffectCounsel.Editor
 
             RectTransform briefingRoot = CreateOverlayRoot("BriefingOverlay", canvas.transform);
             refs.briefingOverlay = briefingRoot.gameObject;
-            RectTransform briefingCard = CreatePanel("BriefingCard", briefingRoot, Vector2.zero, new Vector2(820f, 570f), new Vector2(0.5f, 0.5f), panelSprite, PaperCard);
+            RectTransform briefingCard = CreatePanel("BriefingCard", briefingRoot, Vector2.zero, new Vector2(980f, 720f), new Vector2(0.5f, 0.5f), panelSprite, PaperCard);
             briefingCard.anchoredPosition = Vector2.zero;
-            CreateAccentBar("BriefingAccent", briefingCard, 570f, TealAction);
-            CreateText("BriefingEyebrow", "AFFECT COUNSEL · SESSION 01", briefingCard, new Vector2(42f, -34f), new Vector2(730f, 24f), font, 13, TealAction, FontStyle.Bold);
-            Text briefingTitle = CreateText("BriefingTitle", "첫 회기 준비", briefingCard, new Vector2(42f, -70f), new Vector2(730f, 50f), font, 32, Ink, FontStyle.Bold);
+            CreateAccentBar("BriefingAccent", briefingCard, 720f, TealAction);
+            CreateText("BriefingEyebrow", "AFFECT COUNSEL · PRACTICE PATH", briefingCard, new Vector2(42f, -28f), new Vector2(890f, 24f), font, 13, TealAction, FontStyle.Bold);
+            Text briefingTitle = CreateText("BriefingTitle", "오늘의 연습 경로 선택", briefingCard, new Vector2(42f, -62f), new Vector2(890f, 50f), font, 31, Ink, FontStyle.Bold);
             briefingTitle.verticalOverflow = VerticalWrapMode.Overflow;
-            CreateText("BriefingCase", "직장 불안 · 김지혜, 32세 · 초기면담", briefingCard, new Vector2(42f, -130f), new Vector2(730f, 30f), font, 17, new Color(0.27f, 0.39f, 0.34f), FontStyle.Bold);
+            refs.briefingCaseLabel = CreateText("BriefingCase", "직장 불안 · 김지혜, 32세 · 초기면담", briefingCard, new Vector2(42f, -116f), new Vector2(890f, 30f), font, 17, new Color(0.27f, 0.39f, 0.34f), FontStyle.Bold);
             string briefingBody =
                 "상황\n최근 회사에 가려고 하면 숨이 막히고, 자신이 약한 사람인지 걱정합니다.\n\n" +
                 "이번 세션의 목표\n1. 관계 안전감을 형성하고 상담 구조를 안내합니다.\n" +
                 "2. 반영과 개방형 질문으로 경험을 탐색합니다.\n" +
                 "3. 해결책을 서두르지 않고 내담자의 응답 공간을 지킵니다.\n\n" +
                 "15분 · 목표 10턴 · 웹캠 원본 미저장";
-            CreateText("BriefingBody", briefingBody, briefingCard, new Vector2(42f, -180f), new Vector2(730f, 250f), font, 17, Ink, FontStyle.Normal);
-            refs.practiceStartButton = CreateButton("StartPractice", briefingCard, new Vector2(42f, -474f), new Vector2(348f, 58f), "연습 모드 시작", font, panelSprite, 17);
-            refs.evaluationStartButton = CreateButton("StartEvaluation", briefingCard, new Vector2(414f, -474f), new Vector2(358f, 58f), "평가 모드 시작", font, panelSprite, 17);
+            refs.briefingBodyLabel = CreateText("BriefingBody", briefingBody, briefingCard, new Vector2(42f, -158f), new Vector2(890f, 236f), font, 16, Ink, FontStyle.Normal);
+            CreateText("FullSessionLabel", "전체 회기 · 15분 / 목표 10턴", briefingCard, new Vector2(42f, -402f), new Vector2(890f, 24f), font, 14, TealAction, FontStyle.Bold);
+            refs.practiceStartButton = CreateButton("StartPractice", briefingCard, new Vector2(42f, -434f), new Vector2(430f, 56f), "코칭 연습 시작", font, panelSprite, 17);
+            refs.evaluationStartButton = CreateButton("StartEvaluation", briefingCard, new Vector2(500f, -434f), new Vector2(432f, 56f), "평가 모드 시작", font, panelSprite, 17);
+            CreateText("FocusedLabel", "미세기술 집중연습 · 시작값 3분 / 목표 3턴", briefingCard, new Vector2(42f, -512f), new Vector2(890f, 24f), font, 14, TealAction, FontStyle.Bold);
+            refs.focusOneButton = CreateButton("StartFocusOne", briefingCard, new Vector2(42f, -548f), new Vector2(280f, 54f), "감정 반영 · 3분", font, panelSprite, 15);
+            refs.focusTwoButton = CreateButton("StartFocusTwo", briefingCard, new Vector2(347f, -548f), new Vector2(280f, 54f), "개방형 질문 · 3분", font, panelSprite, 15);
+            refs.focusThreeButton = CreateButton("StartFocusThree", briefingCard, new Vector2(652f, -548f), new Vector2(280f, 54f), "전달 정합 · 3분", font, panelSprite, 15);
+            CreateText("PrivacyLine", "웹캠 원본 미저장 · 집중연습 시간은 사용자 연구로 조정할 시작값입니다.", briefingCard, new Vector2(42f, -628f), new Vector2(890f, 30f), font, 13, new Color(0.38f, 0.43f, 0.40f), FontStyle.Normal);
 
             RectTransform pauseRoot = CreateOverlayRoot("PauseOverlay", canvas.transform, 0.56f);
             refs.pauseOverlay = pauseRoot.gameObject;
@@ -339,20 +349,105 @@ namespace AdieLab.AffectCounsel.Editor
             refs.resumeButton = CreateButton("ResumeSession", pauseCard, new Vector2(38f, -176f), new Vector2(234f, 52f), "계속하기", font, panelSprite, 16);
             refs.pauseEndButton = CreateButton("PauseEndSession", pauseCard, new Vector2(288f, -176f), new Vector2(234f, 52f), "종료하기", font, panelSprite, 16);
 
-            RectTransform debriefRoot = CreateOverlayRoot("DebriefOverlay", canvas.transform);
+            RectTransform debriefRoot = CreateOverlayRoot("DebriefOverlay", canvas.transform, 1f);
             refs.debriefOverlay = debriefRoot.gameObject;
-            RectTransform debriefCard = CreatePanel("DebriefCard", debriefRoot, Vector2.zero, new Vector2(900f, 650f), new Vector2(0.5f, 0.5f), panelSprite, PaperCard);
+            RectTransform debriefCard = CreatePanel("DebriefCard", debriefRoot, Vector2.zero, new Vector2(1120f, 760f), new Vector2(0.5f, 0.5f), panelSprite, PaperCard);
             debriefCard.anchoredPosition = Vector2.zero;
-            CreateAccentBar("DebriefAccent", debriefCard, 650f, TealAction);
-            CreateText("DebriefEyebrow", "SESSION REVIEW · 훈련용 피드백", debriefCard, new Vector2(46f, -34f), new Vector2(808f, 24f), font, 13, TealAction, FontStyle.Bold);
-            refs.debriefTitle = CreateText("DebriefTitle", "첫 회기 디브리핑", debriefCard, new Vector2(46f, -72f), new Vector2(808f, 50f), font, 31, Ink, FontStyle.Bold);
-            refs.debriefReport = CreateText("DebriefReport", string.Empty, debriefCard, new Vector2(46f, -140f), new Vector2(808f, 408f), font, 17, Ink, FontStyle.Normal);
-            refs.returnButton = CreateButton("ReturnToBriefing", debriefCard, new Vector2(604f, -570f), new Vector2(250f, 54f), "브리핑으로", font, panelSprite, 16);
+            CreateAccentBar("DebriefAccent", debriefCard, 760f, TealAction);
+            CreateText("DebriefEyebrow", "REFLECT · COMPARE · RETRY", debriefCard, new Vector2(46f, -28f), new Vector2(1028f, 24f), font, 13, TealAction, FontStyle.Bold);
+            refs.debriefTitle = CreateText("DebriefTitle", "세션 성찰 및 재연습", debriefCard, new Vector2(46f, -62f), new Vector2(1028f, 44f), font, 30, Ink, FontStyle.Bold);
+            refs.debriefReport = CreateText("DebriefSummary", string.Empty, debriefCard, new Vector2(46f, -116f), new Vector2(1028f, 104f), font, 15, Ink, FontStyle.Normal);
+            CreateText("TimelineHeading", "장면 타임라인 · 장면을 선택하세요", debriefCard, new Vector2(46f, -226f), new Vector2(1028f, 24f), font, 14, TealAction, FontStyle.Bold);
+            refs.timelineButtons = new Button[10];
+            for (int i = 0; i < refs.timelineButtons.Length; i++)
+            {
+                float x = 46f + (i % 5) * 204f;
+                float y = -258f - (i / 5) * 46f;
+                refs.timelineButtons[i] = CreateButton($"TimelineTurn{i + 1}", debriefCard, new Vector2(x, y), new Vector2(190f, 38f), $"{i + 1}턴", font, panelSprite, 12);
+            }
+            refs.sceneDetailLabel = CreateText("SceneDetail", "장면을 선택하면 상담자 응답과 시스템 근거가 표시됩니다.", debriefCard, new Vector2(46f, -360f), new Vector2(1028f, 142f), font, 15, Ink, FontStyle.Normal);
+            refs.assessmentStatusLabel = CreateText("AssessmentStatus", "먼저 자신의 판단을 선택하세요.", debriefCard, new Vector2(46f, -510f), new Vector2(1028f, 28f), font, 14, new Color(0.27f, 0.39f, 0.34f), FontStyle.Bold);
+            refs.effectiveButton = CreateButton("AssessEffective", debriefCard, new Vector2(46f, -548f), new Vector2(210f, 50f), "잘된 장면", font, panelSprite, 15);
+            refs.retryNeededButton = CreateButton("AssessRetry", debriefCard, new Vector2(274f, -548f), new Vector2(230f, 50f), "다시 연습 필요", font, panelSprite, 15);
+            refs.replayButton = CreateButton("ReplaySelected", debriefCard, new Vector2(522f, -548f), new Vector2(260f, 50f), "이 장면 다시 연습", font, panelSprite, 15);
+            refs.returnButton = CreateButton("ReturnToBriefing", debriefCard, new Vector2(800f, -548f), new Vector2(274f, 50f), "연습 경로로", font, panelSprite, 15);
+            CreateText("DebriefDisclaimer", "※ 먼저 자기평가한 뒤 시스템 근거와 비교합니다. 훈련용 피드백이며 임상평가가 아닙니다.", debriefCard, new Vector2(46f, -620f), new Vector2(1028f, 36f), font, 13, new Color(0.38f, 0.43f, 0.40f), FontStyle.Normal);
 
             refs.activeControlCard.SetActive(false);
             refs.pauseOverlay.SetActive(false);
             refs.debriefOverlay.SetActive(false);
             return refs;
+        }
+
+        private static CounselingCaseDefinition CreateDefaultCaseDefinition()
+        {
+            EnsureFolder("Assets/Data");
+            EnsureFolder("Assets/Data/Cases");
+            CounselingCaseDefinition definition = AssetDatabase.LoadAssetAtPath<CounselingCaseDefinition>(CasePath);
+            if (definition == null)
+            {
+                definition = ScriptableObject.CreateInstance<CounselingCaseDefinition>();
+                AssetDatabase.CreateAsset(definition, CasePath);
+            }
+
+            string[] supportive =
+            {
+                "제가 요즘 계속 긴장한 채로 지냈던 것 같아요. 누군가에게 말하니 조금 정리가 되는 느낌이에요.",
+                "그 말을 들으니 제가 너무 예민한 사람은 아닌 것 같아서 조금 안심돼요.",
+                "회사에 들어가는 순간부터 가슴이 답답해져요. 특히 팀장님과 이야기할 때 더 심해지고요.",
+                "지난주 회의에서 팀장님이 사람들 앞에서 제 실수를 지적했어요. 그 뒤로 시선이 신경 쓰여요.",
+                "또 틀리면 어쩌나 싶어서 작은 일도 계속 확인해요. 결국 제가 부족한 탓 같고요.",
+                "요즘은 출근 전부터 퇴사해야 하나 생각해요. 그렇지만 그만두는 것도 겁이 나요.",
+                "가족에게는 걱정시킬까 봐 말하지 못했어요. 혼자 버티는 게 점점 힘들어요.",
+                "제가 원하는 건 당장 답을 정하는 것보다 안전하게 일할 수 있다는 느낌인 것 같아요.",
+                "지금 정리해 주신 내용을 들으니 제가 무엇 때문에 힘든지 조금 더 선명해졌어요.",
+                "다음에는 불안이 올라오는 순간을 더 살펴보고, 제가 할 수 있는 작은 선택도 찾아보고 싶어요."
+            };
+            string[] guarded =
+            {
+                "글쎄요… 그냥 제가 알아서 해야 하는 문제 같기도 해요.",
+                "그렇게 간단히 해결될 문제였으면 이미 했을 것 같아요.",
+                "무슨 말을 해야 할지 잘 모르겠어요.",
+                "그 얘기는 아직 자세히 하고 싶지 않아요.",
+                "결국 제가 잘못한 것 같아서 말해도 달라질 게 있나 싶어요.",
+                "퇴사 얘기까지는 하고 싶지 않아요. 너무 앞서가는 것 같아요.",
+                "가족에게는 말하고 싶지 않아요. 걱정만 더할 테니까요.",
+                "제가 무엇을 원하는지는 잘 모르겠어요. 그냥 덜 힘들었으면 좋겠어요.",
+                "정리가 됐는지는 모르겠어요. 아직 조금 부담스러워요.",
+                "오늘은 여기까지만 이야기하고 싶어요."
+            };
+            CounselingDisclosureStep[] ladder = new CounselingDisclosureStep[supportive.Length];
+            for (int i = 0; i < ladder.Length; i++)
+            {
+                ladder[i] = new CounselingDisclosureStep { supportiveReply = supportive[i], guardedReply = guarded[i] };
+            }
+
+            definition.Configure(
+                "workplace-anxiety-01",
+                "직장 불안",
+                "김지혜",
+                "32세 · 초기면담",
+                "최근 회사에 가려고 하면 숨이 막히고, 자신이 약한 사람인지 걱정합니다.",
+                "요즘 회사에 가려고 하면 숨이 막히는 것 같아요.\n제가 너무 약한 사람인가 싶기도 하고요.",
+                900f,
+                180f,
+                3,
+                new[]
+                {
+                    "관계 안전감을 형성하고 상담 구조를 안내합니다.",
+                    "반영과 개방형 질문으로 경험을 탐색합니다.",
+                    "해결책을 서두르지 않고 내담자의 응답 공간을 지킵니다."
+                },
+                ladder,
+                new[]
+                {
+                    new CounselingFocusSkill { id = "emotion-reflection", label = "감정 반영", objective = "감정과 의미를 구체적으로 반영한다.", coachingPrompt = "감정 단어와 그 의미를 한 문장에 담아 보세요." },
+                    new CounselingFocusSkill { id = "open-question", label = "개방형 질문", objective = "내담자가 경험을 확장하도록 질문한다.", coachingPrompt = "예·아니오로 끝나지 않는 질문 뒤 응답 공간을 남기세요." },
+                    new CounselingFocusSkill { id = "delivery-alignment", label = "전달 정합", objective = "언어와 표정·시선의 전달을 맞춘다.", coachingPrompt = "문장 내용과 얼굴의 긴장·미소가 같은 메시지인지 확인하세요." }
+                });
+            EditorUtility.SetDirty(definition);
+            AssetDatabase.SaveAssets();
+            return definition;
         }
 
         private static RuntimeAnimatorController CreateAnimatorController()
@@ -396,7 +491,7 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void WireSession(CounselingSessionController session, CounselingSessionOrchestrator orchestrator, ClientAvatarController client, WebcamSignalMonitor webcam, FacialActionUnitMonitor actionUnits, GptRealtimeConversationEngine realtime, UiReferences ui)
+        private static void WireSession(CounselingSessionController session, CounselingSessionOrchestrator orchestrator, CounselingCaseDefinition caseDefinition, ClientAvatarController client, WebcamSignalMonitor webcam, FacialActionUnitMonitor actionUnits, GptRealtimeConversationEngine realtime, UiReferences ui)
         {
             SerializedObject serialized = new SerializedObject(session);
             serialized.FindProperty("client").objectReferenceValue = client;
@@ -404,6 +499,7 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.FindProperty("actionUnits").objectReferenceValue = actionUnits;
             serialized.FindProperty("realtimeEngine").objectReferenceValue = realtime;
             serialized.FindProperty("sessionOrchestrator").objectReferenceValue = orchestrator;
+            serialized.FindProperty("caseDefinition").objectReferenceValue = caseDefinition;
             serialized.FindProperty("counselorInput").objectReferenceValue = ui.input;
             serialized.FindProperty("sendButton").objectReferenceValue = ui.sendButton;
             serialized.FindProperty("clientLine").objectReferenceValue = ui.clientLine;
@@ -411,27 +507,51 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.FindProperty("feedbackLabel").objectReferenceValue = ui.feedbackLabel;
             serialized.FindProperty("allianceLabel").objectReferenceValue = ui.allianceLabel;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(session);
         }
 
-        private static void WireSessionOrchestrator(CounselingSessionOrchestrator orchestrator, CounselingSessionController session, UiReferences ui)
+        private static void WireSessionOrchestrator(CounselingSessionOrchestrator orchestrator, CounselingSessionController session, CounselingReflectionController reflection, CounselingCaseDefinition caseDefinition, UiReferences ui)
         {
             SerializedObject serialized = new SerializedObject(orchestrator);
             serialized.FindProperty("sessionController").objectReferenceValue = session;
+            serialized.FindProperty("reflectionController").objectReferenceValue = reflection;
+            serialized.FindProperty("caseDefinition").objectReferenceValue = caseDefinition;
             serialized.FindProperty("activeControlCard").objectReferenceValue = ui.activeControlCard;
             serialized.FindProperty("briefingOverlay").objectReferenceValue = ui.briefingOverlay;
             serialized.FindProperty("pauseOverlay").objectReferenceValue = ui.pauseOverlay;
             serialized.FindProperty("debriefOverlay").objectReferenceValue = ui.debriefOverlay;
             serialized.FindProperty("timerLabel").objectReferenceValue = ui.timerLabel;
             serialized.FindProperty("stageLabel").objectReferenceValue = ui.stageLabel;
+            serialized.FindProperty("briefingCaseLabel").objectReferenceValue = ui.briefingCaseLabel;
+            serialized.FindProperty("briefingBodyLabel").objectReferenceValue = ui.briefingBodyLabel;
             serialized.FindProperty("debriefTitle").objectReferenceValue = ui.debriefTitle;
-            serialized.FindProperty("debriefReport").objectReferenceValue = ui.debriefReport;
             serialized.FindProperty("practiceStartButton").objectReferenceValue = ui.practiceStartButton;
             serialized.FindProperty("evaluationStartButton").objectReferenceValue = ui.evaluationStartButton;
+            serialized.FindProperty("focusOneButton").objectReferenceValue = ui.focusOneButton;
+            serialized.FindProperty("focusTwoButton").objectReferenceValue = ui.focusTwoButton;
+            serialized.FindProperty("focusThreeButton").objectReferenceValue = ui.focusThreeButton;
             serialized.FindProperty("pauseButton").objectReferenceValue = ui.pauseButton;
             serialized.FindProperty("endButton").objectReferenceValue = ui.endButton;
             serialized.FindProperty("resumeButton").objectReferenceValue = ui.resumeButton;
             serialized.FindProperty("pauseEndButton").objectReferenceValue = ui.pauseEndButton;
             serialized.FindProperty("returnButton").objectReferenceValue = ui.returnButton;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(orchestrator);
+        }
+
+        private static void WireReflection(CounselingReflectionController reflection, CounselingSessionOrchestrator orchestrator, UiReferences ui)
+        {
+            SerializedObject serialized = new SerializedObject(reflection);
+            serialized.FindProperty("orchestrator").objectReferenceValue = orchestrator;
+            serialized.FindProperty("summaryLabel").objectReferenceValue = ui.debriefReport;
+            serialized.FindProperty("sceneDetailLabel").objectReferenceValue = ui.sceneDetailLabel;
+            serialized.FindProperty("assessmentStatusLabel").objectReferenceValue = ui.assessmentStatusLabel;
+            serialized.FindProperty("effectiveButton").objectReferenceValue = ui.effectiveButton;
+            serialized.FindProperty("retryNeededButton").objectReferenceValue = ui.retryNeededButton;
+            serialized.FindProperty("replayButton").objectReferenceValue = ui.replayButton;
+            SerializedProperty timeline = serialized.FindProperty("timelineButtons");
+            timeline.arraySize = ui.timelineButtons.Length;
+            for (int i = 0; i < ui.timelineButtons.Length; i++) timeline.GetArrayElementAtIndex(i).objectReferenceValue = ui.timelineButtons[i];
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -677,11 +797,18 @@ namespace AdieLab.AffectCounsel.Editor
             public Button sendButton;
             public Button practiceStartButton;
             public Button evaluationStartButton;
+            public Button focusOneButton;
+            public Button focusTwoButton;
+            public Button focusThreeButton;
             public Button pauseButton;
             public Button endButton;
             public Button resumeButton;
             public Button pauseEndButton;
             public Button returnButton;
+            public Button effectiveButton;
+            public Button retryNeededButton;
+            public Button replayButton;
+            public Button[] timelineButtons;
             public Button zoomOutButton;
             public Button zoomInButton;
             public Button zoomResetButton;
@@ -692,8 +819,12 @@ namespace AdieLab.AffectCounsel.Editor
             public Text zoomLabel;
             public Text timerLabel;
             public Text stageLabel;
+            public Text briefingCaseLabel;
+            public Text briefingBodyLabel;
             public Text debriefTitle;
             public Text debriefReport;
+            public Text sceneDetailLabel;
+            public Text assessmentStatusLabel;
             public Text webcamStatus;
             public Text auStatus;
             public RawImage webcamPreview;

@@ -27,6 +27,21 @@ namespace AdieLab.AffectCounsel.Editor
             passed &= ExpectStage(10, 0.70f, CounselingStage.Closing);
             passed &= Expect(CounselingSessionFlow.StageLabel(CounselingStage.Rapport) == "관계 형성", "rapport label");
             passed &= Expect(CounselingSessionFlow.ModeLabel(TrainingMode.Evaluation) == "평가 모드", "evaluation label");
+            passed &= Expect(CounselingSessionFlow.ModeLabel(TrainingMode.FocusedPractice) == "집중연습", "focused practice label");
+            passed &= Expect(CounselingSessionFlow.ModeLabel(TrainingMode.SceneReplay) == "장면 재연습", "scene replay label");
+            CounselingCaseDefinition definition = AssetDatabase.LoadAssetAtPath<CounselingCaseDefinition>(
+                "Assets/Data/Cases/WorkplaceAnxietyCase.asset");
+            passed &= Expect(definition != null, "workplace anxiety case asset");
+            if (definition != null)
+            {
+                passed &= Expect(definition.LearningObjectives.Length == 3, "three learning objectives");
+                passed &= Expect(definition.FocusSkills.Length == 3, "three focus skills");
+                passed &= Expect(definition.FullSessionSeconds == 900, "full session duration");
+                passed &= Expect(definition.FocusedPracticeSeconds == 180, "focused practice duration");
+                passed &= Expect(definition.FocusedTargetTurns == 3, "focused practice target turns");
+                passed &= Expect(!string.IsNullOrWhiteSpace(definition.GetReply(0, true)), "supportive disclosure reply");
+                passed &= Expect(!string.IsNullOrWhiteSpace(definition.GetReply(0, false)), "guarded disclosure reply");
+            }
             passed &= Expect(CounselingSubmissionGuard.CanCommit(2, 2, 5, 5, true), "current active submission commits");
             passed &= Expect(!CounselingSubmissionGuard.CanCommit(2, 2, 5, 5, false), "paused submission is rejected");
             passed &= Expect(!CounselingSubmissionGuard.CanCommit(2, 2, 5, 6, true), "canceled submission stays rejected after resume");

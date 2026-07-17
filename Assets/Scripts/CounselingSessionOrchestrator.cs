@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,47 +11,77 @@ namespace AdieLab.AffectCounsel
     public sealed class CounselingSessionOrchestrator : MonoBehaviour
     {
         [SerializeField] private CounselingSessionController sessionController;
+        [SerializeField] private CounselingReflectionController reflectionController;
+        [SerializeField] private CounselingCaseDefinition caseDefinition;
         [SerializeField] private GameObject activeControlCard;
         [SerializeField] private GameObject briefingOverlay;
         [SerializeField] private GameObject pauseOverlay;
         [SerializeField] private GameObject debriefOverlay;
         [SerializeField] private Text timerLabel;
         [SerializeField] private Text stageLabel;
+        [SerializeField] private Text briefingCaseLabel;
+        [SerializeField] private Text briefingBodyLabel;
         [SerializeField] private Text debriefTitle;
-        [SerializeField] private Text debriefReport;
         [SerializeField] private Button practiceStartButton;
         [SerializeField] private Button evaluationStartButton;
+        [SerializeField] private Button focusOneButton;
+        [SerializeField] private Button focusTwoButton;
+        [SerializeField] private Button focusThreeButton;
         [SerializeField] private Button pauseButton;
         [SerializeField] private Button endButton;
         [SerializeField] private Button resumeButton;
         [SerializeField] private Button pauseEndButton;
         [SerializeField] private Button returnButton;
 
+        private readonly List<CounselingTurnSnapshot> turns = new List<CounselingTurnSnapshot>();
         private TrainingSessionPhase phase = TrainingSessionPhase.Briefing;
         private TrainingMode mode = TrainingMode.Practice;
         private CounselingStage stage = CounselingStage.Rapport;
         private ClientRelationalState latestState = ClientRelationalState.Initial;
+        private CounselingTurnSnapshot replaySource;
         private float sessionDurationSeconds = CounselingSessionFlow.StartingDurationSeconds;
         private float remainingSeconds = CounselingSessionFlow.StartingDurationSeconds;
         private int displayedSecond = -1;
-        private int turnCount;
+        private int targetTurns = CounselingSessionFlow.StartingTargetTurns;
+        private int selectedFocusIndex = -1;
         private int alignedCount;
         private int mismatchCount;
         private int qualityTotal;
         private bool canceledSubmissionOnPause;
 
         public bool CanSubmit => phase == TrainingSessionPhase.Active;
-        public bool ShowLiveCoaching => mode == TrainingMode.Practice;
-        public bool IsActive => phase == TrainingSessionPhase.Active;
+        public bool ShowLiveCoaching => mode != TrainingMode.Evaluation;
         public TrainingMode Mode => mode;
         public TrainingSessionPhase Phase => phase;
         public float ElapsedSeconds => sessionDurationSeconds - remainingSeconds;
         public string CurrentStageLabel => CounselingSessionFlow.StageLabel(stage);
+        public string CurrentFocusPrompt
+        {
+            get
+            {
+                CounselingFocusSkill focus = SelectedFocus;
+                return focus == null ? string.Empty : $" · 집중목표: {focus.coachingPrompt}";
+            }
+        }
+
+        private CounselingFocusSkill SelectedFocus
+        {
+            get
+            {
+                if (caseDefinition == null || caseDefinition.FocusSkills == null) return null;
+                return selectedFocusIndex >= 0 && selectedFocusIndex < caseDefinition.FocusSkills.Length
+                    ? caseDefinition.FocusSkills[selectedFocusIndex]
+                    : null;
+            }
+        }
 
         private void Awake()
         {
             practiceStartButton.onClick.AddListener(BeginPracticeSession);
             evaluationStartButton.onClick.AddListener(BeginEvaluationSession);
+            focusOneButton.onClick.AddListener(() => BeginFocusedPractice(0));
+            focusTwoButton.onClick.AddListener(() => BeginFocusedPractice(1));
+            focusThreeButton.onClick.AddListener(() => BeginFocusedPractice(2));
             pauseButton.onClick.AddListener(PauseSession);
             endButton.onClick.AddListener(EndSession);
             resumeButton.onClick.AddListener(ResumeSession);
@@ -59,6 +91,7 @@ namespace AdieLab.AffectCounsel
 
         private void Start()
         {
+            ConfigureBriefing();
             ShowBriefing();
         }
 
@@ -71,22 +104,33 @@ namespace AdieLab.AffectCounsel
             if (remainingSeconds <= 0f) FinishSession(true);
         }
 
-        public void RecordTurn(ResponseAssessment assessment, RelationalTurnResult result)
+        public void RecordTurn(
+            CounselingTurnSnapshot snapshot,
+            ResponseAssessment assessment,
+            RelationalTurnResult result)
         {
             if (phase != TrainingSessionPhase.Active) return;
-            turnCount++;
+            turns.Add(snapshot);
             qualityTotal += assessment.Quality;
             latestState = result.State;
             if (result.Alignment == DeliveryAlignment.Aligned) alignedCount++;
             if (result.Alignment == DeliveryAlignment.PossibleMismatch ||
                 result.Alignment == DeliveryAlignment.RelationalOrderMismatch) mismatchCount++;
-            stage = CounselingSessionFlow.DetermineStage(turnCount, latestState.WillingnessToDisclose);
+            stage = CounselingSessionFlow.DetermineStage(turns.Count, latestState.WillingnessToDisclose);
             UpdateHud();
+            if ((mode == TrainingMode.SceneReplay || mode == TrainingMode.FocusedPractice) && turns.Count >= targetTurns)
+            {
+                FinishSession(false);
+            }
         }
 
-        public void BeginPracticeSession() => BeginSession(TrainingMode.Practice);
+        public void BeginPracticeSession() => BeginSession(TrainingMode.Practice, -1, null);
 
-        public void BeginEvaluationSession() => BeginSession(TrainingMode.Evaluation);
+        public void BeginEvaluationSession() => BeginSession(TrainingMode.Evaluation, -1, null);
+
+        public void BeginFocusedPractice(int focusIndex) => BeginSession(TrainingMode.FocusedPractice, focusIndex, null);
+
+        public void BeginSceneReplay(CounselingTurnSnapshot source) => BeginSession(TrainingMode.SceneReplay, -1, source);
 
         public void PauseSession()
         {
@@ -114,21 +158,21 @@ namespace AdieLab.AffectCounsel
             FinishSession(false);
         }
 
-        public void ReturnToBriefing()
-        {
-            ShowBriefing();
-        }
+        public void ReturnToBriefing() => ShowBriefing();
 
-        private void BeginSession(TrainingMode selectedMode)
+        private void BeginSession(TrainingMode selectedMode, int focusIndex, CounselingTurnSnapshot source)
         {
             mode = selectedMode;
+            selectedFocusIndex = focusIndex;
+            replaySource = source;
             phase = TrainingSessionPhase.Active;
             stage = CounselingStage.Rapport;
-            latestState = ClientRelationalState.Initial;
+            latestState = source == null ? ClientRelationalState.Initial : source.stateBefore;
+            targetTurns = ResolveTargetTurns();
             sessionDurationSeconds = ResolveStartingDuration();
             remainingSeconds = sessionDurationSeconds;
             displayedSecond = -1;
-            turnCount = 0;
+            turns.Clear();
             alignedCount = 0;
             mismatchCount = 0;
             qualityTotal = 0;
@@ -137,7 +181,8 @@ namespace AdieLab.AffectCounsel
             pauseOverlay.SetActive(false);
             debriefOverlay.SetActive(false);
             activeControlCard.SetActive(true);
-            sessionController.BeginNewSession();
+            if (source == null) sessionController.BeginNewSession();
+            else sessionController.BeginReplaySession(source);
             UpdateHud();
         }
 
@@ -153,6 +198,7 @@ namespace AdieLab.AffectCounsel
 
         private void FinishSession(bool timedOut)
         {
+            if (phase == TrainingSessionPhase.Debrief) return;
             sessionController.CancelPendingSubmission();
             phase = TrainingSessionPhase.Debrief;
             sessionController.SetInteractionEnabled(false);
@@ -160,37 +206,57 @@ namespace AdieLab.AffectCounsel
             briefingOverlay.SetActive(false);
             pauseOverlay.SetActive(false);
             debriefOverlay.SetActive(true);
-            debriefTitle.text = timedOut ? "시간이 종료되었습니다" : "첫 회기 디브리핑";
-            debriefReport.text = BuildDebriefReport();
+            debriefTitle.text = timedOut
+                ? "시간이 종료되었습니다"
+                : mode == TrainingMode.SceneReplay ? "장면 재연습 결과" : "세션 성찰 및 재연습";
+            string report = BuildDebriefReport();
+            reflectionController.Present(caseDefinition, mode, turns, report);
             WriteSummary(timedOut);
+        }
+
+        private void ConfigureBriefing()
+        {
+            if (caseDefinition == null) return;
+            briefingCaseLabel.text = $"{caseDefinition.CaseTitle} · {caseDefinition.ClientName}, {caseDefinition.ClientProfile}";
+            StringBuilder body = new StringBuilder();
+            body.AppendLine("상황");
+            body.AppendLine(caseDefinition.PresentingConcern);
+            body.AppendLine();
+            body.AppendLine("이번 세션의 목표");
+            for (int i = 0; i < caseDefinition.LearningObjectives.Length; i++)
+            {
+                body.AppendLine($"{i + 1}. {caseDefinition.LearningObjectives[i]}");
+            }
+            briefingBodyLabel.text = body.ToString();
+            Button[] focusButtons = { focusOneButton, focusTwoButton, focusThreeButton };
+            for (int i = 0; i < focusButtons.Length; i++)
+            {
+                bool available = caseDefinition.FocusSkills != null && i < caseDefinition.FocusSkills.Length;
+                focusButtons[i].gameObject.SetActive(available);
+                if (available) focusButtons[i].GetComponentInChildren<Text>().text = $"{caseDefinition.FocusSkills[i].label} · 3분";
+            }
         }
 
         private void UpdateHud()
         {
             displayedSecond = Mathf.CeilToInt(remainingSeconds);
-            int minutes = displayedSecond / 60;
-            int seconds = displayedSecond % 60;
-            timerLabel.text = $"{minutes:00}:{seconds:00}";
-            stageLabel.text = $"{CounselingSessionFlow.ModeLabel(mode)} · {CurrentStageLabel} · {turnCount}/{CounselingSessionFlow.StartingTargetTurns}턴";
+            timerLabel.text = $"{displayedSecond / 60:00}:{displayedSecond % 60:00}";
+            string focus = SelectedFocus == null ? string.Empty : $" · {SelectedFocus.label}";
+            stageLabel.text = $"{CounselingSessionFlow.ModeLabel(mode)}{focus} · {CurrentStageLabel} · {turns.Count}/{targetTurns}턴";
         }
 
         private string BuildDebriefReport()
         {
-            float averageQuality = turnCount == 0 ? 0f : (float)qualityTotal / turnCount;
-            string completion = turnCount >= CounselingSessionFlow.StartingTargetTurns ? "목표 턴 완료" : "조기 종료";
-            string strength = alignedCount > mismatchCount
-                ? "언어 기술과 전달 단서가 조화를 이룬 순간이 더 많았습니다."
-                : "세션 구조를 유지하며 내담자의 반응을 계속 관찰했습니다.";
-            string nextStep = mismatchCount > 0
-                ? "불일치가 나타난 장면에서 표정에 힘을 빼고 응답 공간을 확보해 보세요."
-                : "다음 세션에서는 감정 반영 뒤 의미 탐색으로 더 깊게 이어가 보세요.";
+            float averageQuality = turns.Count == 0 ? 0f : (float)qualityTotal / turns.Count;
+            string focus = SelectedFocus == null ? string.Empty : $" · {SelectedFocus.label}";
+            string replay = replaySource == null || turns.Count == 0
+                ? string.Empty
+                : $" · 원래 {replaySource.quality}/3 → 재시도 {turns[0].quality}/3";
             return
-                $"{CounselingSessionFlow.ModeLabel(mode)}  ·  {completion}\n" +
-                $"진행 시간  {FormatElapsed()}   |   상담자 응답  {turnCount}턴   |   최종 단계  {CurrentStageLabel}\n\n" +
-                $"관계 궤적   안전 {Percent(latestState.Safety)}   ·   경계 {Percent(latestState.Guardedness)}   ·   공개 {Percent(latestState.WillingnessToDisclose)}\n" +
-                $"전달 정합   {alignedCount}회   ·   불일치 가능성 {mismatchCount}회   ·   언어기술 평균 {averageQuality:0.0}/3\n\n" +
-                $"잘된 점\n{strength}\n\n다음 연습\n{nextStep}\n\n" +
-                "※ 이 결과는 훈련용 시뮬레이션 피드백이며 상담역량 판정이나 임상평가가 아닙니다.";
+                $"{CounselingSessionFlow.ModeLabel(mode)}{focus} · {FormatElapsed()} · {turns.Count}턴{replay}\n" +
+                $"관계 궤적  안전 {Percent(latestState.Safety)} · 경계 {Percent(latestState.Guardedness)} · 공개 {Percent(latestState.WillingnessToDisclose)}\n" +
+                $"전달 정합 {alignedCount}회 · 불일치 가능성 {mismatchCount}회 · 언어기술 평균 {averageQuality:0.0}/3\n" +
+                "장면을 선택하고 먼저 자신의 판단을 남긴 뒤, 시스템 근거와 비교해 보세요.";
         }
 
         private string FormatElapsed()
@@ -199,15 +265,38 @@ namespace AdieLab.AffectCounsel
             return $"{elapsed / 60:00}:{elapsed % 60:00}";
         }
 
+        private int ResolveTargetTurns()
+        {
+            if (mode == TrainingMode.SceneReplay) return 1;
+            if (mode == TrainingMode.FocusedPractice && caseDefinition != null) return caseDefinition.FocusedTargetTurns;
+            return CounselingSessionFlow.StartingTargetTurns;
+        }
+
+        private float ResolveStartingDuration()
+        {
+            foreach (string argument in Environment.GetCommandLineArgs())
+            {
+                if (!argument.StartsWith("--session-test-duration=", StringComparison.Ordinal)) continue;
+                if (float.TryParse(argument.Substring("--session-test-duration=".Length), out float seconds)) return Mathf.Max(0.25f, seconds);
+            }
+            if (caseDefinition == null) return CounselingSessionFlow.StartingDurationSeconds;
+            return mode == TrainingMode.FocusedPractice || mode == TrainingMode.SceneReplay
+                ? caseDefinition.FocusedPracticeSeconds
+                : caseDefinition.FullSessionSeconds;
+        }
+
         private void WriteSummary(bool timedOut)
         {
             TrainingSessionSummaryRecord record = new TrainingSessionSummaryRecord
             {
                 timestampUtc = DateTime.UtcNow.ToString("O"),
+                caseId = caseDefinition == null ? "unknown" : caseDefinition.CaseId,
                 trainingMode = mode.ToString(),
+                focusSkill = SelectedFocus == null ? string.Empty : SelectedFocus.id,
+                replaySourceTurn = replaySource == null ? 0 : replaySource.turn,
                 timedOut = timedOut,
                 elapsedSeconds = ElapsedSeconds,
-                turnCount = turnCount,
+                turnCount = turns.Count,
                 finalStage = stage.ToString(),
                 alignedCount = alignedCount,
                 mismatchCount = mismatchCount,
@@ -220,25 +309,14 @@ namespace AdieLab.AffectCounsel
 
         private static int Percent(float value) => Mathf.RoundToInt(value * 100f);
 
-        private static float ResolveStartingDuration()
-        {
-            foreach (string argument in Environment.GetCommandLineArgs())
-            {
-                if (!argument.StartsWith("--session-test-duration=", StringComparison.Ordinal)) continue;
-                if (float.TryParse(argument.Substring("--session-test-duration=".Length), out float seconds))
-                {
-                    return Mathf.Clamp(seconds, 0.25f, CounselingSessionFlow.StartingDurationSeconds);
-                }
-            }
-
-            return CounselingSessionFlow.StartingDurationSeconds;
-        }
-
         [Serializable]
         private sealed class TrainingSessionSummaryRecord
         {
             public string timestampUtc;
+            public string caseId;
             public string trainingMode;
+            public string focusSkill;
+            public int replaySourceTurn;
             public bool timedOut;
             public float elapsedSeconds;
             public int turnCount;

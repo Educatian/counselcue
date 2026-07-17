@@ -15,6 +15,7 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private FacialActionUnitMonitor actionUnits;
         [SerializeField] private GptRealtimeConversationEngine realtimeEngine;
         [SerializeField] private CounselingSessionOrchestrator sessionOrchestrator;
+        [SerializeField] private CounselingCaseDefinition caseDefinition;
         [SerializeField] private InputField counselorInput;
         [SerializeField] private Button sendButton;
         [SerializeField] private Text clientLine;
@@ -74,7 +75,7 @@ namespace AdieLab.AffectCounsel
         {
             InvalidateSession();
             SetInteractionEnabled(false);
-            SetClientLine(InitialClientLine);
+            SetClientLine(InitialLine);
             client.SetAffect(ClientAffect.Anxious, true);
             feedbackLabel.text = "세션을 시작하면 상담자의 언어 기술과 비언어 전달을 함께 관찰합니다.";
             UpdateLabels();
@@ -89,11 +90,27 @@ namespace AdieLab.AffectCounsel
             isSubmitting = false;
             conversationEngine = "local";
             counselorInput.text = string.Empty;
-            SetClientLine(InitialClientLine);
+            SetClientLine(InitialLine);
             client.SetAffect(ClientAffect.Anxious, true);
             feedbackLabel.text = sessionOrchestrator.ShowLiveCoaching
                 ? "감정을 반영하고 내담자가 의미를 더 말할 수 있도록 응답해 보세요."
                 : "평가 모드 · 세션 종료 후 전달 피드백을 확인합니다.";
+            UpdateLabels();
+            SetInteractionEnabled(true);
+        }
+
+        public void BeginReplaySession(CounselingTurnSnapshot source)
+        {
+            InvalidateSession();
+            sessionId = Guid.NewGuid().ToString("N");
+            relationalState = source.stateBefore;
+            turn = Mathf.Max(0, source.turn - 1);
+            isSubmitting = false;
+            conversationEngine = "local";
+            counselorInput.text = string.Empty;
+            SetClientLine(string.IsNullOrWhiteSpace(source.clientPrompt) ? InitialLine : source.clientPrompt);
+            client.SetAffect(relationalState.Guardedness > 0.65f ? ClientAffect.Guarded : ClientAffect.Anxious, true);
+            feedbackLabel.text = $"선택 장면 재연습 · 원래 응답: {source.skill} · 다른 전달을 시도해 보세요.";
             UpdateLabels();
             SetInteractionEnabled(true);
         }
@@ -146,7 +163,10 @@ namespace AdieLab.AffectCounsel
                                   relationalResult.State.WillingnessToDisclose >= previousState.WillingnessToDisclose;
                 string[] replies = supportive ? supportiveReplies : guardedReplies;
                 int proposedTurn = turn + 1;
-                string reply = replies[Mathf.Min(proposedTurn - 1, replies.Length - 1)];
+                string clientPrompt = clientLine.text;
+                string reply = caseDefinition != null
+                    ? caseDefinition.GetReply(proposedTurn - 1, supportive)
+                    : replies[Mathf.Min(proposedTurn - 1, replies.Length - 1)];
                 string selectedEngine = "local";
                 if (realtimeEngine != null && realtimeEngine.IsRequested)
                 {
@@ -169,10 +189,23 @@ namespace AdieLab.AffectCounsel
                 client.Speak(reply);
                 string engineLabel = conversationEngine == "local" ? "로컬 사례" : "GPT Realtime";
                 feedbackLabel.text = sessionOrchestrator.ShowLiveCoaching
-                    ? $"{engineLabel} · <color=#F8C77A><b>{AlignmentLabel(relationalResult.Alignment)}</b></color> · <b>{assessment.Skill}</b> · {relationalResult.CoachingFeedback}"
+                    ? $"{engineLabel} · <color=#F8C77A><b>{AlignmentLabel(relationalResult.Alignment)}</b></color> · <b>{assessment.Skill}</b> · {relationalResult.CoachingFeedback}{sessionOrchestrator.CurrentFocusPrompt}"
                     : "평가 모드 · 세션 종료 후 전달 피드백을 확인합니다.";
                 WriteRecord(utterance, reply, assessment, observation, relationalResult);
-                sessionOrchestrator.RecordTurn(assessment, relationalResult);
+                sessionOrchestrator.RecordTurn(new CounselingTurnSnapshot
+                {
+                    turn = turn,
+                    stage = sessionOrchestrator.CurrentStageLabel,
+                    counselorUtterance = utterance,
+                    clientPrompt = clientPrompt,
+                    clientReply = reply,
+                    skill = assessment.Skill,
+                    quality = assessment.Quality,
+                    alignment = AlignmentLabel(relationalResult.Alignment),
+                    coachingFeedback = relationalResult.CoachingFeedback,
+                    stateBefore = previousState,
+                    stateAfter = relationalResult.State
+                }, assessment, relationalResult);
                 counselorInput.text = string.Empty;
                 UpdateLabels();
             }
@@ -210,10 +243,15 @@ namespace AdieLab.AffectCounsel
 
         private void SetClientLine(string value) => clientLine.text = value;
 
+        private string InitialLine => caseDefinition == null || string.IsNullOrWhiteSpace(caseDefinition.InitialClientLine)
+            ? InitialClientLine
+            : caseDefinition.InitialClientLine;
+
         private void UpdateLabels()
         {
             string stageLabel = sessionOrchestrator == null ? "초기면담" : sessionOrchestrator.CurrentStageLabel;
-            sessionStatus.text = $"불안 사례 · {stageLabel} · {turn + 1}번째 교환";
+            string caseTitle = caseDefinition == null ? "불안 사례" : caseDefinition.CaseTitle;
+            sessionStatus.text = $"{caseTitle} · {stageLabel} · {turn + 1}번째 교환";
             allianceLabel.text = $"안전 {Percent(relationalState.Safety)} · 경계 {Percent(relationalState.Guardedness)} · 공개 {Percent(relationalState.WillingnessToDisclose)}";
         }
 
