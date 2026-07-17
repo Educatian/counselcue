@@ -15,6 +15,7 @@ namespace AdieLab.AffectCounsel
             bool autoplay = false;
             bool autoplayAdvice = false;
             float captureDelay = 2f;
+            int zoomButtonClicks = 0;
             for (int i = 0; i < arguments.Length; i++)
             {
                 if (arguments[i].StartsWith("--capture=", System.StringComparison.Ordinal))
@@ -35,6 +36,14 @@ namespace AdieLab.AffectCounsel
                 {
                     captureDelay = Mathf.Max(0f, parsedDelay);
                 }
+                else if (arguments[i] == "--zoom=close")
+                {
+                    zoomButtonClicks = 4;
+                }
+                else if (arguments[i] == "--zoom=wide")
+                {
+                    zoomButtonClicks = -4;
+                }
             }
 
             if (string.IsNullOrWhiteSpace(capturePath))
@@ -43,6 +52,20 @@ namespace AdieLab.AffectCounsel
             }
 
             yield return new WaitForSecondsRealtime(captureDelay);
+            if (zoomButtonClicks != 0)
+            {
+                string targetName = zoomButtonClicks > 0 ? "ZoomIn" : "ZoomOut";
+                Button[] buttons = FindObjectsByType<Button>();
+                for (int i = 0; i < buttons.Length; i++)
+                {
+                    if (buttons[i].name != targetName) continue;
+                    for (int click = 0; click < Mathf.Abs(zoomButtonClicks); click++) buttons[i].onClick.Invoke();
+                    break;
+                }
+
+                yield return new WaitForSecondsRealtime(0.6f);
+            }
+
             if (autoplay)
             {
                 InputField input = FindAnyObjectByType<InputField>();

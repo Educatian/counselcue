@@ -73,10 +73,12 @@ namespace AdieLab.AffectCounsel.Editor
             FacialActionUnitMonitor actionUnits = runtime.AddComponent<FacialActionUnitMonitor>();
             GptRealtimeConversationEngine realtime = runtime.AddComponent<GptRealtimeConversationEngine>();
             CounselingSessionController session = runtime.AddComponent<CounselingSessionController>();
+            CounselingCameraZoom cameraZoom = runtime.AddComponent<CounselingCameraZoom>();
             runtime.AddComponent<DemoCaptureController>();
             WireWebcam(webcam, ui);
             WireActionUnits(actionUnits, ui);
             WireSession(session, client, webcam, actionUnits, realtime, ui);
+            WireCameraZoom(cameraZoom, camera, ui);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -280,6 +282,14 @@ namespace AdieLab.AffectCounsel.Editor
             refs.auStatus = CreateText("AuStatus", "AU 분석 대기 · 선택 기능", cameraCard, new Vector2(16f, -104f), new Vector2(290f, 24f), font, 13, HudMint, FontStyle.Bold);
             refs.allianceLabel = CreateText("Alliance", "안전 38 · 경계 62 · 공개 25", cameraCard, new Vector2(16f, -138f), new Vector2(290f, 26f), font, 13, HudGold, FontStyle.Bold);
 
+            RectTransform zoomCard = CreatePanel("ZoomCard", canvas.transform, new Vector2(-26f, -218f), new Vector2(326f, 58f), new Vector2(1f, 1f), panelSprite, HudGlass);
+            CreateAccentBar("ZoomAccent", zoomCard, 58f, HudGold);
+            CreateText("ZoomEyebrow", "관찰 줌", zoomCard, new Vector2(16f, -7f), new Vector2(82f, 20f), font, 11, HudMuted, FontStyle.Bold);
+            refs.zoomLabel = CreateText("ZoomValue", "100%", zoomCard, new Vector2(16f, -27f), new Vector2(82f, 24f), font, 16, HudGold, FontStyle.Bold);
+            refs.zoomOutButton = CreateButton("ZoomOut", zoomCard, new Vector2(108f, -8f), new Vector2(55f, 42f), "−", font, panelSprite, 21);
+            refs.zoomInButton = CreateButton("ZoomIn", zoomCard, new Vector2(169f, -8f), new Vector2(55f, 42f), "+", font, panelSprite, 21);
+            refs.zoomResetButton = CreateButton("ZoomReset", zoomCard, new Vector2(230f, -8f), new Vector2(78f, 42f), "초기", font, panelSprite, 14);
+
             RectTransform speechCard = CreatePanel("ClientSpeechCard", canvas.transform, new Vector2(26f, 170f), new Vector2(540f, 112f), new Vector2(0f, 0f), panelSprite, PaperCard);
             CreateAccentBar("ClientAccent", speechCard, 112f, TealAction);
             CreateText("ClientName", "내담자  ·  김지혜, 32세", speechCard, new Vector2(24f, -12f), new Vector2(492f, 22f), font, 14, new Color(0.27f, 0.39f, 0.34f), FontStyle.Bold);
@@ -289,7 +299,7 @@ namespace AdieLab.AffectCounsel.Editor
             CreateAccentBar("InputAccent", inputCard, 116f, HudMint);
             refs.feedbackLabel = CreateText("Feedback", "감정을 반영하고 내담자가 의미를 더 말할 수 있도록 응답해 보세요.", inputCard, new Vector2(22f, -8f), new Vector2(996f, 24f), font, 15, HudText, FontStyle.Normal);
             refs.input = CreateInputField(inputCard, new Vector2(22f, -38f), new Vector2(786f, 58f), font, panelSprite);
-            refs.sendButton = CreateButton(inputCard, new Vector2(824f, -38f), new Vector2(194f, 58f), "응답하기", font, panelSprite);
+            refs.sendButton = CreateButton("SendButton", inputCard, new Vector2(824f, -38f), new Vector2(194f, 58f), "응답하기", font, panelSprite, 18);
             return refs;
         }
 
@@ -347,6 +357,17 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.FindProperty("sessionStatus").objectReferenceValue = ui.sessionStatus;
             serialized.FindProperty("feedbackLabel").objectReferenceValue = ui.feedbackLabel;
             serialized.FindProperty("allianceLabel").objectReferenceValue = ui.allianceLabel;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void WireCameraZoom(CounselingCameraZoom cameraZoom, Camera camera, UiReferences ui)
+        {
+            SerializedObject serialized = new SerializedObject(cameraZoom);
+            serialized.FindProperty("targetCamera").objectReferenceValue = camera;
+            serialized.FindProperty("zoomOutButton").objectReferenceValue = ui.zoomOutButton;
+            serialized.FindProperty("zoomInButton").objectReferenceValue = ui.zoomInButton;
+            serialized.FindProperty("resetButton").objectReferenceValue = ui.zoomResetButton;
+            serialized.FindProperty("zoomLabel").objectReferenceValue = ui.zoomLabel;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -516,9 +537,9 @@ namespace AdieLab.AffectCounsel.Editor
             return input;
         }
 
-        private static Button CreateButton(Transform parent, Vector2 position, Vector2 size, string label, Font font, Sprite sprite)
+        private static Button CreateButton(string name, Transform parent, Vector2 position, Vector2 size, string label, Font font, Sprite sprite, int fontSize)
         {
-            RectTransform root = CreatePanel("SendButton", parent, position, size, new Vector2(0f, 1f), sprite, TealAction);
+            RectTransform root = CreatePanel(name, parent, position, size, new Vector2(0f, 1f), sprite, TealAction);
             Button button = root.gameObject.AddComponent<Button>();
             ColorBlock colors = button.colors;
             colors.normalColor = Color.white;
@@ -529,7 +550,7 @@ namespace AdieLab.AffectCounsel.Editor
             colors.colorMultiplier = 1f;
             colors.fadeDuration = 0.10f;
             button.colors = colors;
-            Text text = CreateText("Label", label, root, Vector2.zero, size, font, 18, Color.white, FontStyle.Bold);
+            Text text = CreateText("Label", label, root, Vector2.zero, size, font, fontSize, Color.white, FontStyle.Bold);
             text.alignment = TextAnchor.MiddleCenter;
             return button;
         }
@@ -562,10 +583,14 @@ namespace AdieLab.AffectCounsel.Editor
         {
             public InputField input;
             public Button sendButton;
+            public Button zoomOutButton;
+            public Button zoomInButton;
+            public Button zoomResetButton;
             public Text clientLine;
             public Text sessionStatus;
             public Text feedbackLabel;
             public Text allianceLabel;
+            public Text zoomLabel;
             public Text webcamStatus;
             public Text auStatus;
             public RawImage webcamPreview;
