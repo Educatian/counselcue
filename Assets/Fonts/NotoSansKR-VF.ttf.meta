@@ -3,16 +3,16 @@ guid: 145a38edfc9e947429be2aa4ecb1720b
 TrueTypeFontImporter:
   externalObjects: {}
   serializedVersion: 4
-  fontSize: 16
+  fontSize: 32
   forceTextureCase: -2
   characterSpacing: 0
-  characterPadding: 1
+  characterPadding: 2
   includeFontData: 1
   fontNames:
   - Noto Sans KR
   fallbackFontReferences: []
   customCharacters: 
-  fontRenderingMode: 0
+  fontRenderingMode: 1
   ascentCalculationMode: 1
   useLegacyBoundsCalculation: 0
   shouldRoundAdvanceValue: 1

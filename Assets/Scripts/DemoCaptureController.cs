@@ -14,6 +14,7 @@ namespace AdieLab.AffectCounsel
             string capturePath = null;
             bool autoplay = false;
             bool autoplayAdvice = false;
+            bool useEnglishUi = false;
             float captureDelay = 2f;
             int zoomButtonClicks = 0;
             string sessionState = "active";
@@ -31,6 +32,10 @@ namespace AdieLab.AffectCounsel
                 {
                     autoplay = true;
                     autoplayAdvice = true;
+                }
+                else if (arguments[i] == "--language=en")
+                {
+                    useEnglishUi = true;
                 }
                 else if (arguments[i].StartsWith("--capture-delay=", System.StringComparison.Ordinal) &&
                          float.TryParse(arguments[i].Substring("--capture-delay=".Length), NumberStyles.Float, CultureInfo.InvariantCulture, out float parsedDelay))
@@ -57,6 +62,11 @@ namespace AdieLab.AffectCounsel
             }
 
             yield return new WaitForSecondsRealtime(captureDelay);
+            if (useEnglishUi)
+            {
+                InvokeButton("LanguageToggle");
+                yield return new WaitForSecondsRealtime(0.25f);
+            }
             if (sessionState != "briefing")
             {
                 string startButton = sessionState.StartsWith("evaluation", System.StringComparison.Ordinal)

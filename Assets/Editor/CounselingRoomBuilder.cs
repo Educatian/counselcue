@@ -19,6 +19,10 @@ namespace AdieLab.AffectCounsel.Editor
         private const string FontPath = "Assets/Fonts/NotoSansKR-VF.ttf";
         private const string ControllerPath = "Assets/Animations/CounselingClient.controller";
         private const string CasePath = "Assets/Data/Cases/WorkplaceAnxietyCase.asset";
+        private const string ArtworkTexturePath = "Assets/Art/Textures/HanjiMountainArtwork.png";
+        private const string UiButtonSpritePath = "Assets/ThirdParty/Kenney/UI/button_rectangle_depth_flat.png";
+        private const string UiPanelSpritePath = "Assets/ThirdParty/Kenney/UI/input_rectangle.png";
+        private const string UiDividerSpritePath = "Assets/ThirdParty/Kenney/UI/divider_edges.png";
 
         private static Material cream;
         private static Material warmWhite;
@@ -31,6 +35,10 @@ namespace AdieLab.AffectCounsel.Editor
         private static Material windowGlow;
         private static Material leaf;
         private static Material paper;
+        private static Material artwork;
+        private static Sprite uiButtonSprite;
+        private static Sprite uiInputSprite;
+        private static Sprite uiDividerSprite;
 
         private static readonly Color HudGlass = new Color(0.035f, 0.055f, 0.052f, 0.88f);
         private static readonly Color HudGlassStrong = new Color(0.030f, 0.047f, 0.045f, 0.94f);
@@ -55,12 +63,12 @@ namespace AdieLab.AffectCounsel.Editor
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             CounselingCaseDefinition caseDefinition = CreateDefaultCaseDefinition();
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.66f, 0.65f, 0.58f);
-            RenderSettings.ambientEquatorColor = new Color(0.40f, 0.35f, 0.29f);
-            RenderSettings.ambientGroundColor = new Color(0.17f, 0.13f, 0.10f);
+            RenderSettings.ambientSkyColor = new Color(0.74f, 0.72f, 0.66f);
+            RenderSettings.ambientEquatorColor = new Color(0.46f, 0.41f, 0.34f);
+            RenderSettings.ambientGroundColor = new Color(0.22f, 0.17f, 0.12f);
             RenderSettings.fog = true;
-            RenderSettings.fogColor = new Color(0.80f, 0.74f, 0.65f);
-            RenderSettings.fogDensity = 0.003f;
+            RenderSettings.fogColor = new Color(0.86f, 0.81f, 0.73f);
+            RenderSettings.fogDensity = 0.002f;
 
             Transform environment = new GameObject("KoreanCounselingRoom_Environment").transform;
             BuildArchitecture(environment);
@@ -78,6 +86,7 @@ namespace AdieLab.AffectCounsel.Editor
             CounselingSessionOrchestrator orchestrator = runtime.AddComponent<CounselingSessionOrchestrator>();
             CounselingSessionController session = runtime.AddComponent<CounselingSessionController>();
             CounselingCameraZoom cameraZoom = runtime.AddComponent<CounselingCameraZoom>();
+            CounselingLanguageToggle languageToggle = runtime.AddComponent<CounselingLanguageToggle>();
             runtime.AddComponent<DemoCaptureController>();
             WireWebcam(webcam, ui);
             WireActionUnits(actionUnits, ui);
@@ -85,6 +94,7 @@ namespace AdieLab.AffectCounsel.Editor
             WireSessionOrchestrator(orchestrator, session, reflection, caseDefinition, ui);
             WireReflection(reflection, orchestrator, ui);
             WireCameraZoom(cameraZoom, camera, ui);
+            WireLanguageToggle(languageToggle, ui);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -126,60 +136,56 @@ namespace AdieLab.AffectCounsel.Editor
             CreateCube("RightBaseboard", new Vector3(2.99f, 0.09f, 0f), new Vector3(0.06f, 0.18f, 7.1f), darkOak, parent);
 
             CreateCube("Window", new Vector3(-3.01f, 1.82f, 0.78f), new Vector3(0.045f, 1.82f, 2.28f), windowGlow, parent);
-            for (int i = 0; i < 6; i++)
-            {
-                CreateCube($"WoodBlind_{i:00}", new Vector3(-2.97f, 1.04f + i * 0.29f, 0.78f), new Vector3(0.035f, 0.025f, 2.14f), oak, parent);
-            }
+            CreateCube("SheerWindow", new Vector3(-2.96f, 1.82f, 0.78f), new Vector3(0.035f, 1.74f, 2.16f), warmWhite, parent);
 
-            CreateCube("AcousticPanel_01", new Vector3(-1.22f, 1.85f, 3.47f), new Vector3(0.72f, 1.18f, 0.08f), sage, parent);
-            CreateCube("AcousticPanel_02", new Vector3(-0.42f, 1.85f, 3.47f), new Vector3(0.72f, 1.18f, 0.08f), teal, parent);
-            CreateCube("AcousticPanel_03", new Vector3(0.38f, 1.85f, 3.47f), new Vector3(0.72f, 1.18f, 0.08f), paper, parent);
+            CreateCube("BackWindowGlow", new Vector3(-2.14f, 1.76f, 3.46f), new Vector3(1.18f, 2.28f, 0.05f), windowGlow, parent);
+            CreateCurtain("LeftCurtain", -2.64f, 1.62f, 3.38f, 0.78f, parent);
+            CreateCurtain("RightCurtain", 2.34f, 1.62f, 3.38f, 0.92f, parent);
         }
 
         private static void BuildFurniture(Transform parent)
         {
-            GameObject rug = CreateCube("WovenRug", new Vector3(0f, 0.015f, -0.02f), new Vector3(3.45f, 0.025f, 3.58f), paper, parent);
-            for (int i = -4; i <= 4; i++)
+            GameObject rug = CreateCube("WovenRug", new Vector3(0f, 0.015f, 0.22f), new Vector3(4.30f, 0.025f, 3.70f), paper, parent);
+            for (int i = -5; i <= 5; i++)
             {
-                CreateCube($"RugThread_{i + 4:00}", new Vector3(i * 0.35f, 0.032f, 0f), new Vector3(0.015f, 0.008f, 3.34f), sage, rug.transform);
+                CreateCube($"RugThread_{i + 5:00}", new Vector3(i * 0.36f, 0.032f, 0f), new Vector3(0.009f, 0.006f, 3.46f), warmWhite, rug.transform);
             }
 
-            CreateChair("ClientChair", new Vector3(0f, 0f, 1.30f), 180f, teal, parent, true);
+            CreateChair("ClientChair", new Vector3(0f, 0f, 1.30f), 180f, warmWhite, parent, true);
             CreateChair("CounselorChair", new Vector3(0.78f, 0f, -1.92f), 14f, sage, parent, false);
 
-            CreateCylinder("CoffeeTableTop", new Vector3(0.02f, 0.43f, -0.02f), new Vector3(0.47f, 0.045f, 0.47f), oak, parent);
-            CreateCylinder("CoffeeTableStem", new Vector3(0.02f, 0.24f, -0.08f), new Vector3(0.09f, 0.23f, 0.09f), darkOak, parent);
-            CreateCylinder("CoffeeTableBase", new Vector3(0.02f, 0.04f, -0.08f), new Vector3(0.30f, 0.035f, 0.30f), darkOak, parent);
+            Vector3 sideTable = new Vector3(1.18f, 0f, 1.18f);
+            CreateCylinder("CoffeeTableTop", sideTable + new Vector3(0f, 0.55f, 0f), new Vector3(0.40f, 0.045f, 0.40f), darkOak, parent);
+            CreateCylinder("CoffeeTableStem", sideTable + new Vector3(0f, 0.30f, 0f), new Vector3(0.065f, 0.28f, 0.065f), darkOak, parent);
+            CreateCylinder("CoffeeTableBase", sideTable + new Vector3(0f, 0.04f, 0f), new Vector3(0.26f, 0.035f, 0.26f), darkOak, parent);
 
-            CreateCube("TissueBox", new Vector3(-0.20f, 0.58f, -0.02f), new Vector3(0.23f, 0.13f, 0.14f), paper, parent);
-            CreateCube("Tissue", new Vector3(-0.20f, 0.69f, -0.02f), new Vector3(0.045f, 0.10f, 0.025f), warmWhite, parent);
-            CreateCylinder("ClientTeaCup", new Vector3(0.24f, 0.59f, 0.08f), new Vector3(0.075f, 0.10f, 0.075f), warmWhite, parent);
-            CreateCube("CounselorNotebook", new Vector3(0.25f, 0.565f, -0.30f), new Vector3(0.27f, 0.022f, 0.18f), charcoal, parent);
-            CreateBookcase(new Vector3(2.53f, 0f, 1.82f), parent);
+            CreateCube("TissueBox", sideTable + new Vector3(-0.12f, 0.66f, 0f), new Vector3(0.22f, 0.13f, 0.16f), oak, parent);
+            CreateCube("Tissue", sideTable + new Vector3(-0.12f, 0.77f, 0f), new Vector3(0.045f, 0.10f, 0.025f), warmWhite, parent);
+            CreateCylinder("ClientTeaCup", sideTable + new Vector3(0.18f, 0.66f, 0.02f), new Vector3(0.075f, 0.10f, 0.075f), paper, parent);
+            CreateLowConsole(new Vector3(-1.78f, 0f, 3.02f), parent);
         }
 
         private static void BuildDecor(Transform parent)
         {
-            CreatePlant(new Vector3(-2.30f, 0f, 2.48f), 1.08f, parent);
-            CreatePlant(new Vector3(2.54f, 1.35f, 1.78f), 0.44f, parent);
+            CreatePlant(new Vector3(-2.34f, 0f, 2.42f), 0.94f, parent);
+            CreatePlant(new Vector3(2.22f, 0f, 2.56f), 0.82f, parent);
 
-            CreateCube("ArtworkFrame", new Vector3(1.58f, 1.92f, 3.47f), new Vector3(1.18f, 0.92f, 0.07f), darkOak, parent);
-            CreateCube("ArtworkCanvas", new Vector3(1.58f, 1.92f, 3.40f), new Vector3(1.04f, 0.78f, 0.03f), paper, parent);
-            CreateSphere("ArtworkSun", new Vector3(1.34f, 2.05f, 3.36f), new Vector3(0.18f, 0.18f, 0.035f), brass, parent);
-            CreateCube("ArtworkHill", new Vector3(1.72f, 1.76f, 3.35f), new Vector3(0.66f, 0.18f, 0.02f), sage, parent);
+            CreateCube("ArtworkFrame", new Vector3(0.38f, 2.12f, 3.43f), new Vector3(1.34f, 1.34f, 0.07f), darkOak, parent);
+            GameObject hanjiArtwork = CreateCube("HanjiMountainArtwork", new Vector3(0.38f, 2.12f, 3.37f), new Vector3(1.18f, 1.18f, 0.025f), artwork, parent);
+            hanjiArtwork.transform.rotation = Quaternion.Euler(0f, 0f, 180f);
 
-            CreateCylinder("FloorLampStand", new Vector3(2.44f, 0.72f, -0.18f), new Vector3(0.025f, 0.72f, 0.025f), brass, parent);
-            CreateCylinder("FloorLampBase", new Vector3(2.44f, 0.05f, -0.18f), new Vector3(0.20f, 0.035f, 0.20f), brass, parent);
-            CreateCylinder("FloorLampShade", new Vector3(2.44f, 1.48f, -0.18f), new Vector3(0.24f, 0.28f, 0.24f), paper, parent);
+            CreateCylinder("FloorLampStand", new Vector3(-1.34f, 0.82f, 2.65f), new Vector3(0.025f, 0.82f, 0.025f), darkOak, parent);
+            CreateCylinder("FloorLampBase", new Vector3(-1.34f, 0.05f, 2.65f), new Vector3(0.20f, 0.035f, 0.20f), darkOak, parent);
+            CreateCylinder("FloorLampShade", new Vector3(-1.34f, 1.68f, 2.65f), new Vector3(0.28f, 0.30f, 0.28f), paper, parent);
 
             GameObject lamp = new GameObject("FloorLampWarmLight");
             lamp.transform.SetParent(parent);
-            lamp.transform.position = new Vector3(2.44f, 1.42f, -0.18f);
+            lamp.transform.position = new Vector3(-1.34f, 1.58f, 2.65f);
             Light light = lamp.AddComponent<Light>();
             light.type = LightType.Point;
             light.color = new Color(1f, 0.72f, 0.44f);
-            light.intensity = 1.8f;
-            light.range = 3.8f;
+            light.intensity = 1.55f;
+            light.range = 3.4f;
             light.shadows = LightShadows.Soft;
         }
 
@@ -199,7 +205,7 @@ namespace AdieLab.AffectCounsel.Editor
             Light sun = daylight.AddComponent<Light>();
             sun.type = LightType.Directional;
             sun.color = new Color(1f, 0.91f, 0.78f);
-            sun.intensity = 0.74f;
+            sun.intensity = 0.82f;
             sun.shadows = LightShadows.Soft;
             daylight.transform.rotation = Quaternion.Euler(34f, 128f, 0f);
 
@@ -207,7 +213,7 @@ namespace AdieLab.AffectCounsel.Editor
             Light fill = ceiling.AddComponent<Light>();
             fill.type = LightType.Point;
             fill.color = new Color(1f, 0.86f, 0.68f);
-            fill.intensity = 1.22f;
+            fill.intensity = 1.08f;
             fill.range = 6.2f;
             fill.shadows = LightShadows.Soft;
             ceiling.transform.position = new Vector3(0f, 2.72f, 0.35f);
@@ -216,7 +222,7 @@ namespace AdieLab.AffectCounsel.Editor
             Light face = softbox.AddComponent<Light>();
             face.type = LightType.Spot;
             face.color = new Color(1f, 0.82f, 0.68f);
-            face.intensity = 1.45f;
+            face.intensity = 1.34f;
             face.range = 5f;
             face.spotAngle = 78f;
             face.shadows = LightShadows.Soft;
@@ -263,11 +269,15 @@ namespace AdieLab.AffectCounsel.Editor
         private static UiReferences BuildUi()
         {
             Font font = AssetDatabase.LoadAssetAtPath<Font>(FontPath);
-            Sprite panelSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+            uiButtonSprite = LoadUiSprite(UiButtonSpritePath, new Vector4(28f, 28f, 28f, 34f));
+            uiInputSprite = LoadUiSprite(UiPanelSpritePath, new Vector4(24f, 24f, 24f, 24f));
+            uiDividerSprite = LoadUiSprite(UiDividerSpritePath, new Vector4(8f, 0f, 8f, 0f));
+            Sprite panelSprite = uiInputSprite ?? AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
             GameObject canvasObject = new GameObject("CounselingHUD", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             Canvas canvas = canvasObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 10;
+            canvas.pixelPerfect = true;
             CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1600f, 900f);
@@ -292,13 +302,13 @@ namespace AdieLab.AffectCounsel.Editor
             CreateAccentBar("SignalAccent", cameraCard, 178f, HudMint);
             refs.webcamPreview = CreateRawImage("WebcamPreview", cameraCard, new Vector2(16f, -16f), new Vector2(100f, 74f), panelSprite);
             refs.webcamStatus = CreateText("WebcamStatus", "웹캠 준비 중", cameraCard, new Vector2(132f, -16f), new Vector2(174f, 42f), font, 14, HudMint, FontStyle.Bold);
-            CreateText("Privacy", "영상 미저장 · 기기 내 처리", cameraCard, new Vector2(132f, -60f), new Vector2(174f, 24f), font, 12, HudText, FontStyle.Normal);
+            CreateText("Privacy", "영상 미저장 · 기기 내 처리", cameraCard, new Vector2(132f, -60f), new Vector2(174f, 24f), font, 13, HudText, FontStyle.Normal);
             refs.auStatus = CreateText("AuStatus", "AU 분석 대기 · 선택 기능", cameraCard, new Vector2(16f, -104f), new Vector2(290f, 24f), font, 13, HudMint, FontStyle.Bold);
             refs.allianceLabel = CreateText("Alliance", "안전 38 · 경계 62 · 공개 25", cameraCard, new Vector2(16f, -138f), new Vector2(290f, 26f), font, 13, HudGold, FontStyle.Bold);
 
             RectTransform zoomCard = CreatePanel("ZoomCard", canvas.transform, new Vector2(-26f, -218f), new Vector2(326f, 58f), new Vector2(1f, 1f), panelSprite, HudGlass);
             CreateAccentBar("ZoomAccent", zoomCard, 58f, HudGold);
-            CreateText("ZoomEyebrow", "관찰 줌", zoomCard, new Vector2(16f, -7f), new Vector2(82f, 20f), font, 11, HudMuted, FontStyle.Bold);
+            CreateText("ZoomEyebrow", "관찰 줌", zoomCard, new Vector2(16f, -7f), new Vector2(82f, 20f), font, 12, HudMuted, FontStyle.Bold);
             refs.zoomLabel = CreateText("ZoomValue", "100%", zoomCard, new Vector2(16f, -27f), new Vector2(82f, 24f), font, 16, HudGold, FontStyle.Bold);
             refs.zoomOutButton = CreateButton("ZoomOut", zoomCard, new Vector2(108f, -8f), new Vector2(55f, 42f), "−", font, panelSprite, 21);
             refs.zoomInButton = CreateButton("ZoomIn", zoomCard, new Vector2(169f, -8f), new Vector2(55f, 42f), "+", font, panelSprite, 21);
@@ -334,6 +344,7 @@ namespace AdieLab.AffectCounsel.Editor
             CreateText("FullSessionLabel", "전체 회기 · 15분 / 목표 10턴", briefingCard, new Vector2(42f, -402f), new Vector2(890f, 24f), font, 14, TealAction, FontStyle.Bold);
             refs.practiceStartButton = CreateButton("StartPractice", briefingCard, new Vector2(42f, -434f), new Vector2(430f, 56f), "코칭 연습 시작", font, panelSprite, 17);
             refs.evaluationStartButton = CreateButton("StartEvaluation", briefingCard, new Vector2(500f, -434f), new Vector2(432f, 56f), "평가 모드 시작", font, panelSprite, 17);
+            CreateDivider("PracticePathDivider", briefingCard, new Vector2(42f, -500f), new Vector2(890f, 4f), new Color(0.34f, 0.47f, 0.40f, 0.55f));
             CreateText("FocusedLabel", "미세기술 집중연습 · 시작값 3분 / 목표 3턴", briefingCard, new Vector2(42f, -512f), new Vector2(890f, 24f), font, 14, TealAction, FontStyle.Bold);
             refs.focusOneButton = CreateButton("StartFocusOne", briefingCard, new Vector2(42f, -548f), new Vector2(280f, 54f), "감정 반영 · 3분", font, panelSprite, 15);
             refs.focusTwoButton = CreateButton("StartFocusTwo", briefingCard, new Vector2(347f, -548f), new Vector2(280f, 54f), "개방형 질문 · 3분", font, panelSprite, 15);
@@ -357,6 +368,7 @@ namespace AdieLab.AffectCounsel.Editor
             CreateText("DebriefEyebrow", "REFLECT · COMPARE · RETRY", debriefCard, new Vector2(46f, -28f), new Vector2(1028f, 24f), font, 13, TealAction, FontStyle.Bold);
             refs.debriefTitle = CreateText("DebriefTitle", "세션 성찰 및 재연습", debriefCard, new Vector2(46f, -62f), new Vector2(1028f, 44f), font, 30, Ink, FontStyle.Bold);
             refs.debriefReport = CreateText("DebriefSummary", string.Empty, debriefCard, new Vector2(46f, -116f), new Vector2(1028f, 104f), font, 15, Ink, FontStyle.Normal);
+            CreateDivider("ReflectionDivider", debriefCard, new Vector2(46f, -214f), new Vector2(1028f, 4f), new Color(0.34f, 0.47f, 0.40f, 0.55f));
             CreateText("TimelineHeading", "장면 타임라인 · 장면을 선택하세요", debriefCard, new Vector2(46f, -226f), new Vector2(1028f, 24f), font, 14, TealAction, FontStyle.Bold);
             refs.timelineButtons = new Button[10];
             for (int i = 0; i < refs.timelineButtons.Length; i++)
@@ -372,6 +384,8 @@ namespace AdieLab.AffectCounsel.Editor
             refs.replayButton = CreateButton("ReplaySelected", debriefCard, new Vector2(522f, -548f), new Vector2(260f, 50f), "이 장면 다시 연습", font, panelSprite, 15);
             refs.returnButton = CreateButton("ReturnToBriefing", debriefCard, new Vector2(800f, -548f), new Vector2(274f, 50f), "연습 경로로", font, panelSprite, 15);
             CreateText("DebriefDisclaimer", "※ 먼저 자기평가한 뒤 시스템 근거와 비교합니다. 훈련용 피드백이며 임상평가가 아닙니다.", debriefCard, new Vector2(46f, -620f), new Vector2(1028f, 36f), font, 13, new Color(0.38f, 0.43f, 0.40f), FontStyle.Normal);
+
+            refs.languageToggleButton = CreateButton("LanguageToggle", canvas.transform, new Vector2(735f, -22f), new Vector2(130f, 38f), "UI: EN", font, panelSprite, 13);
 
             refs.activeControlCard.SetActive(false);
             refs.pauseOverlay.SetActive(false);
@@ -566,6 +580,13 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
+        private static void WireLanguageToggle(CounselingLanguageToggle languageToggle, UiReferences ui)
+        {
+            SerializedObject serialized = new SerializedObject(languageToggle);
+            serialized.FindProperty("toggleButton").objectReferenceValue = ui.languageToggleButton;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
         private static void CreateChair(string name, Vector3 position, float yaw, Material fabric, Transform parent, bool full)
         {
             GameObject root = new GameObject(name);
@@ -579,6 +600,46 @@ namespace AdieLab.AffectCounsel.Editor
             if (!full) return;
             CreateCube("LeftLeg", new Vector3(-0.30f, 0.22f, -0.22f), new Vector3(0.07f, 0.44f, 0.07f), darkOak, root.transform);
             CreateCube("RightLeg", new Vector3(0.30f, 0.22f, -0.22f), new Vector3(0.07f, 0.44f, 0.07f), darkOak, root.transform);
+        }
+
+        private static void CreateCurtain(string name, float centerX, float centerY, float z, float width, Transform parent)
+        {
+            GameObject root = new GameObject(name);
+            root.transform.SetParent(parent);
+            for (int i = 0; i < 7; i++)
+            {
+                float normalized = i / 6f - 0.5f;
+                float foldZ = z - Mathf.Abs(normalized) * 0.035f + (i % 2 == 0 ? -0.025f : 0.02f);
+                CreateCube(
+                    $"Fold_{i:00}",
+                    new Vector3(centerX + normalized * width, centerY, foldZ),
+                    new Vector3(width / 6.4f, 2.82f, 0.075f),
+                    sage,
+                    root.transform);
+            }
+            CreateCylinder("CurtainRail", new Vector3(centerX, 3.03f, z + 0.02f), new Vector3(0.025f, width * 0.58f, 0.025f), darkOak, root.transform)
+                .transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+        }
+
+        private static void CreateLowConsole(Vector3 position, Transform parent)
+        {
+            GameObject root = new GameObject("LowWalnutConsole");
+            root.transform.SetParent(parent);
+            root.transform.position = position;
+            CreateCube("Body", new Vector3(0f, 0.44f, 0f), new Vector3(1.72f, 0.70f, 0.42f), oak, root.transform);
+            CreateCube("Top", new Vector3(0f, 0.82f, 0f), new Vector3(1.82f, 0.07f, 0.46f), darkOak, root.transform);
+            CreateCube("LeftDoor", new Vector3(-0.43f, 0.44f, -0.225f), new Vector3(0.78f, 0.58f, 0.025f), darkOak, root.transform);
+            CreateCube("RightDoor", new Vector3(0.43f, 0.44f, -0.225f), new Vector3(0.78f, 0.58f, 0.025f), darkOak, root.transform);
+            for (int i = -1; i <= 1; i += 2)
+            {
+                CreateCube($"Leg_{i}", new Vector3(i * 0.68f, 0.10f, 0f), new Vector3(0.07f, 0.20f, 0.07f), darkOak, root.transform);
+            }
+            CreateCylinder("CeramicVase", new Vector3(-0.48f, 0.98f, 0f), new Vector3(0.12f, 0.16f, 0.12f), paper, root.transform);
+            Material[] colors = { sage, paper, brass, cream };
+            for (int i = 0; i < 4; i++)
+            {
+                CreateCube($"CounselingBook_{i:00}", new Vector3(0.25f + i * 0.13f, 0.94f, 0f), new Vector3(0.09f, 0.24f + i % 2 * 0.04f, 0.18f), colors[i], root.transform);
+            }
         }
 
         private static void CreateBookcase(Vector3 position, Transform parent)
@@ -616,19 +677,24 @@ namespace AdieLab.AffectCounsel.Editor
 
         private static void CreateMaterials()
         {
-            cream = MaterialAsset("CreamWall", new Color(0.82f, 0.76f, 0.66f), 0.04f);
-            warmWhite = MaterialAsset("WarmWhite", new Color(0.92f, 0.88f, 0.80f), 0.08f);
-            oak = MaterialAsset("LightOak", new Color(0.58f, 0.38f, 0.20f), 0.28f);
-            darkOak = MaterialAsset("DarkOak", new Color(0.22f, 0.12f, 0.07f), 0.30f);
-            sage = MaterialAsset("Sage", new Color(0.28f, 0.42f, 0.35f), 0.08f);
-            teal = MaterialAsset("TealFabric", new Color(0.16f, 0.30f, 0.30f), 0.04f);
+            cream = MaterialAsset("CreamWall", new Color(0.91f, 0.87f, 0.79f), 0.03f);
+            warmWhite = MaterialAsset("WarmWhite", new Color(0.94f, 0.91f, 0.85f), 0.06f);
+            oak = MaterialAsset("LightOak", new Color(0.66f, 0.48f, 0.30f), 0.24f);
+            darkOak = MaterialAsset("DarkOak", new Color(0.26f, 0.15f, 0.09f), 0.27f);
+            sage = MaterialAsset("Sage", new Color(0.42f, 0.50f, 0.40f), 0.05f);
+            teal = MaterialAsset("TealFabric", new Color(0.22f, 0.34f, 0.32f), 0.04f);
             charcoal = MaterialAsset("Charcoal", new Color(0.07f, 0.08f, 0.075f), 0.18f);
             brass = MaterialAsset("Brass", new Color(0.72f, 0.48f, 0.18f), 0.62f, 0.55f);
             leaf = MaterialAsset("Leaf", new Color(0.12f, 0.30f, 0.16f), 0.16f);
-            paper = MaterialAsset("Paper", new Color(0.88f, 0.83f, 0.73f), 0.08f);
-            windowGlow = MaterialAsset("WindowGlow", new Color(0.68f, 0.82f, 0.84f), 0.18f);
+            paper = MaterialAsset("Paper", new Color(0.82f, 0.77f, 0.68f), 0.06f);
+            windowGlow = MaterialAsset("WindowGlow", new Color(0.84f, 0.88f, 0.84f), 0.12f);
             windowGlow.EnableKeyword("_EMISSION");
-            windowGlow.SetColor("_EmissionColor", new Color(0.22f, 0.34f, 0.36f));
+            windowGlow.SetColor("_EmissionColor", new Color(0.30f, 0.34f, 0.30f));
+
+            artwork = MaterialAsset("HanjiArtwork", Color.white, 0.02f);
+            Texture2D artworkTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(ArtworkTexturePath);
+            artwork.mainTexture = artworkTexture;
+            EditorUtility.SetDirty(artwork);
         }
 
         private static Material MaterialAsset(string name, Color color, float smoothness, float metallic = 0f)
@@ -645,6 +711,30 @@ namespace AdieLab.AffectCounsel.Editor
             material.SetFloat("_Metallic", metallic);
             EditorUtility.SetDirty(material);
             return material;
+        }
+
+        private static Sprite LoadUiSprite(string path, Vector4 border)
+        {
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) return null;
+            bool requiresImport = importer.textureType != TextureImporterType.Sprite ||
+                                  importer.spriteImportMode != SpriteImportMode.Single ||
+                                  importer.spriteBorder != border ||
+                                  importer.mipmapEnabled ||
+                                  importer.wrapMode != TextureWrapMode.Clamp;
+            if (requiresImport)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.spritePixelsPerUnit = 100f;
+                importer.spriteBorder = border;
+                importer.mipmapEnabled = false;
+                importer.alphaIsTransparency = true;
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.filterMode = FilterMode.Bilinear;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
         }
 
         private static GameObject CreateCube(string name, Vector3 position, Vector3 scale, Material material, Transform parent) => CreatePrimitive(PrimitiveType.Cube, name, position, scale, material, parent);
@@ -698,6 +788,23 @@ namespace AdieLab.AffectCounsel.Editor
             image.raycastTarget = false;
         }
 
+        private static void CreateDivider(string name, Transform parent, Vector2 position, Vector2 size, Color color)
+        {
+            GameObject gameObject = new GameObject(name, typeof(RectTransform), typeof(Image));
+            RectTransform rect = gameObject.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            Image image = gameObject.GetComponent<Image>();
+            image.sprite = uiDividerSprite;
+            image.type = Image.Type.Sliced;
+            image.color = color;
+            image.raycastTarget = false;
+        }
+
         private static Text CreateText(string name, string value, Transform parent, Vector2 position, Vector2 size, Font font, int fontSize, Color color, FontStyle style)
         {
             GameObject gameObject = new GameObject(name, typeof(RectTransform), typeof(Text));
@@ -712,6 +819,7 @@ namespace AdieLab.AffectCounsel.Editor
             text.font = font;
             text.fontSize = fontSize;
             text.fontStyle = style;
+            text.alignByGeometry = true;
             text.color = color;
             text.text = value;
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -722,7 +830,7 @@ namespace AdieLab.AffectCounsel.Editor
 
         private static InputField CreateInputField(Transform parent, Vector2 position, Vector2 size, Font font, Sprite sprite)
         {
-            RectTransform root = CreatePanel("CounselorInput", parent, position, size, new Vector2(0f, 1f), sprite, new Color(0.97f, 0.96f, 0.92f, 1f));
+            RectTransform root = CreatePanel("CounselorInput", parent, position, size, new Vector2(0f, 1f), uiInputSprite ?? sprite, new Color(0.98f, 0.97f, 0.94f, 1f));
             InputField input = root.gameObject.AddComponent<InputField>();
             Text text = CreateText("Text", string.Empty, root, new Vector2(18f, -10f), new Vector2(size.x - 36f, size.y - 20f), font, 18, Ink, FontStyle.Normal);
             Text placeholder = CreateText("Placeholder", "상담자의 응답을 입력하세요…", root, new Vector2(18f, -10f), new Vector2(size.x - 36f, size.y - 20f), font, 17, new Color(0.44f, 0.49f, 0.46f), FontStyle.Normal);
@@ -734,7 +842,7 @@ namespace AdieLab.AffectCounsel.Editor
 
         private static Button CreateButton(string name, Transform parent, Vector2 position, Vector2 size, string label, Font font, Sprite sprite, int fontSize)
         {
-            RectTransform root = CreatePanel(name, parent, position, size, new Vector2(0f, 1f), sprite, TealAction);
+            RectTransform root = CreatePanel(name, parent, position, size, new Vector2(0f, 1f), uiButtonSprite ?? sprite, TealAction);
             Button button = root.gameObject.AddComponent<Button>();
             ColorBlock colors = button.colors;
             colors.normalColor = Color.white;
@@ -812,6 +920,7 @@ namespace AdieLab.AffectCounsel.Editor
             public Button zoomOutButton;
             public Button zoomInButton;
             public Button zoomResetButton;
+            public Button languageToggleButton;
             public Text clientLine;
             public Text sessionStatus;
             public Text feedbackLabel;
