@@ -90,4 +90,4 @@ Generated Windows output is written to `Builds/AffectCounselDemo/` and is intent
 
 - Microsoft Rocketbox assets follow `Assets/ThirdParty/MicrosoftRocketbox/LICENSE.md`.
 - [Kenney UI Pack 2.0](https://kenney.nl/assets/ui-pack) is licensed CC0; the original license is stored in `Assets/ThirdParty/Kenney/UI/LICENSE.txt`.
-- Confirm the Noto Sans KR asset's license conditions before redistribution.
+- Noto Sans KR is distributed under the SIL Open Font License 1.1; the license is included at `Assets/Fonts/OFL.txt`.

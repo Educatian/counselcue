@@ -200,4 +200,4 @@ Unity 캐시, Windows 빌드, 로컬 로그와 세션 데이터는 Git 저장소
 
 ## 제3자 자산
 
-Microsoft Rocketbox 자산은 `Assets/ThirdParty/MicrosoftRocketbox/LICENSE.md`의 라이선스를 따릅니다. UI 패널·버튼·구분선은 [Kenney UI Pack 2.0](https://kenney.nl/assets/ui-pack)의 CC0 에셋이며 원문은 `Assets/ThirdParty/Kenney/UI/LICENSE.txt`에 포함했습니다. Noto Sans KR 폰트는 해당 자산의 라이선스 조건을 확인한 뒤 배포해야 합니다.
+Microsoft Rocketbox 자산은 `Assets/ThirdParty/MicrosoftRocketbox/LICENSE.md`의 라이선스를 따릅니다. UI 패널·버튼·구분선은 [Kenney UI Pack 2.0](https://kenney.nl/assets/ui-pack)의 CC0 에셋이며 원문은 `Assets/ThirdParty/Kenney/UI/LICENSE.txt`에 포함했습니다. Noto Sans KR은 SIL Open Font License 1.1로 배포되며 원문은 `Assets/Fonts/OFL.txt`에 포함했습니다.
