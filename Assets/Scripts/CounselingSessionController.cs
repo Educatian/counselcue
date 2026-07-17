@@ -34,7 +34,8 @@ namespace AdieLab.AffectCounsel
         };
 
         private string sessionId;
-        private float alliance = 0.38f;
+        private ClientRelationalState relationalState = ClientRelationalState.Initial;
+        private readonly CulturalInteractionProfile culturalProfile = CulturalInteractionProfile.KoreanCounselingPilot;
         private int turn;
         private bool isSubmitting;
         private string conversationEngine = "local";
@@ -65,11 +66,20 @@ namespace AdieLab.AffectCounsel
             isSubmitting = true;
             sendButton.interactable = false;
             ResponseAssessment assessment = CounselingResponseEvaluator.Evaluate(utterance);
-            float deliveryModifier = 0f;
-            alliance = Mathf.Clamp01(alliance + assessment.TrustDelta + deliveryModifier);
+            ClientRelationalState previousState = relationalState;
+            DeliveryObservation observation = actionUnits.IsTracking && actionUnits.IsCalibrated
+                ? new DeliveryObservation(true, actionUnits.Au04, actionUnits.Au12)
+                : DeliveryObservation.Unavailable;
+            RelationalTurnResult relationalResult = RelationalDeliveryEvaluator.Evaluate(
+                assessment,
+                observation,
+                previousState,
+                culturalProfile);
+            relationalState = relationalResult.State;
             turn++;
 
-            bool supportive = assessment.Quality >= 2;
+            bool supportive = assessment.Quality >= 2 &&
+                              relationalState.WillingnessToDisclose >= previousState.WillingnessToDisclose;
             string[] replies = supportive ? supportiveReplies : guardedReplies;
             string reply = replies[Mathf.Min(turn - 1, replies.Length - 1)];
             conversationEngine = "local";
@@ -88,8 +98,8 @@ namespace AdieLab.AffectCounsel
             client.SetAffect(supportive ? ClientAffect.Relieved : ClientAffect.Guarded);
             client.Speak(reply);
             string engineLabel = conversationEngine == "local" ? "로컬 사례" : "GPT Realtime";
-            feedbackLabel.text = $"{engineLabel} · {assessment.Skill} · {assessment.Rationale}";
-            WriteRecord(utterance, reply, assessment, deliveryModifier);
+            feedbackLabel.text = $"{engineLabel} · <color=#F8C77A><b>{AlignmentLabel(relationalResult.Alignment)}</b></color> · <b>{assessment.Skill}</b> · {relationalResult.CoachingFeedback}";
+            WriteRecord(utterance, reply, assessment, observation, relationalResult);
             counselorInput.text = string.Empty;
             counselorInput.ActivateInputField();
             UpdateLabels();
@@ -102,10 +112,15 @@ namespace AdieLab.AffectCounsel
         private void UpdateLabels()
         {
             sessionStatus.text = $"불안 사례 · 초기면담 · {turn + 1}번째 교환";
-            allianceLabel.text = $"관계 안전감  {Mathf.RoundToInt(alliance * 100f)}";
+            allianceLabel.text = $"안전 {Percent(relationalState.Safety)} · 경계 {Percent(relationalState.Guardedness)} · 공개 {Percent(relationalState.WillingnessToDisclose)}";
         }
 
-        private void WriteRecord(string counselorUtterance, string reply, ResponseAssessment assessment, float deliveryModifier)
+        private void WriteRecord(
+            string counselorUtterance,
+            string reply,
+            ResponseAssessment assessment,
+            DeliveryObservation observation,
+            RelationalTurnResult relationalResult)
         {
             SessionRecord record = new SessionRecord
             {
@@ -115,8 +130,16 @@ namespace AdieLab.AffectCounsel
                 counselorUtterance = counselorUtterance,
                 clientReply = reply,
                 skill = assessment.Skill,
+                counselingMove = assessment.Move.ToString(),
                 quality = assessment.Quality,
-                alliance = alliance,
+                alliance = relationalState.Safety,
+                deliveryAlignment = relationalResult.Alignment.ToString(),
+                deliveryEvidenceAvailable = observation.IsAvailable,
+                relationalSafety = relationalState.Safety,
+                guardedness = relationalState.Guardedness,
+                willingnessToDisclose = relationalState.WillingnessToDisclose,
+                culturalProfileId = culturalProfile.Id,
+                deliveryFeedback = relationalResult.CoachingFeedback,
                 webcamSignalQuality = webcam.SignalQuality,
                 webcamMovement = webcam.Movement,
                 auSource = actionUnits.Source,
@@ -135,10 +158,27 @@ namespace AdieLab.AffectCounsel
                 au25 = actionUnits.Au25,
                 au26 = actionUnits.Au26,
                 au45 = actionUnits.Au45,
-                deliveryModifier = deliveryModifier,
+                deliveryModifier = relationalResult.DeliveryModifier,
                 conversationEngine = conversationEngine
             };
             File.AppendAllText(Path.Combine(Application.persistentDataPath, "counseling-sessions.jsonl"), JsonUtility.ToJson(record) + Environment.NewLine);
+        }
+
+        private static int Percent(float value) => Mathf.RoundToInt(value * 100f);
+
+        private static string AlignmentLabel(DeliveryAlignment alignment)
+        {
+            switch (alignment)
+            {
+                case DeliveryAlignment.Aligned:
+                    return "전달 정합";
+                case DeliveryAlignment.PossibleMismatch:
+                    return "전달 불일치 가능성";
+                case DeliveryAlignment.RelationalOrderMismatch:
+                    return "관계 순서 불일치";
+                default:
+                    return "비언어 근거 없음";
+            }
         }
 
         [Serializable]
@@ -150,8 +190,16 @@ namespace AdieLab.AffectCounsel
             public string counselorUtterance;
             public string clientReply;
             public string skill;
+            public string counselingMove;
             public int quality;
             public float alliance;
+            public string deliveryAlignment;
+            public bool deliveryEvidenceAvailable;
+            public float relationalSafety;
+            public float guardedness;
+            public float willingnessToDisclose;
+            public string culturalProfileId;
+            public string deliveryFeedback;
             public float webcamSignalQuality;
             public float webcamMovement;
             public string auSource;

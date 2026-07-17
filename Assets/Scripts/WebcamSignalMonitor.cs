@@ -24,7 +24,7 @@ namespace AdieLab.AffectCounsel
         {
             if (FacialActionUnitMonitor.IsRequestedFromCommandLine())
             {
-                SetStatus("AU 브리지 사용 ·\n원시 영상 미저장");
+                SetStatus("AU 브리지 사용\n원시 영상 미저장");
                 return;
             }
 

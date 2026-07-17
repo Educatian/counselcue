@@ -276,9 +276,9 @@ namespace AdieLab.AffectCounsel.Editor
             CreateAccentBar("SignalAccent", cameraCard, 178f, HudMint);
             refs.webcamPreview = CreateRawImage("WebcamPreview", cameraCard, new Vector2(16f, -16f), new Vector2(100f, 74f), panelSprite);
             refs.webcamStatus = CreateText("WebcamStatus", "웹캠 준비 중", cameraCard, new Vector2(132f, -16f), new Vector2(174f, 42f), font, 14, HudMint, FontStyle.Bold);
-            CreateText("Privacy", "원시 영상 미저장 · 기기 내 처리", cameraCard, new Vector2(132f, -60f), new Vector2(174f, 24f), font, 11, HudMuted, FontStyle.Normal);
+            CreateText("Privacy", "영상 미저장 · 기기 내 처리", cameraCard, new Vector2(132f, -60f), new Vector2(174f, 24f), font, 12, HudText, FontStyle.Normal);
             refs.auStatus = CreateText("AuStatus", "AU 분석 대기 · 선택 기능", cameraCard, new Vector2(16f, -104f), new Vector2(290f, 24f), font, 13, HudMint, FontStyle.Bold);
-            refs.allianceLabel = CreateText("Alliance", "관계 안전감  38", cameraCard, new Vector2(16f, -138f), new Vector2(290f, 26f), font, 16, HudGold, FontStyle.Bold);
+            refs.allianceLabel = CreateText("Alliance", "안전 38 · 경계 62 · 공개 25", cameraCard, new Vector2(16f, -138f), new Vector2(290f, 26f), font, 13, HudGold, FontStyle.Bold);
 
             RectTransform speechCard = CreatePanel("ClientSpeechCard", canvas.transform, new Vector2(26f, 170f), new Vector2(540f, 112f), new Vector2(0f, 0f), panelSprite, PaperCard);
             CreateAccentBar("ClientAccent", speechCard, 112f, TealAction);
@@ -287,7 +287,7 @@ namespace AdieLab.AffectCounsel.Editor
 
             RectTransform inputCard = CreatePanel("CounselorInputCard", canvas.transform, new Vector2(0f, 16f), new Vector2(1040f, 116f), new Vector2(0.5f, 0f), panelSprite, HudGlassStrong);
             CreateAccentBar("InputAccent", inputCard, 116f, HudMint);
-            refs.feedbackLabel = CreateText("Feedback", "감정을 반영하고 내담자가 의미를 더 말할 수 있도록 응답해 보세요.", inputCard, new Vector2(22f, -8f), new Vector2(996f, 22f), font, 14, HudMuted, FontStyle.Normal);
+            refs.feedbackLabel = CreateText("Feedback", "감정을 반영하고 내담자가 의미를 더 말할 수 있도록 응답해 보세요.", inputCard, new Vector2(22f, -8f), new Vector2(996f, 24f), font, 15, HudText, FontStyle.Normal);
             refs.input = CreateInputField(inputCard, new Vector2(22f, -38f), new Vector2(786f, 58f), font, panelSprite);
             refs.sendButton = CreateButton(inputCard, new Vector2(824f, -38f), new Vector2(194f, 58f), "응답하기", font, panelSprite);
             return refs;

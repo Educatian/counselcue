@@ -2,16 +2,29 @@ using System;
 
 namespace AdieLab.AffectCounsel
 {
+    public enum CounselingMove
+    {
+        Silence,
+        Reflection,
+        Validation,
+        ReflectionAndExploration,
+        OpenQuestion,
+        Advice,
+        Neutral
+    }
+
     public readonly struct ResponseAssessment
     {
-        public ResponseAssessment(int quality, float trustDelta, string skill, string rationale)
+        public ResponseAssessment(CounselingMove move, int quality, float trustDelta, string skill, string rationale)
         {
+            Move = move;
             Quality = quality;
             TrustDelta = trustDelta;
             Skill = skill;
             Rationale = rationale;
         }
 
+        public CounselingMove Move { get; }
         public int Quality { get; }
         public float TrustDelta { get; }
         public string Skill { get; }
@@ -40,7 +53,7 @@ namespace AdieLab.AffectCounsel
             string normalized = (utterance ?? string.Empty).Trim();
             if (normalized.Length == 0)
             {
-                return new ResponseAssessment(0, -0.03f, "침묵", "응답이 입력되지 않았습니다.");
+                return new ResponseAssessment(CounselingMove.Silence, 0, -0.03f, "침묵", "응답이 입력되지 않았습니다.");
             }
 
             bool reflection = ContainsAny(normalized, ReflectionTerms);
@@ -54,7 +67,13 @@ namespace AdieLab.AffectCounsel
             if ((reflection || validation) && !advice)
             {
                 string skill = reflection && openQuestion ? "감정 반영 + 탐색" : "공감적 반응";
+                CounselingMove move = reflection && openQuestion
+                    ? CounselingMove.ReflectionAndExploration
+                    : validation
+                        ? CounselingMove.Validation
+                        : CounselingMove.Reflection;
                 return new ResponseAssessment(
+                    move,
                     reflection && validation ? 3 : 2,
                     reflection && validation ? 0.16f : 0.10f,
                     skill,
@@ -63,15 +82,15 @@ namespace AdieLab.AffectCounsel
 
             if (openQuestion && !advice)
             {
-                return new ResponseAssessment(2, 0.07f, "개방형 질문", "탐색할 여지를 주었습니다. 질문 전에 감정을 한 번 반영하면 더 안정적입니다.");
+                return new ResponseAssessment(CounselingMove.OpenQuestion, 2, 0.07f, "개방형 질문", "탐색할 여지를 주었습니다. 질문 전에 감정을 한 번 반영하면 더 안정적입니다.");
             }
 
             if (advice)
             {
-                return new ResponseAssessment(0, -0.12f, "성급한 조언", "충분한 탐색 전에 해결책이 제시되어 내담자가 평가받는다고 느낄 수 있습니다.");
+                return new ResponseAssessment(CounselingMove.Advice, 0, -0.12f, "성급한 조언", "충분한 탐색 전에 해결책이 제시되어 내담자가 평가받는다고 느낄 수 있습니다.");
             }
 
-            return new ResponseAssessment(1, 0.01f, "중립 반응", "대화는 이어지지만 감정과 의미를 더 구체적으로 반영할 필요가 있습니다.");
+            return new ResponseAssessment(CounselingMove.Neutral, 1, 0.01f, "중립 반응", "대화는 이어지지만 감정과 의미를 더 구체적으로 반영할 필요가 있습니다.");
         }
 
         private static bool ContainsAny(string source, string[] terms)

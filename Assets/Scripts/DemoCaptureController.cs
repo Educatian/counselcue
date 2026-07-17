@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Globalization;
 using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,6 +13,8 @@ namespace AdieLab.AffectCounsel
             string[] arguments = System.Environment.GetCommandLineArgs();
             string capturePath = null;
             bool autoplay = false;
+            bool autoplayAdvice = false;
+            float captureDelay = 2f;
             for (int i = 0; i < arguments.Length; i++)
             {
                 if (arguments[i].StartsWith("--capture=", System.StringComparison.Ordinal))
@@ -22,6 +25,16 @@ namespace AdieLab.AffectCounsel
                 {
                     autoplay = true;
                 }
+                else if (arguments[i] == "--autoplay-advice")
+                {
+                    autoplay = true;
+                    autoplayAdvice = true;
+                }
+                else if (arguments[i].StartsWith("--capture-delay=", System.StringComparison.Ordinal) &&
+                         float.TryParse(arguments[i].Substring("--capture-delay=".Length), NumberStyles.Float, CultureInfo.InvariantCulture, out float parsedDelay))
+                {
+                    captureDelay = Mathf.Max(0f, parsedDelay);
+                }
             }
 
             if (string.IsNullOrWhiteSpace(capturePath))
@@ -29,14 +42,16 @@ namespace AdieLab.AffectCounsel
                 yield break;
             }
 
-            yield return new WaitForSecondsRealtime(2f);
+            yield return new WaitForSecondsRealtime(captureDelay);
             if (autoplay)
             {
                 InputField input = FindAnyObjectByType<InputField>();
                 CounselingSessionController session = FindAnyObjectByType<CounselingSessionController>();
                 if (input != null && session != null)
                 {
-                    input.text = "회사에 들어가는 순간부터 긴장되고 숨이 막히는 느낌이 드시는군요. 그때 가장 먼저 떠오르는 생각은 무엇인가요?";
+                    input.text = autoplayAdvice
+                        ? "그런 생각은 잊고 매일 운동하면서 긍정적으로 생각하세요."
+                        : "회사에 들어가는 순간부터 긴장되고 숨이 막히는 느낌이 드시는군요. 그때 가장 먼저 떠오르는 생각은 무엇인가요?";
                     session.Submit();
                     yield return new WaitForSecondsRealtime(1f);
                 }
