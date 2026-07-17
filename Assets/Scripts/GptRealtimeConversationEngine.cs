@@ -35,13 +35,17 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private bool enableInEditor;
 
         private ClientWebSocket socket;
+        private CancellationTokenSource activeRequest;
+        private readonly SemaphoreSlim requestGate = new SemaphoreSlim(1, 1);
+        private int cancellationGeneration;
 
         public bool IsRequested
         {
             get
             {
                 if (enableInEditor && Application.isEditor) return true;
-                return Array.Exists(Environment.GetCommandLineArgs(), argument => argument == "--realtime");
+                return Array.Exists(Environment.GetCommandLineArgs(), argument =>
+                    argument == "--realtime" || argument.StartsWith("--realtime-test-delay=", StringComparison.Ordinal));
             }
         }
 
@@ -49,19 +53,53 @@ namespace AdieLab.AffectCounsel
         {
             if (!IsRequested) return RealtimeReply.Failure("Realtime 비활성화");
 
-            using CancellationTokenSource timeout = new CancellationTokenSource(TimeSpan.FromSeconds(requestTimeoutSeconds));
+            int expectedGeneration = cancellationGeneration;
+            await requestGate.WaitAsync();
+            CancellationTokenSource request = null;
             try
             {
-                await EnsureConnectedAsync(timeout.Token);
-                await SendAsync(RealtimeProtocol.CreateUserMessage(counselorUtterance), timeout.Token);
-                await SendAsync(RealtimeProtocol.CreateTextResponse(), timeout.Token);
-                return await ReceiveReplyAsync(timeout.Token);
+                if (expectedGeneration != cancellationGeneration) return RealtimeReply.Failure("Realtime 요청 취소");
+                request = new CancellationTokenSource(TimeSpan.FromSeconds(requestTimeoutSeconds));
+                activeRequest = request;
+                if (TryGetSimulatedDelay(out float simulatedDelay))
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(simulatedDelay), request.Token);
+                    return RealtimeReply.Success("취소 안전성 검사용 지연 응답");
+                }
+                await EnsureConnectedAsync(request.Token);
+                await SendAsync(RealtimeProtocol.CreateUserMessage(counselorUtterance), request.Token);
+                await SendAsync(RealtimeProtocol.CreateTextResponse(), request.Token);
+                return await ReceiveReplyAsync(request.Token);
             }
-            catch (Exception exception) when (exception is WebSocketException || exception is OperationCanceledException || exception is InvalidOperationException)
+            catch (Exception exception)
             {
                 ResetSocket();
                 return RealtimeReply.Failure(exception.Message);
             }
+            finally
+            {
+                request?.Dispose();
+                if (ReferenceEquals(activeRequest, request)) activeRequest = null;
+                requestGate.Release();
+            }
+        }
+
+        public void CancelPendingRequest()
+        {
+            cancellationGeneration++;
+            activeRequest?.Cancel();
+        }
+
+        private static bool TryGetSimulatedDelay(out float delay)
+        {
+            foreach (string argument in Environment.GetCommandLineArgs())
+            {
+                if (!argument.StartsWith("--realtime-test-delay=", StringComparison.Ordinal)) continue;
+                return float.TryParse(argument.Substring("--realtime-test-delay=".Length), out delay) && delay > 0f;
+            }
+
+            delay = 0f;
+            return false;
         }
 
         private async Task EnsureConnectedAsync(CancellationToken cancellationToken)
@@ -144,7 +182,11 @@ namespace AdieLab.AffectCounsel
             return Encoding.UTF8.GetString(message.ToArray());
         }
 
-        private void OnDestroy() => ResetSocket();
+        private void OnDestroy()
+        {
+            CancelPendingRequest();
+            ResetSocket();
+        }
 
         private void ResetSocket()
         {

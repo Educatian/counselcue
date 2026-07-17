@@ -72,12 +72,14 @@ namespace AdieLab.AffectCounsel.Editor
             WebcamSignalMonitor webcam = runtime.AddComponent<WebcamSignalMonitor>();
             FacialActionUnitMonitor actionUnits = runtime.AddComponent<FacialActionUnitMonitor>();
             GptRealtimeConversationEngine realtime = runtime.AddComponent<GptRealtimeConversationEngine>();
+            CounselingSessionOrchestrator orchestrator = runtime.AddComponent<CounselingSessionOrchestrator>();
             CounselingSessionController session = runtime.AddComponent<CounselingSessionController>();
             CounselingCameraZoom cameraZoom = runtime.AddComponent<CounselingCameraZoom>();
             runtime.AddComponent<DemoCaptureController>();
             WireWebcam(webcam, ui);
             WireActionUnits(actionUnits, ui);
-            WireSession(session, client, webcam, actionUnits, realtime, ui);
+            WireSession(session, orchestrator, client, webcam, actionUnits, realtime, ui);
+            WireSessionOrchestrator(orchestrator, session, ui);
             WireCameraZoom(cameraZoom, camera, ui);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -274,6 +276,14 @@ namespace AdieLab.AffectCounsel.Editor
             CreateText("SessionEyebrow", "상담 실습  ·  1:1 초기면담", sessionCard, new Vector2(22f, -11f), new Vector2(308f, 22f), font, 14, HudMint, FontStyle.Bold);
             refs.sessionStatus = CreateText("SessionStatus", "불안 사례 · 초기면담 · 1번째 교환", sessionCard, new Vector2(22f, -38f), new Vector2(310f, 30f), font, 19, HudText, FontStyle.Bold);
 
+            RectTransform controlCard = CreatePanel("ActiveControlCard", canvas.transform, new Vector2(26f, -122f), new Vector2(354f, 80f), new Vector2(0f, 1f), panelSprite, HudGlass);
+            refs.activeControlCard = controlCard.gameObject;
+            CreateAccentBar("ControlAccent", controlCard, 80f, HudGold);
+            refs.stageLabel = CreateText("StageLabel", "연습 모드 · 관계 형성 · 0/10턴", controlCard, new Vector2(18f, -8f), new Vector2(205f, 25f), font, 13, HudText, FontStyle.Bold);
+            refs.timerLabel = CreateText("TimerLabel", "15:00", controlCard, new Vector2(18f, -38f), new Vector2(82f, 28f), font, 20, HudGold, FontStyle.Bold);
+            refs.pauseButton = CreateButton("PauseSession", controlCard, new Vector2(108f, -34f), new Vector2(104f, 36f), "일시정지", font, panelSprite, 13);
+            refs.endButton = CreateButton("EndSession", controlCard, new Vector2(220f, -34f), new Vector2(112f, 36f), "종료", font, panelSprite, 13);
+
             RectTransform cameraCard = CreatePanel("CameraCard", canvas.transform, new Vector2(-26f, -26f), new Vector2(326f, 178f), new Vector2(1f, 1f), panelSprite, HudGlass);
             CreateAccentBar("SignalAccent", cameraCard, 178f, HudMint);
             refs.webcamPreview = CreateRawImage("WebcamPreview", cameraCard, new Vector2(16f, -16f), new Vector2(100f, 74f), panelSprite);
@@ -300,6 +310,48 @@ namespace AdieLab.AffectCounsel.Editor
             refs.feedbackLabel = CreateText("Feedback", "감정을 반영하고 내담자가 의미를 더 말할 수 있도록 응답해 보세요.", inputCard, new Vector2(22f, -8f), new Vector2(996f, 24f), font, 15, HudText, FontStyle.Normal);
             refs.input = CreateInputField(inputCard, new Vector2(22f, -38f), new Vector2(786f, 58f), font, panelSprite);
             refs.sendButton = CreateButton("SendButton", inputCard, new Vector2(824f, -38f), new Vector2(194f, 58f), "응답하기", font, panelSprite, 18);
+
+            RectTransform briefingRoot = CreateOverlayRoot("BriefingOverlay", canvas.transform);
+            refs.briefingOverlay = briefingRoot.gameObject;
+            RectTransform briefingCard = CreatePanel("BriefingCard", briefingRoot, Vector2.zero, new Vector2(820f, 570f), new Vector2(0.5f, 0.5f), panelSprite, PaperCard);
+            briefingCard.anchoredPosition = Vector2.zero;
+            CreateAccentBar("BriefingAccent", briefingCard, 570f, TealAction);
+            CreateText("BriefingEyebrow", "AFFECT COUNSEL · SESSION 01", briefingCard, new Vector2(42f, -34f), new Vector2(730f, 24f), font, 13, TealAction, FontStyle.Bold);
+            Text briefingTitle = CreateText("BriefingTitle", "첫 회기 준비", briefingCard, new Vector2(42f, -70f), new Vector2(730f, 50f), font, 32, Ink, FontStyle.Bold);
+            briefingTitle.verticalOverflow = VerticalWrapMode.Overflow;
+            CreateText("BriefingCase", "직장 불안 · 김지혜, 32세 · 초기면담", briefingCard, new Vector2(42f, -130f), new Vector2(730f, 30f), font, 17, new Color(0.27f, 0.39f, 0.34f), FontStyle.Bold);
+            string briefingBody =
+                "상황\n최근 회사에 가려고 하면 숨이 막히고, 자신이 약한 사람인지 걱정합니다.\n\n" +
+                "이번 세션의 목표\n1. 관계 안전감을 형성하고 상담 구조를 안내합니다.\n" +
+                "2. 반영과 개방형 질문으로 경험을 탐색합니다.\n" +
+                "3. 해결책을 서두르지 않고 내담자의 응답 공간을 지킵니다.\n\n" +
+                "15분 · 목표 10턴 · 웹캠 원본 미저장";
+            CreateText("BriefingBody", briefingBody, briefingCard, new Vector2(42f, -180f), new Vector2(730f, 250f), font, 17, Ink, FontStyle.Normal);
+            refs.practiceStartButton = CreateButton("StartPractice", briefingCard, new Vector2(42f, -474f), new Vector2(348f, 58f), "연습 모드 시작", font, panelSprite, 17);
+            refs.evaluationStartButton = CreateButton("StartEvaluation", briefingCard, new Vector2(414f, -474f), new Vector2(358f, 58f), "평가 모드 시작", font, panelSprite, 17);
+
+            RectTransform pauseRoot = CreateOverlayRoot("PauseOverlay", canvas.transform, 0.56f);
+            refs.pauseOverlay = pauseRoot.gameObject;
+            RectTransform pauseCard = CreatePanel("PauseCard", pauseRoot, Vector2.zero, new Vector2(560f, 260f), new Vector2(0.5f, 0.5f), panelSprite, PaperCard);
+            pauseCard.anchoredPosition = new Vector2(-390f, 0f);
+            CreateText("PauseTitle", "세션 일시정지", pauseCard, new Vector2(38f, -36f), new Vector2(484f, 44f), font, 27, Ink, FontStyle.Bold);
+            CreateText("PauseBody", "타이머와 상담 입력이 멈췄습니다.\n준비되면 같은 장면에서 계속 진행하세요.", pauseCard, new Vector2(38f, -94f), new Vector2(484f, 66f), font, 16, Ink, FontStyle.Normal);
+            refs.resumeButton = CreateButton("ResumeSession", pauseCard, new Vector2(38f, -176f), new Vector2(234f, 52f), "계속하기", font, panelSprite, 16);
+            refs.pauseEndButton = CreateButton("PauseEndSession", pauseCard, new Vector2(288f, -176f), new Vector2(234f, 52f), "종료하기", font, panelSprite, 16);
+
+            RectTransform debriefRoot = CreateOverlayRoot("DebriefOverlay", canvas.transform);
+            refs.debriefOverlay = debriefRoot.gameObject;
+            RectTransform debriefCard = CreatePanel("DebriefCard", debriefRoot, Vector2.zero, new Vector2(900f, 650f), new Vector2(0.5f, 0.5f), panelSprite, PaperCard);
+            debriefCard.anchoredPosition = Vector2.zero;
+            CreateAccentBar("DebriefAccent", debriefCard, 650f, TealAction);
+            CreateText("DebriefEyebrow", "SESSION REVIEW · 훈련용 피드백", debriefCard, new Vector2(46f, -34f), new Vector2(808f, 24f), font, 13, TealAction, FontStyle.Bold);
+            refs.debriefTitle = CreateText("DebriefTitle", "첫 회기 디브리핑", debriefCard, new Vector2(46f, -72f), new Vector2(808f, 50f), font, 31, Ink, FontStyle.Bold);
+            refs.debriefReport = CreateText("DebriefReport", string.Empty, debriefCard, new Vector2(46f, -140f), new Vector2(808f, 408f), font, 17, Ink, FontStyle.Normal);
+            refs.returnButton = CreateButton("ReturnToBriefing", debriefCard, new Vector2(604f, -570f), new Vector2(250f, 54f), "브리핑으로", font, panelSprite, 16);
+
+            refs.activeControlCard.SetActive(false);
+            refs.pauseOverlay.SetActive(false);
+            refs.debriefOverlay.SetActive(false);
             return refs;
         }
 
@@ -344,19 +396,42 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void WireSession(CounselingSessionController session, ClientAvatarController client, WebcamSignalMonitor webcam, FacialActionUnitMonitor actionUnits, GptRealtimeConversationEngine realtime, UiReferences ui)
+        private static void WireSession(CounselingSessionController session, CounselingSessionOrchestrator orchestrator, ClientAvatarController client, WebcamSignalMonitor webcam, FacialActionUnitMonitor actionUnits, GptRealtimeConversationEngine realtime, UiReferences ui)
         {
             SerializedObject serialized = new SerializedObject(session);
             serialized.FindProperty("client").objectReferenceValue = client;
             serialized.FindProperty("webcam").objectReferenceValue = webcam;
             serialized.FindProperty("actionUnits").objectReferenceValue = actionUnits;
             serialized.FindProperty("realtimeEngine").objectReferenceValue = realtime;
+            serialized.FindProperty("sessionOrchestrator").objectReferenceValue = orchestrator;
             serialized.FindProperty("counselorInput").objectReferenceValue = ui.input;
             serialized.FindProperty("sendButton").objectReferenceValue = ui.sendButton;
             serialized.FindProperty("clientLine").objectReferenceValue = ui.clientLine;
             serialized.FindProperty("sessionStatus").objectReferenceValue = ui.sessionStatus;
             serialized.FindProperty("feedbackLabel").objectReferenceValue = ui.feedbackLabel;
             serialized.FindProperty("allianceLabel").objectReferenceValue = ui.allianceLabel;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void WireSessionOrchestrator(CounselingSessionOrchestrator orchestrator, CounselingSessionController session, UiReferences ui)
+        {
+            SerializedObject serialized = new SerializedObject(orchestrator);
+            serialized.FindProperty("sessionController").objectReferenceValue = session;
+            serialized.FindProperty("activeControlCard").objectReferenceValue = ui.activeControlCard;
+            serialized.FindProperty("briefingOverlay").objectReferenceValue = ui.briefingOverlay;
+            serialized.FindProperty("pauseOverlay").objectReferenceValue = ui.pauseOverlay;
+            serialized.FindProperty("debriefOverlay").objectReferenceValue = ui.debriefOverlay;
+            serialized.FindProperty("timerLabel").objectReferenceValue = ui.timerLabel;
+            serialized.FindProperty("stageLabel").objectReferenceValue = ui.stageLabel;
+            serialized.FindProperty("debriefTitle").objectReferenceValue = ui.debriefTitle;
+            serialized.FindProperty("debriefReport").objectReferenceValue = ui.debriefReport;
+            serialized.FindProperty("practiceStartButton").objectReferenceValue = ui.practiceStartButton;
+            serialized.FindProperty("evaluationStartButton").objectReferenceValue = ui.evaluationStartButton;
+            serialized.FindProperty("pauseButton").objectReferenceValue = ui.pauseButton;
+            serialized.FindProperty("endButton").objectReferenceValue = ui.endButton;
+            serialized.FindProperty("resumeButton").objectReferenceValue = ui.resumeButton;
+            serialized.FindProperty("pauseEndButton").objectReferenceValue = ui.pauseEndButton;
+            serialized.FindProperty("returnButton").objectReferenceValue = ui.returnButton;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -555,6 +630,19 @@ namespace AdieLab.AffectCounsel.Editor
             return button;
         }
 
+        private static RectTransform CreateOverlayRoot(string name, Transform parent, float alpha = 0.76f)
+        {
+            GameObject root = new GameObject(name, typeof(RectTransform), typeof(Image));
+            RectTransform rect = root.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            root.GetComponent<Image>().color = new Color(0.015f, 0.025f, 0.023f, alpha);
+            return rect;
+        }
+
         private static RawImage CreateRawImage(string name, Transform parent, Vector2 position, Vector2 size, Sprite sprite)
         {
             RectTransform frame = CreatePanel($"{name}Frame", parent, position, size, new Vector2(0f, 1f), sprite, new Color(0.15f, 0.18f, 0.17f, 1f));
@@ -581,8 +669,19 @@ namespace AdieLab.AffectCounsel.Editor
 
         private sealed class UiReferences
         {
+            public GameObject activeControlCard;
+            public GameObject briefingOverlay;
+            public GameObject pauseOverlay;
+            public GameObject debriefOverlay;
             public InputField input;
             public Button sendButton;
+            public Button practiceStartButton;
+            public Button evaluationStartButton;
+            public Button pauseButton;
+            public Button endButton;
+            public Button resumeButton;
+            public Button pauseEndButton;
+            public Button returnButton;
             public Button zoomOutButton;
             public Button zoomInButton;
             public Button zoomResetButton;
@@ -591,6 +690,10 @@ namespace AdieLab.AffectCounsel.Editor
             public Text feedbackLabel;
             public Text allianceLabel;
             public Text zoomLabel;
+            public Text timerLabel;
+            public Text stageLabel;
+            public Text debriefTitle;
+            public Text debriefReport;
             public Text webcamStatus;
             public Text auStatus;
             public RawImage webcamPreview;
