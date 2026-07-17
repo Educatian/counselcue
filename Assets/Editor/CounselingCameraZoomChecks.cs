@@ -6,7 +6,7 @@ namespace AdieLab.AffectCounsel.Editor
 {
     public static class CounselingCameraZoomChecks
     {
-        [MenuItem("Tools/Affect Counsel/Run Camera Zoom Checks")]
+        [MenuItem("Tools/CounselCue/Run Camera Zoom Checks")]
         public static void RunFromMenu()
         {
             RunChecks();

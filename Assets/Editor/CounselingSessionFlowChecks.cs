@@ -6,7 +6,7 @@ namespace AdieLab.AffectCounsel.Editor
 {
     public static class CounselingSessionFlowChecks
     {
-        [MenuItem("Tools/Affect Counsel/Run Session Flow Checks")]
+        [MenuItem("Tools/CounselCue/Run Session Flow Checks")]
         public static void RunFromMenu() => Run();
 
         public static void RunFromCommandLine()

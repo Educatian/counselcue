@@ -1,4 +1,4 @@
-# Affect Counsel Unity
+# CounselCue
 
 [한국어 문서](README.ko.md) · [English documentation](README.en.md) · [언어 선택](README.md)
 
@@ -127,9 +127,9 @@ UI는 CC0 라이선스의 Kenney UI Pack 2.0에서 고해상도 9-slice 패널·
 
 - Unity: `6000.4.9f1`
 - 시작 씬: `Assets/Scenes/KoreanCounselingRoom.unity`
-- Windows 빌드: `Builds/AffectCounselDemo/AffectCounsel.exe`
+- Windows 빌드: `Builds/CounselCue/CounselCue.exe`
 
-에디터 메뉴 `Tools > Affect Counsel > Build Korean Counseling Room`으로 씬을 다시 생성할 수 있습니다.
+에디터 메뉴 `Tools > CounselCue > Build Korean Counseling Room`으로 씬을 다시 생성할 수 있습니다.
 
 ## 개인정보와 해석 한계
 
@@ -172,7 +172,7 @@ dotnet run --project .\Server\AffectCounsel.TokenBroker
 브로커가 실행된 뒤 다음과 같이 Realtime 모드를 시작합니다.
 
 ```powershell
-.\Builds\AffectCounselDemo\AffectCounsel.exe --realtime
+.\Builds\CounselCue\CounselCue.exe --realtime
 ```
 
 `--realtime`을 생략하거나 브로커 연결이 실패하면 기존 로컬 사례 엔진을 사용합니다. 현재 구현은 먼저 텍스트 Realtime 대화를 연결하며, 마이크 음성 스트리밍과 GPT 음성 재생은 다음 단계입니다.
@@ -183,7 +183,7 @@ AU 모드는 Python 브리지가 웹캠을 직접 읽고 UDP loopback으로 Unit
 
 ```powershell
 uv run .\Tools\AuBridge\face_au_bridge.py
-.\Builds\AffectCounselDemo\AffectCounsel.exe --au
+.\Builds\CounselCue\CounselCue.exe --au
 ```
 
 화면에는 보정 진행률 또는 AU04, AU12, AU45의 현재 proxy 값이 표시됩니다. 세션 JSONL에는 `counselingMove`, `deliveryAlignment`, `deliveryEvidenceAvailable`, `relationalSafety`, `guardedness`, `willingnessToDisclose`, `culturalProfileId`와 AU proxy가 기록됩니다. 이 값은 MediaPipe blendshape를 FACS 이름에 근사 매핑한 관찰 신호이며, 인증된 FACS 코딩이나 감정·상담역량 판정값이 아닙니다. 연구 분석에서는 원자료 표본에 대한 사람 코더 검증과 별도 도구를 이용한 재분석이 필요합니다.

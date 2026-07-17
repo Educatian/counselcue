@@ -1,14 +1,14 @@
-# Affect Counsel Unity
+# CounselCue
 
 [Korean documentation](README.ko.md) · [English documentation](README.en.md)
 
-> **This is not an emotion classifier.** Affect Counsel is a Korean one-to-one counselor-training simulation for practicing how counseling micro-skills and embodied cues such as facial movement, gaze, and posture may work together in relational delivery.
+> **This is not an emotion classifier.** CounselCue is a Korean one-to-one counselor-training simulation for practicing how counseling micro-skills and embodied cues such as facial movement, gaze, and posture may work together in relational delivery.
 
-![Counselor-view session with an observable virtual client](Screenshots/progress-35-reference-room.png)
+![CounselCue relational delivery training simulation](.github/counselcue-social-preview.jpg)
 
 ## Why this project
 
-The same validating statement can be received differently depending on facial expression, gaze, silence, and response timing. Instead of inferring the counselor's internal emotional state, Affect Counsel treats the following relationship as the object of practice:
+The same validating statement can be received differently depending on facial expression, gaze, silence, and response timing. Instead of inferring the counselor's internal emotional state, CounselCue treats the following relationship as the object of practice:
 
 ```text
 Counseling micro-skill + calibrated embodied delivery cues
@@ -62,8 +62,8 @@ The scene draws on a contemporary Korean private-practice context with warm ivor
 
 - Unity: `6000.4.9f1`
 - Start scene: `Assets/Scenes/KoreanCounselingRoom.unity`
-- Rebuild the generated scene: `Tools → Affect Counsel → Build Korean Counseling Room`
-- Windows build output: `Builds/AffectCounselDemo/AffectCounsel.exe`
+- Rebuild the generated scene: `Tools → CounselCue → Build Korean Counseling Room`
+- Windows build output: `Builds/CounselCue/CounselCue.exe`
 
 The local case-based counseling flow works without a webcam. AU input requires the separate Python/MediaPipe bridge, and GPT Realtime requires a developer-owned ephemeral-token broker. See the [English build guide](README.en.md#build-and-validation) or [Korean run guide](README.ko.md) for detailed setup and commands.
 

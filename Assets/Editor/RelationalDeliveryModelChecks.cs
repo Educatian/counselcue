@@ -6,7 +6,7 @@ namespace AdieLab.AffectCounsel.Editor
 {
     public static class RelationalDeliveryModelChecks
     {
-        [MenuItem("Tools/Affect Counsel/Run Relational Delivery Checks")]
+        [MenuItem("Tools/CounselCue/Run Relational Delivery Checks")]
         public static void RunFromMenu()
         {
             RunChecks();

@@ -13,7 +13,7 @@
 # --- How to run ---
 # 1. Install uv: https://docs.astral.sh/uv/getting-started/installation/
 # 2. Run: uv run Tools/AuBridge/face_au_bridge.py
-# 3. Then launch Unity with: AffectCounsel.exe --au
+# 3. Then launch Unity with: CounselCue.exe --au
 # ------------------
 
 from __future__ import annotations
@@ -291,7 +291,7 @@ def run_bridge(config: BridgeConfig) -> None:
                         (DEFAULT_HOST, config.port),
                     )
                     if config.preview:
-                        cv2.imshow("Affect Counsel AU bridge", frame)
+                        cv2.imshow("CounselCue AU bridge", frame)
                         if cv2.waitKey(1) & 0xFF == 27:
                             return
     finally:

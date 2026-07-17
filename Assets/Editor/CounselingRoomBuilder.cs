@@ -50,7 +50,7 @@ namespace AdieLab.AffectCounsel.Editor
         private static readonly Color Ink = new Color(0.105f, 0.13f, 0.12f, 1f);
         private static readonly Color TealAction = new Color(0.20f, 0.48f, 0.37f, 1f);
 
-        [MenuItem("Tools/Affect Counsel/Build Korean Counseling Room")]
+        [MenuItem("Tools/CounselCue/Build Korean Counseling Room")]
         public static void Build()
         {
             EnsureFolder("Assets/Scenes");
@@ -78,7 +78,7 @@ namespace AdieLab.AffectCounsel.Editor
             ClientAvatarController client = BuildClient(camera.transform, controller);
             UiReferences ui = BuildUi();
 
-            GameObject runtime = new GameObject("AffectCounsel_Runtime");
+            GameObject runtime = new GameObject("CounselCue_Runtime");
             WebcamSignalMonitor webcam = runtime.AddComponent<WebcamSignalMonitor>();
             FacialActionUnitMonitor actionUnits = runtime.AddComponent<FacialActionUnitMonitor>();
             GptRealtimeConversationEngine realtime = runtime.AddComponent<GptRealtimeConversationEngine>();
@@ -112,11 +112,11 @@ namespace AdieLab.AffectCounsel.Editor
         public static void BuildWindowsFromCommandLine()
         {
             Build();
-            Directory.CreateDirectory("Builds/AffectCounselDemo");
+            Directory.CreateDirectory("Builds/CounselCue");
             BuildPlayerOptions options = new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
-                locationPathName = "Builds/AffectCounselDemo/AffectCounsel.exe",
+                locationPathName = "Builds/CounselCue/CounselCue.exe",
                 target = BuildTarget.StandaloneWindows64,
                 options = BuildOptions.None
             };
@@ -330,7 +330,7 @@ namespace AdieLab.AffectCounsel.Editor
             RectTransform briefingCard = CreatePanel("BriefingCard", briefingRoot, Vector2.zero, new Vector2(980f, 720f), new Vector2(0.5f, 0.5f), panelSprite, PaperCard);
             briefingCard.anchoredPosition = Vector2.zero;
             CreateAccentBar("BriefingAccent", briefingCard, 720f, TealAction);
-            CreateText("BriefingEyebrow", "AFFECT COUNSEL · PRACTICE PATH", briefingCard, new Vector2(42f, -28f), new Vector2(890f, 24f), font, 13, TealAction, FontStyle.Bold);
+            CreateText("BriefingEyebrow", "COUNSELCUE · PRACTICE PATH", briefingCard, new Vector2(42f, -28f), new Vector2(890f, 24f), font, 13, TealAction, FontStyle.Bold);
             Text briefingTitle = CreateText("BriefingTitle", "오늘의 연습 경로 선택", briefingCard, new Vector2(42f, -62f), new Vector2(890f, 50f), font, 31, Ink, FontStyle.Bold);
             briefingTitle.verticalOverflow = VerticalWrapMode.Overflow;
             refs.briefingCaseLabel = CreateText("BriefingCase", "직장 불안 · 김지혜, 32세 · 초기면담", briefingCard, new Vector2(42f, -116f), new Vector2(890f, 30f), font, 17, new Color(0.27f, 0.39f, 0.34f), FontStyle.Bold);

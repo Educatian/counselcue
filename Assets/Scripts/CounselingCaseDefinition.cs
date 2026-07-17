@@ -19,7 +19,7 @@ namespace AdieLab.AffectCounsel
         [TextArea] public string coachingPrompt;
     }
 
-    [CreateAssetMenu(fileName = "CounselingCase", menuName = "Affect Counsel/Counseling Case")]
+    [CreateAssetMenu(fileName = "CounselingCase", menuName = "CounselCue/Counseling Case")]
     public sealed class CounselingCaseDefinition : ScriptableObject
     {
         [SerializeField] private string caseId = "workplace-anxiety-01";

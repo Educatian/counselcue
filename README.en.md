@@ -1,4 +1,4 @@
-# Affect Counsel Unity
+# CounselCue
 
 [한국어 문서](README.ko.md) · [English documentation](README.en.md) · [Language index](README.md)
 
@@ -66,7 +66,7 @@ System evidence and replay remain locked until the trainee records a judgment fo
 Open the project and run:
 
 ```text
-Tools → Affect Counsel → Build Korean Counseling Room
+Tools → CounselCue → Build Korean Counseling Room
 ```
 
 The project also exposes command-line editor methods:
@@ -76,7 +76,7 @@ AdieLab.AffectCounsel.Editor.CounselingRoomBuilder.BuildWindowsFromCommandLine
 AdieLab.AffectCounsel.Editor.CounselingSessionFlowChecks.RunFromCommandLine
 ```
 
-Generated Windows output is written to `Builds/AffectCounselDemo/` and is intentionally excluded from Git.
+Generated Windows output is written to `Builds/CounselCue/` and is intentionally excluded from Git.
 
 ## Privacy and validation boundaries
 
