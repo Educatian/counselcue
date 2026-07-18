@@ -33,11 +33,8 @@ const clean = (v, n) =>
     .trim()
     .slice(0, n);
 function output(p) {
-  for (const i of p.output || [])
-    if (i.type === "message")
-      for (const c of i.content || [])
-        if (c.type === "output_text" && c.text) return c.text;
-  return "";
+  const content = p.choices?.[0]?.message?.content;
+  return typeof content === "string" ? content : "";
 }
 function personaResult(t) {
   let x = JSON.parse(
@@ -64,7 +61,7 @@ export default {
         {
           ok: true,
           services: {
-            persona: !!env.OPENAI_API_KEY,
+            persona: !!env.OPENROUTER_API_KEY,
             voice: !!env.ELEVENLABS_API_KEY,
           },
         },
@@ -98,24 +95,26 @@ export default {
           ),
         },
       };
-      const r = await fetch("https://api.openai.com/v1/responses", {
+      const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: "Bearer " + env.OPENAI_API_KEY,
+          Authorization: "Bearer " + env.OPENROUTER_API_KEY,
           "Content-Type": "application/json",
+          "HTTP-Referer": "https://educatian.github.io/counselcue/",
+          "X-Title": "CounselCue",
         },
         body: JSON.stringify({
-          model: env.OPENAI_MODEL || "gpt-5.6-terra",
-          reasoning: { effort: "none" },
-          instructions: PERSONA,
-          input: JSON.stringify(input),
-          max_output_tokens: 260,
-          store: false,
-          safety_identifier: "counselcue-public-demo",
+          model: env.OPENROUTER_MODEL || "openai/gpt-5.6-terra",
+          messages: [
+            { role: "system", content: PERSONA },
+            { role: "user", content: JSON.stringify(input) },
+          ],
+          response_format: { type: "json_object" },
+          max_tokens: 260,
         }),
       });
       if (!r.ok) {
-        console.error("OpenAI", r.status, await r.text());
+        console.error("OpenRouter", r.status, await r.text());
         return json({ error: "persona_unavailable" }, 502, o);
       }
       try {

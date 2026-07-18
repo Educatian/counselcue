@@ -4,9 +4,9 @@ import worker from "../src/index.js";
 
 const limiter = { limit: async () => ({ success: true }) };
 const env = {
-  OPENAI_API_KEY: "test-openai",
+  OPENROUTER_API_KEY: "test-openrouter",
   ELEVENLABS_API_KEY: "test-eleven",
-  OPENAI_MODEL: "test-model",
+  OPENROUTER_MODEL: "test-model",
   ELEVENLABS_VOICE_ID: "voice",
   TURN_LIMITER: limiter,
   VOICE_LIMITER: limiter,
@@ -27,20 +27,18 @@ test("health never exposes credentials", async () => {
 
 test("turn keeps the persona server-side and returns bounded state", async () => {
   const old = globalThis.fetch;
-  let outbound;
-  globalThis.fetch = async (_url, init) => {
+  let outbound, outboundUrl, outboundHeaders;
+  globalThis.fetch = async (url, init) => {
+    outboundUrl = url;
+    outboundHeaders = new Headers(init.headers);
     outbound = JSON.parse(init.body);
     return new Response(
       JSON.stringify({
-        output: [
+        choices: [
           {
-            type: "message",
-            content: [
-              {
-                type: "output_text",
-                text: '{"reply":"회사 입구에 도착할 때부터 숨이 답답해져요.","emotion":"anxious"}',
-              },
-            ],
+            message: {
+              content: '{"reply":"회사 입구에 도착할 때부터 숨이 답답해져요.","emotion":"anxious"}',
+            },
           },
         ],
       }),
@@ -66,10 +64,19 @@ test("turn keeps the persona server-side and returns bounded state", async () =>
     assert.equal(r.status, 200);
     assert.equal(body.emotion, "anxious");
     assert.match(body.reply, /회사 입구/);
-    assert.match(outbound.instructions, /Kim Ji-hye/);
-    assert.match(outbound.instructions, /존댓말/);
+    assert.equal(outboundUrl, "https://openrouter.ai/api/v1/chat/completions");
+    assert.equal(outboundHeaders.get("authorization"), "Bearer test-openrouter");
+    assert.equal(
+      outboundHeaders.get("http-referer"),
+      "https://educatian.github.io/counselcue/",
+    );
+    assert.equal(outboundHeaders.get("x-title"), "CounselCue");
     assert.equal(outbound.model, "test-model");
-    assert.equal(outbound.store, false);
+    assert.deepEqual(
+      outbound.messages.map(({ role }) => role),
+      ["system", "user"],
+    );
+    assert.deepEqual(outbound.response_format, { type: "json_object" });
   } finally {
     globalThis.fetch = old;
   }
