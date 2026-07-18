@@ -79,7 +79,7 @@ AdieLab.AffectCounsel.Editor.CounselingSessionFlowChecks.RunFromCommandLine
 AdieLab.AffectCounsel.Editor.CounselingRoomBuilder.BuildWebGLFromCommandLine
 ```
 
-Generated Windows output is written to `Builds/CounselCue/`; WebGL output is written to `Builds/WebGL/`. Both are intentionally excluded from Git. The hosted WebGL demo uses the local case engine; the UDP AU bridge and GPT Realtime integration remain desktop-only.
+Generated Windows output is written to `Builds/CounselCue/`; WebGL output is written to `Builds/WebGL/`. Both are intentionally excluded from Git. The hosted build adds browser-native Korean text input, Korean microphone dictation, spotlight onboarding, and ElevenLabs v3 emotional client speech. A server-owned OpenAI persona endpoint is used when configured, with deterministic local fallback. Provider keys stay on the edge worker. UDP AU input remains desktop-only.
 
 ## Privacy and validation boundaries
 

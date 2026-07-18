@@ -47,9 +47,9 @@ System evidence remains hidden until the learner records a self-assessment. A se
 
 | Status | Scope |
 |---|---|
-| **Implemented** | Rocketbox virtual client, close observation camera, 15-minute full session, three-minute focused practice, coached and assessment modes, pause and debrief flows, scene self-assessment and replay, relational trajectory, local JSONL logging, and Korean/English UI |
-| **Experimental** | Thirteen MediaPipe-derived AU proxies, ten-second personal baseline calibration, language-delivery alignment rules, a pilot Korean counseling-culture profile, GPT Realtime text connection, and deterministic local fallback |
-| **Planned** | GPT Realtime speech input/output, temporal alignment of speaking rate, silence, gaze, and head nods, expert case-authoring tools, consent and deletion flows, an educator dashboard, and multi-site user research |
+| **Implemented** | Rocketbox virtual client, close observation camera, full and focused sessions, coached and assessment modes, replay, relational trajectory, local JSONL logging, Korean/English UI, browser-native Korean input, Korean microphone dictation, spotlight onboarding, and ElevenLabs v3 client speech through a server proxy |
+| **Experimental** | Server-owned Korean client persona through the OpenAI Responses API, bounded relational-state prompting, four-state emotional voice direction, thirteen MediaPipe-derived AU proxies, personal baseline calibration, and deterministic local fallback |
+| **Planned** | Temporal alignment of speaking rate, silence, gaze, and head nods, expert case-authoring tools, consent and deletion flows, an educator dashboard, and multi-site user research |
 | **Requires validation** | Agreement between AU proxies and human FACS coding, expert inter-rater reliability for feedback rules, culture-specific cue interpretation, learning transfer, and change in counseling competence |
 
 ## Interface
@@ -60,6 +60,10 @@ The scene draws on a contemporary Korean private-practice context with warm ivor
 |---|---|
 | ![Korean case briefing](Screenshots/progress-36-polished-briefing.png) | ![English case briefing](Screenshots/progress-37-english-ui.png) |
 
+| Spotlight onboarding | Browser-native voice and Korean input |
+|---|---|
+| ![Spotlight tutorial highlighting the virtual client](Screenshots/progress-38-spotlight-tutorial.png) | ![Voice-enabled counseling session](Screenshots/progress-39-voice-input.png) |
+
 ## Run from source
 
 - Unity: `6000.4.9f1`
@@ -69,7 +73,7 @@ The scene draws on a contemporary Korean private-practice context with warm ivor
 - WebGL build output: `Builds/WebGL/index.html`
 - Live browser demo: https://educatian.github.io/counselcue/
 
-The hosted demo uses the local case engine. The UDP AU bridge and GPT Realtime integration remain desktop-only.
+The hosted WebGL build uses a server-side persona endpoint when configured and falls back to the deterministic local case engine if the request fails. ElevenLabs and OpenAI keys remain on the edge worker; they are never embedded in Unity or JavaScript. UDP AU input remains desktop-only.
 
 The local case-based counseling flow works without a webcam. AU input requires the separate Python/MediaPipe bridge, and GPT Realtime requires a developer-owned ephemeral-token broker. See the [English build guide](README.en.md#build-and-validation) or [Korean run guide](README.ko.md) for detailed setup and commands.
 

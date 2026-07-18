@@ -133,7 +133,7 @@ UI는 CC0 라이선스의 Kenney UI Pack 2.0에서 고해상도 9-slice 패널·
 - WebGL 빌드: `Builds/WebGL/index.html`
 - 공개 웹 데모: https://educatian.github.io/counselcue/
 
-웹 데모는 로컬 사례 엔진으로 동작합니다. UDP AU 브리지와 GPT Realtime 연동은 데스크톱 빌드에서만 사용할 수 있습니다.
+웹 데모는 브라우저 네이티브 한글 입력, 한국어 마이크 받아쓰기, 스팟라이트 튜토리얼, ElevenLabs v3 감정 음성을 지원합니다. 서버 페르소나 API가 사용 가능하면 LLM 내담자 응답을 사용하고, 실패하면 기존 로컬 사례 엔진으로 안전하게 대체합니다. API 키는 Unity와 JavaScript에 포함하지 않습니다. UDP AU 브리지는 데스크톱 전용입니다.
 
 에디터 메뉴 `Tools > CounselCue > Build Korean Counseling Room`으로 씬을 다시 생성할 수 있습니다.
 
