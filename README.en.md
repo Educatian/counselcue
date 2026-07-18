@@ -2,6 +2,8 @@
 
 [한국어 문서](README.ko.md) · [English documentation](README.en.md) · [Language index](README.md)
 
+[**Launch the live WebGL demo →**](https://educatian.github.io/counselcue/)
+
 A standalone Unity prototype for Korean one-to-one counselor training. It combines a Microsoft Rocketbox virtual client, local webcam-derived facial action signals, counseling micro-skill classification, and a relational state model.
 
 ![Counseling practice with a close, observable client](Screenshots/progress-35-reference-room.png)
@@ -74,9 +76,10 @@ The project also exposes command-line editor methods:
 ```text
 AdieLab.AffectCounsel.Editor.CounselingRoomBuilder.BuildWindowsFromCommandLine
 AdieLab.AffectCounsel.Editor.CounselingSessionFlowChecks.RunFromCommandLine
+AdieLab.AffectCounsel.Editor.CounselingRoomBuilder.BuildWebGLFromCommandLine
 ```
 
-Generated Windows output is written to `Builds/CounselCue/` and is intentionally excluded from Git.
+Generated Windows output is written to `Builds/CounselCue/`; WebGL output is written to `Builds/WebGL/`. Both are intentionally excluded from Git. The hosted WebGL demo uses the local case engine; the UDP AU bridge and GPT Realtime integration remain desktop-only.
 
 ## Privacy and validation boundaries
 

@@ -2,6 +2,8 @@
 
 [Korean documentation](README.ko.md) · [English documentation](README.en.md)
 
+[**Launch the live WebGL demo →**](https://educatian.github.io/counselcue/)
+
 > **This is not an emotion classifier.** CounselCue is a Korean one-to-one counselor-training simulation for practicing how counseling micro-skills and embodied cues such as facial movement, gaze, and posture may work together in relational delivery.
 
 ![CounselCue relational delivery training simulation](.github/counselcue-social-preview.jpg)
@@ -64,6 +66,10 @@ The scene draws on a contemporary Korean private-practice context with warm ivor
 - Start scene: `Assets/Scenes/KoreanCounselingRoom.unity`
 - Rebuild the generated scene: `Tools → CounselCue → Build Korean Counseling Room`
 - Windows build output: `Builds/CounselCue/CounselCue.exe`
+- WebGL build output: `Builds/WebGL/index.html`
+- Live browser demo: https://educatian.github.io/counselcue/
+
+The hosted demo uses the local case engine. The UDP AU bridge and GPT Realtime integration remain desktop-only.
 
 The local case-based counseling flow works without a webcam. AU input requires the separate Python/MediaPipe bridge, and GPT Realtime requires a developer-owned ephemeral-token broker. See the [English build guide](README.en.md#build-and-validation) or [Korean run guide](README.ko.md) for detailed setup and commands.
 

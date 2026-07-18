@@ -2,6 +2,8 @@
 
 [한국어 문서](README.ko.md) · [English documentation](README.en.md) · [언어 선택](README.md)
 
+[**웹에서 CounselCue 실행하기 →**](https://educatian.github.io/counselcue/)
+
 한국어 1:1 상담사 훈련을 위한 독립형 Unity 프로토타입입니다. Microsoft Rocketbox 성인 아바타와 로컬 웹캠 신호를 사용해 상담자의 언어적 반응과 비언어적 전달이 어떻게 함께 전달되는지 연습합니다.
 
 ![안락한 한국 상담실 맥락을 반영한 1:1 집중연습](Screenshots/progress-35-reference-room.png)
@@ -128,6 +130,10 @@ UI는 CC0 라이선스의 Kenney UI Pack 2.0에서 고해상도 9-slice 패널·
 - Unity: `6000.4.9f1`
 - 시작 씬: `Assets/Scenes/KoreanCounselingRoom.unity`
 - Windows 빌드: `Builds/CounselCue/CounselCue.exe`
+- WebGL 빌드: `Builds/WebGL/index.html`
+- 공개 웹 데모: https://educatian.github.io/counselcue/
+
+웹 데모는 로컬 사례 엔진으로 동작합니다. UDP AU 브리지와 GPT Realtime 연동은 데스크톱 빌드에서만 사용할 수 있습니다.
 
 에디터 메뉴 `Tools > CounselCue > Build Korean Counseling Room`으로 씬을 다시 생성할 수 있습니다.
 

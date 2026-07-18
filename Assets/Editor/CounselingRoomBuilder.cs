@@ -3,6 +3,7 @@ using System.Linq;
 using AdieLab.AffectCounsel;
 using UnityEditor;
 using UnityEditor.Animations;
+using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -121,6 +122,28 @@ namespace AdieLab.AffectCounsel.Editor
                 options = BuildOptions.None
             };
             BuildPipeline.BuildPlayer(options);
+            EditorApplication.Exit(0);
+        }
+
+        public static void BuildWebGLFromCommandLine()
+        {
+            Build();
+            Directory.CreateDirectory("Builds/WebGL");
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+            PlayerSettings.WebGL.decompressionFallback = false;
+            BuildPlayerOptions options = new BuildPlayerOptions
+            {
+                scenes = new[] { ScenePath },
+                locationPathName = "Builds/WebGL",
+                target = BuildTarget.WebGL,
+                options = BuildOptions.None
+            };
+            BuildReport report = BuildPipeline.BuildPlayer(options);
+            if (report.summary.result != BuildResult.Succeeded)
+            {
+                throw new System.InvalidOperationException($"CounselCue WebGL build failed: {report.summary.result}");
+            }
+
             EditorApplication.Exit(0);
         }
 
