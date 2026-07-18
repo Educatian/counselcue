@@ -7,18 +7,23 @@ namespace AdieLab.AffectCounsel
     {
         Guarded,
         Anxious,
-        Relieved
+        Relieved,
+        Thoughtful
     }
 
     [DisallowMultipleComponent]
     public sealed class ClientAvatarController : MonoBehaviour
     {
+        private const int GestureLayer = 1;
+        private const float GestureLayerWeight = 0.58f;
+
         [SerializeField] private Animator animator;
         [SerializeField] private Transform lookTarget;
         [SerializeField, Min(1f)] private float blendSpeed = 95f;
 
         private SkinnedMeshRenderer[] renderers;
         private ClientAffect affect = ClientAffect.Anxious;
+        private Coroutine speechRoutine;
         private float speakingWeight;
         private float blinkWeight;
         private float nextBlink;
@@ -28,6 +33,11 @@ namespace AdieLab.AffectCounsel
             animator ??= GetComponentInChildren<Animator>();
             renderers = GetComponentsInChildren<SkinnedMeshRenderer>(true);
             nextBlink = Random.Range(1.8f, 4.2f);
+            if (animator != null && animator.layerCount > GestureLayer)
+            {
+                animator.SetLayerWeight(GestureLayer, GestureLayerWeight);
+            }
+
             SetAffect(ClientAffect.Anxious, true);
         }
 
@@ -43,15 +53,20 @@ namespace AdieLab.AffectCounsel
             ApplyFace();
         }
 
+        private void OnDisable()
+        {
+            if (speechRoutine != null) StopCoroutine(speechRoutine);
+            speechRoutine = null;
+            speakingWeight = 0f;
+            blinkWeight = 0f;
+        }
+
         private void OnAnimatorIK(int layerIndex)
         {
-            if (animator == null || lookTarget == null)
-            {
-                return;
-            }
+            if (animator == null || lookTarget == null) return;
 
-            float gaze = affect == ClientAffect.Guarded ? 0.28f : 0.78f;
-            animator.SetLookAtWeight(gaze, 0.16f, 0.82f, 0.70f, 0.48f);
+            float gaze = affect == ClientAffect.Guarded ? 0.28f : 0.72f;
+            animator.SetLookAtWeight(gaze, 0.12f, 0.76f, 0.62f, 0.42f);
             animator.SetLookAtPosition(lookTarget.position);
         }
 
@@ -60,39 +75,107 @@ namespace AdieLab.AffectCounsel
             affect = value;
             if (animator != null && animator.runtimeAnimatorController != null)
             {
-                string state = value == ClientAffect.Relieved ? "Thoughtful" : value == ClientAffect.Guarded ? "Waiting" : "Idle";
-                animator.CrossFadeInFixedTime(state, immediate ? 0f : 0.35f);
+                string state = value switch
+                {
+                    ClientAffect.Relieved => "Relaxed",
+                    ClientAffect.Thoughtful => "Thoughtful",
+                    ClientAffect.Guarded => "Waiting",
+                    _ => "Idle"
+                };
+                animator.CrossFadeInFixedTime(state, immediate ? 0f : 0.45f, 0);
             }
 
-            if (immediate)
+            if (immediate) ApplyFace(true);
+        }
+
+        public static ClientAffect AffectForEmotion(string emotion)
+        {
+            return (emotion ?? string.Empty).Trim().ToLowerInvariant() switch
             {
-                ApplyFace(true);
+                "guarded" => ClientAffect.Guarded,
+                "relieved" => ClientAffect.Relieved,
+                "thoughtful" => ClientAffect.Thoughtful,
+                _ => ClientAffect.Anxious
+            };
+        }
+
+        public static string GestureStateFor(string emotion, int variant)
+        {
+            string normalized = (emotion ?? string.Empty).Trim().ToLowerInvariant();
+            return normalized switch
+            {
+                "relieved" => "TalkRelaxed",
+                "guarded" => variant % 2 == 0 ? "TalkSad" : "TalkNeutral",
+                "thoughtful" => "TalkNeutral",
+                _ => variant % 3 == 0 ? "TalkNeutral" : "TalkNervous"
+            };
+        }
+
+        public void Speak(string text) => Speak(text, affect.ToString());
+
+        public void Speak(string text, string emotion)
+        {
+            StopSpeaking();
+            float duration = Mathf.Clamp((text ?? string.Empty).Length * 0.055f, 1.2f, 8f);
+            speechRoutine = StartCoroutine(SpeechRoutine(duration, emotion, (text ?? string.Empty).Length));
+        }
+
+        public void BeginSpeaking(string text, string emotion)
+        {
+            StopSpeaking();
+            speechRoutine = StartCoroutine(SpeechRoutine(60f, emotion, (text ?? string.Empty).Length));
+        }
+
+        public void StopSpeaking()
+        {
+            if (speechRoutine != null) StopCoroutine(speechRoutine);
+            speechRoutine = null;
+            speakingWeight = 0f;
+            if (animator != null && animator.layerCount > GestureLayer)
+            {
+                animator.CrossFadeInFixedTime("Empty", 0.4f, GestureLayer);
             }
         }
 
-        public void Speak(string text)
+        private IEnumerator SpeechRoutine(float duration, string emotion, int textLength)
         {
-            StopAllCoroutines();
-            StartCoroutine(SpeechRoutine(Mathf.Clamp(text.Length * 0.055f, 1.2f, 5.5f)));
-        }
-
-        private IEnumerator SpeechRoutine(float duration)
-        {
-            if (animator != null && animator.runtimeAnimatorController != null)
-            {
-                animator.CrossFadeInFixedTime("Talk", 0.22f);
-            }
-
             float elapsed = 0f;
+            float gestureStart = Random.Range(0.35f, 0.75f);
+            float gestureEnd = Mathf.Min(duration - 0.2f, gestureStart + Random.Range(1.8f, 3.2f));
+            bool useGesture = textLength >= 18 && Random.value < 0.72f;
+            bool gestureStarted = false;
+            bool gestureFinished = false;
+            string gestureState = GestureStateFor(emotion, Random.Range(0, 6));
+
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                speakingWeight = Mathf.Abs(Mathf.Sin(elapsed * 11.4f));
+                float noise = Mathf.PerlinNoise(Time.unscaledTime * 5.4f, 0.31f);
+                float mouthTarget = Mathf.Clamp01((noise - 0.32f) * 1.55f);
+                speakingWeight = Mathf.MoveTowards(speakingWeight, mouthTarget, Time.deltaTime * 4.8f);
+
+                if (useGesture && !gestureStarted && elapsed >= gestureStart &&
+                    animator != null && animator.layerCount > GestureLayer)
+                {
+                    gestureStarted = true;
+                    animator.CrossFadeInFixedTime(gestureState, 0.38f, GestureLayer);
+                }
+
+                if (gestureStarted && !gestureFinished && elapsed >= gestureEnd)
+                {
+                    gestureFinished = true;
+                    animator.CrossFadeInFixedTime("Empty", 0.5f, GestureLayer);
+                }
+
                 yield return null;
             }
 
+            speechRoutine = null;
             speakingWeight = 0f;
-            SetAffect(affect);
+            if (animator != null && animator.layerCount > GestureLayer)
+            {
+                animator.CrossFadeInFixedTime("Empty", 0.4f, GestureLayer);
+            }
         }
 
         private IEnumerator Blink()
@@ -110,23 +193,17 @@ namespace AdieLab.AffectCounsel
 
         private void ApplyFace(bool immediate = false)
         {
-            if (renderers == null)
-            {
-                return;
-            }
+            if (renderers == null) return;
 
-            float browUp = affect == ClientAffect.Anxious ? 42f : affect == ClientAffect.Guarded ? 18f : 10f;
-            float browDown = affect == ClientAffect.Guarded ? 38f : 5f;
-            float smile = affect == ClientAffect.Relieved ? 22f : 0f;
-            float mouthOpen = speakingWeight * 48f;
+            float browUp = affect == ClientAffect.Anxious ? 32f : affect == ClientAffect.Guarded ? 16f : 8f;
+            float browDown = affect == ClientAffect.Guarded ? 28f : 4f;
+            float smile = affect == ClientAffect.Relieved ? 16f : 0f;
+            float mouthOpen = speakingWeight * 30f;
             for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
             {
                 SkinnedMeshRenderer renderer = renderers[rendererIndex];
                 Mesh mesh = renderer.sharedMesh;
-                if (mesh == null)
-                {
-                    continue;
-                }
+                if (mesh == null) continue;
 
                 for (int shapeIndex = 0; shapeIndex < mesh.blendShapeCount; shapeIndex++)
                 {
@@ -138,7 +215,9 @@ namespace AdieLab.AffectCounsel
                     else if (Matches(name, "jawopen", "mouthopen", "au26")) target = mouthOpen;
                     else if (Matches(name, "eyeblink", "blinktop", "au45")) target = blinkWeight * 100f;
                     float current = renderer.GetBlendShapeWeight(shapeIndex);
-                    renderer.SetBlendShapeWeight(shapeIndex, immediate ? target : Mathf.MoveTowards(current, target, blendSpeed * Time.deltaTime));
+                    renderer.SetBlendShapeWeight(
+                        shapeIndex,
+                        immediate ? target : Mathf.MoveTowards(current, target, blendSpeed * Time.deltaTime));
                 }
             }
         }

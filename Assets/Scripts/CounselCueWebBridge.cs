@@ -9,7 +9,11 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private CounselingSessionController session;
         [SerializeField] private CounselingSessionOrchestrator orchestrator;
         [SerializeField] private WebNpcConversationEngine npcEngine;
+        [SerializeField] private ClientAvatarController client;
+
         private bool lastEnabled;
+        private string pendingSpeechText = string.Empty;
+        private string pendingSpeechEmotion = "anxious";
 
 #if UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")] private static extern void CounselCueWeb_Initialize(string objectName, string apiBaseUrl);
@@ -20,35 +24,61 @@ namespace AdieLab.AffectCounsel
         private void Start()
         {
 #if UNITY_WEBGL && !UNITY_EDITOR
-            WebGLInput.captureAllKeyboardInput = false;
             CounselCueWeb_Initialize(gameObject.name, npcEngine == null ? "" : npcEngine.ApiBaseUrl);
             CounselCueWeb_SetEnabled(0);
 #endif
         }
+
         private void Update()
         {
-            bool enabled=orchestrator != null && orchestrator.CanSubmit && session != null && !session.IsSubmitting;
-            if (enabled==lastEnabled) return;
-            lastEnabled=enabled;
+            bool enabled = orchestrator != null && orchestrator.CanSubmit && session != null && !session.IsSubmitting;
+            if (enabled == lastEnabled) return;
+            lastEnabled = enabled;
 #if UNITY_WEBGL && !UNITY_EDITOR
             CounselCueWeb_SetEnabled(enabled ? 1 : 0);
 #endif
         }
-        public void OnWebTextChanged(string value) { session?.SetCounselorInput(value ?? ""); }
-        public void OnWebTextSubmitted(string value) {
-            if (session==null) return;
+
+        public void OnWebTextChanged(string value) => session?.SetCounselorInput(value ?? "");
+
+        public void OnWebTextSubmitted(string value)
+        {
+            if (session == null) return;
             session.SetCounselorInput(value ?? "");
             session.Submit();
         }
-        public void ClearInput() {
+
+        public void ClearInput()
+        {
 #if UNITY_WEBGL && !UNITY_EDITOR
             CounselCueWeb_SetText("");
 #endif
         }
-        public void SpeakClient(string text, string emotion) {
+
+        public void SpeakClient(string text, string emotion)
+        {
+            pendingSpeechText = text ?? string.Empty;
+            pendingSpeechEmotion = emotion ?? "anxious";
 #if UNITY_WEBGL && !UNITY_EDITOR
-            CounselCueWeb_Speak(text ?? "", emotion ?? "anxious");
+            CounselCueWeb_Speak(pendingSpeechText, pendingSpeechEmotion);
+#else
+            client?.Speak(pendingSpeechText, pendingSpeechEmotion);
 #endif
+        }
+
+        public void OnWebVoiceStarted(string unused)
+        {
+            client?.BeginSpeaking(pendingSpeechText, pendingSpeechEmotion);
+        }
+
+        public void OnWebVoiceEnded(string unused)
+        {
+            client?.StopSpeaking();
+        }
+
+        public void OnWebVoiceFailed(string unused)
+        {
+            client?.Speak(pendingSpeechText, pendingSpeechEmotion);
         }
     }
 }

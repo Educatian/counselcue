@@ -21,6 +21,12 @@ namespace AdieLab.AffectCounsel.Editor
             {
                 clips[i].loopTime = assetPath.ToLowerInvariant().Contains("idle") || assetPath.ToLowerInvariant().Contains("waiting");
                 clips[i].loopPose = clips[i].loopTime;
+                clips[i].keepOriginalOrientation = true;
+                clips[i].keepOriginalPositionY = true;
+                clips[i].keepOriginalPositionXZ = true;
+                clips[i].lockRootRotation = true;
+                clips[i].lockRootHeightY = true;
+                clips[i].lockRootPositionXZ = true;
             }
             if (clips.Length > 0) importer.clipAnimations = clips;
         }

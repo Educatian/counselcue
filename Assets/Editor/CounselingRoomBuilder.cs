@@ -1,8 +1,6 @@
 using System.IO;
-using System.Linq;
 using AdieLab.AffectCounsel;
 using UnityEditor;
-using UnityEditor.Animations;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -18,7 +16,6 @@ namespace AdieLab.AffectCounsel.Editor
         private const string MaterialRoot = "Assets/Materials/Counseling";
         private const string AvatarPath = "Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Female_Adult_05/Export/Female_Adult_05_facial.fbx";
         private const string FontPath = "Assets/Fonts/NotoSansKR-VF.ttf";
-        private const string ControllerPath = "Assets/Animations/CounselingClient.controller";
         private const string CasePath = "Assets/Data/Cases/WorkplaceAnxietyCase.asset";
         private const string ArtworkTexturePath = "Assets/Art/Textures/HanjiMountainArtwork.png";
         private const string UiButtonSpritePath = "Assets/ThirdParty/Kenney/UI/button_rectangle_depth_flat.png";
@@ -59,7 +56,7 @@ namespace AdieLab.AffectCounsel.Editor
             EnsureFolder(MaterialRoot);
             EnsureFolder("Assets/Animations");
             CreateMaterials();
-            RuntimeAnimatorController controller = CreateAnimatorController();
+            RuntimeAnimatorController controller = CounselingAnimatorFactory.Create();
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             CounselingCaseDefinition caseDefinition = CreateDefaultCaseDefinition();
@@ -94,7 +91,7 @@ namespace AdieLab.AffectCounsel.Editor
             WireWebcam(webcam, ui);
             WireActionUnits(actionUnits, ui);
             WireSession(session, orchestrator, caseDefinition, client, webcam, actionUnits, realtime, webNpc, webBridge, ui);
-            WireWebExperience(webBridge, session, orchestrator, webNpc);
+            WireWebExperience(webBridge, session, orchestrator, webNpc, client);
             WireSessionOrchestrator(orchestrator, session, reflection, caseDefinition, ui);
             WireReflection(reflection, orchestrator, ui);
             WireCameraZoom(cameraZoom, camera, ui);
@@ -490,32 +487,6 @@ namespace AdieLab.AffectCounsel.Editor
             return definition;
         }
 
-        private static RuntimeAnimatorController CreateAnimatorController()
-        {
-            if (File.Exists(ControllerPath)) AssetDatabase.DeleteAsset(ControllerPath);
-            AnimatorController controller = AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
-            AnimatorStateMachine machine = controller.layers[0].stateMachine;
-            AnimatorState idle = machine.AddState("Idle");
-            idle.motion = LoadClip("Assets/ThirdParty/MicrosoftRocketbox/Animations/f_sit_table_idle_neutral_01.max.fbx");
-            AnimatorState waiting = machine.AddState("Waiting");
-            waiting.motion = LoadClip("Assets/ThirdParty/MicrosoftRocketbox/Animations/f_sit_table_idle_waiting_01.max.fbx");
-            AnimatorState thoughtful = machine.AddState("Thoughtful");
-            thoughtful.motion = LoadClip("Assets/ThirdParty/MicrosoftRocketbox/Animations/f_sit_table_gestic_thoughtful.max.fbx");
-            AnimatorState talk = machine.AddState("Talk");
-            talk.motion = thoughtful.motion ?? idle.motion;
-            machine.defaultState = idle;
-            AnimatorControllerLayer[] layers = controller.layers;
-            layers[0].iKPass = true;
-            controller.layers = layers;
-            EditorUtility.SetDirty(controller);
-            return controller;
-        }
-
-        private static AnimationClip LoadClip(string path)
-        {
-            return AssetDatabase.LoadAllAssetsAtPath(path).OfType<AnimationClip>().FirstOrDefault(clip => !clip.name.StartsWith("__preview__"));
-        }
-
         private static void WireWebcam(WebcamSignalMonitor webcam, UiReferences ui)
         {
             SerializedObject serialized = new SerializedObject(webcam);
@@ -552,12 +523,13 @@ namespace AdieLab.AffectCounsel.Editor
             EditorUtility.SetDirty(session);
         }
 
-        private static void WireWebExperience(CounselCueWebBridge bridge, CounselingSessionController session, CounselingSessionOrchestrator orchestrator, WebNpcConversationEngine webNpc)
+        private static void WireWebExperience(CounselCueWebBridge bridge, CounselingSessionController session, CounselingSessionOrchestrator orchestrator, WebNpcConversationEngine webNpc, ClientAvatarController client)
         {
             SerializedObject serialized = new SerializedObject(bridge);
             serialized.FindProperty("session").objectReferenceValue = session;
             serialized.FindProperty("orchestrator").objectReferenceValue = orchestrator;
             serialized.FindProperty("npcEngine").objectReferenceValue = webNpc;
+            serialized.FindProperty("client").objectReferenceValue = client;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(bridge);
         }

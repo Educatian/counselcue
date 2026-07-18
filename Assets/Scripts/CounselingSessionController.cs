@@ -205,9 +205,9 @@ namespace AdieLab.AffectCounsel
                 turn = proposedTurn;
                 conversationEngine = selectedEngine;
                 SetClientLine(reply);
-                client.SetAffect(supportive ? ClientAffect.Relieved : ClientAffect.Guarded);
-                client.Speak(reply);
-                webBridge?.SpeakClient(reply, replyEmotion);
+                client.SetAffect(ClientAvatarController.AffectForEmotion(replyEmotion));
+                if (webBridge != null) webBridge.SpeakClient(reply, replyEmotion);
+                else client.Speak(reply, replyEmotion);
                 string engineLabel = conversationEngine == "local" ? "로컬 사례" :
                     conversationEngine == "persona-llm" ? "AI 페르소나 + ElevenLabs" : "GPT Realtime";
                 feedbackLabel.text = sessionOrchestrator.ShowLiveCoaching
