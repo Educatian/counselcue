@@ -83,6 +83,8 @@ namespace AdieLab.AffectCounsel.Editor
             WebcamSignalMonitor webcam = runtime.AddComponent<WebcamSignalMonitor>();
             FacialActionUnitMonitor actionUnits = runtime.AddComponent<FacialActionUnitMonitor>();
             GptRealtimeConversationEngine realtime = runtime.AddComponent<GptRealtimeConversationEngine>();
+            WebNpcConversationEngine webNpc = runtime.AddComponent<WebNpcConversationEngine>();
+            CounselCueWebBridge webBridge = runtime.AddComponent<CounselCueWebBridge>();
             CounselingReflectionController reflection = runtime.AddComponent<CounselingReflectionController>();
             CounselingSessionOrchestrator orchestrator = runtime.AddComponent<CounselingSessionOrchestrator>();
             CounselingSessionController session = runtime.AddComponent<CounselingSessionController>();
@@ -91,7 +93,8 @@ namespace AdieLab.AffectCounsel.Editor
             runtime.AddComponent<DemoCaptureController>();
             WireWebcam(webcam, ui);
             WireActionUnits(actionUnits, ui);
-            WireSession(session, orchestrator, caseDefinition, client, webcam, actionUnits, realtime, ui);
+            WireSession(session, orchestrator, caseDefinition, client, webcam, actionUnits, realtime, webNpc, webBridge, ui);
+            WireWebExperience(webBridge, session, orchestrator, webNpc);
             WireSessionOrchestrator(orchestrator, session, reflection, caseDefinition, ui);
             WireReflection(reflection, orchestrator, ui);
             WireCameraZoom(cameraZoom, camera, ui);
@@ -528,13 +531,15 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void WireSession(CounselingSessionController session, CounselingSessionOrchestrator orchestrator, CounselingCaseDefinition caseDefinition, ClientAvatarController client, WebcamSignalMonitor webcam, FacialActionUnitMonitor actionUnits, GptRealtimeConversationEngine realtime, UiReferences ui)
+        private static void WireSession(CounselingSessionController session, CounselingSessionOrchestrator orchestrator, CounselingCaseDefinition caseDefinition, ClientAvatarController client, WebcamSignalMonitor webcam, FacialActionUnitMonitor actionUnits, GptRealtimeConversationEngine realtime, WebNpcConversationEngine webNpc, CounselCueWebBridge webBridge, UiReferences ui)
         {
             SerializedObject serialized = new SerializedObject(session);
             serialized.FindProperty("client").objectReferenceValue = client;
             serialized.FindProperty("webcam").objectReferenceValue = webcam;
             serialized.FindProperty("actionUnits").objectReferenceValue = actionUnits;
             serialized.FindProperty("realtimeEngine").objectReferenceValue = realtime;
+            serialized.FindProperty("webNpcEngine").objectReferenceValue = webNpc;
+            serialized.FindProperty("webBridge").objectReferenceValue = webBridge;
             serialized.FindProperty("sessionOrchestrator").objectReferenceValue = orchestrator;
             serialized.FindProperty("caseDefinition").objectReferenceValue = caseDefinition;
             serialized.FindProperty("counselorInput").objectReferenceValue = ui.input;
@@ -545,6 +550,16 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.FindProperty("allianceLabel").objectReferenceValue = ui.allianceLabel;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(session);
+        }
+
+        private static void WireWebExperience(CounselCueWebBridge bridge, CounselingSessionController session, CounselingSessionOrchestrator orchestrator, WebNpcConversationEngine webNpc)
+        {
+            SerializedObject serialized = new SerializedObject(bridge);
+            serialized.FindProperty("session").objectReferenceValue = session;
+            serialized.FindProperty("orchestrator").objectReferenceValue = orchestrator;
+            serialized.FindProperty("npcEngine").objectReferenceValue = webNpc;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(bridge);
         }
 
         private static void WireSessionOrchestrator(CounselingSessionOrchestrator orchestrator, CounselingSessionController session, CounselingReflectionController reflection, CounselingCaseDefinition caseDefinition, UiReferences ui)

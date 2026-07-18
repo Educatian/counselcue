@@ -14,6 +14,8 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private WebcamSignalMonitor webcam;
         [SerializeField] private FacialActionUnitMonitor actionUnits;
         [SerializeField] private GptRealtimeConversationEngine realtimeEngine;
+        [SerializeField] private WebNpcConversationEngine webNpcEngine;
+        [SerializeField] private CounselCueWebBridge webBridge;
         [SerializeField] private CounselingSessionOrchestrator sessionOrchestrator;
         [SerializeField] private CounselingCaseDefinition caseDefinition;
         [SerializeField] private InputField counselorInput;
@@ -61,6 +63,11 @@ namespace AdieLab.AffectCounsel
         private int submissionGeneration;
 
         public bool IsSubmitting => isSubmitting;
+
+        public void SetCounselorInput(string value)
+        {
+            if (counselorInput != null) counselorInput.text = value ?? string.Empty;
+        }
 
         private void Awake()
         {
@@ -168,7 +175,20 @@ namespace AdieLab.AffectCounsel
                     ? caseDefinition.GetReply(proposedTurn - 1, supportive)
                     : replies[Mathf.Min(proposedTurn - 1, replies.Length - 1)];
                 string selectedEngine = "local";
-                if (realtimeEngine != null && realtimeEngine.IsRequested)
+                string replyEmotion = supportive ? "relieved" : "guarded";
+                if (webNpcEngine != null && webNpcEngine.IsAvailable)
+                {
+                    feedbackLabel.text = "AI 내담자 응답 생성 중…";
+                    NpcTurnReply npcReply = await webNpcEngine.RequestReplyAsync(
+                        sessionId, proposedTurn, sessionOrchestrator.CurrentStageLabel, utterance, relationalResult.State);
+                    if (npcReply.Succeeded)
+                    {
+                        reply = npcReply.Text;
+                        replyEmotion = npcReply.Emotion;
+                        selectedEngine = "persona-llm";
+                    }
+                }
+                else if (realtimeEngine != null && realtimeEngine.IsRequested)
                 {
                     feedbackLabel.text = "GPT 내담자 연결 중…";
                     RealtimeReply realtimeReply = await realtimeEngine.RequestReplyAsync(utterance);
@@ -187,7 +207,9 @@ namespace AdieLab.AffectCounsel
                 SetClientLine(reply);
                 client.SetAffect(supportive ? ClientAffect.Relieved : ClientAffect.Guarded);
                 client.Speak(reply);
-                string engineLabel = conversationEngine == "local" ? "로컬 사례" : "GPT Realtime";
+                webBridge?.SpeakClient(reply, replyEmotion);
+                string engineLabel = conversationEngine == "local" ? "로컬 사례" :
+                    conversationEngine == "persona-llm" ? "AI 페르소나 + ElevenLabs" : "GPT Realtime";
                 feedbackLabel.text = sessionOrchestrator.ShowLiveCoaching
                     ? $"{engineLabel} · <color=#F8C77A><b>{AlignmentLabel(relationalResult.Alignment)}</b></color> · <b>{assessment.Skill}</b> · {relationalResult.CoachingFeedback}{sessionOrchestrator.CurrentFocusPrompt}"
                     : "평가 모드 · 세션 종료 후 전달 피드백을 확인합니다.";
@@ -207,6 +229,7 @@ namespace AdieLab.AffectCounsel
                     stateAfter = relationalResult.State
                 }, assessment, relationalResult);
                 counselorInput.text = string.Empty;
+                webBridge?.ClearInput();
                 UpdateLabels();
             }
             catch (Exception exception)
