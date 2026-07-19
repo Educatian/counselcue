@@ -3987,6 +3987,10 @@ MonoBehaviour:
   orchestrator: {fileID: 410735550}
   npcEngine: {fileID: 410735553}
   client: {fileID: 433100416}
+  unityInputCard: {fileID: 425928684}
+  unityInputAccent: {fileID: 1651064209}
+  unityInputField: {fileID: 1328177591}
+  unitySendButton: {fileID: 1633182661}
 --- !u!114 &410735553
 MonoBehaviour:
   m_ObjectHideFlags: 0

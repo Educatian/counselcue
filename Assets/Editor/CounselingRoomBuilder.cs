@@ -94,7 +94,7 @@ namespace AdieLab.AffectCounsel.Editor
             WireWebcam(webcam, ui);
             WireActionUnits(actionUnits, ui);
             WireSession(session, orchestrator, caseDefinition, client, webcam, actionUnits, realtime, webNpc, webBridge, ui);
-            WireWebExperience(webBridge, session, orchestrator, webNpc, client);
+            WireWebExperience(webBridge, session, orchestrator, webNpc, client, ui);
             WireSessionOrchestrator(orchestrator, session, reflection, caseDefinition, ui);
             WireReflection(reflection, orchestrator, ui);
             WireCameraZoom(cameraZoom, camera, ui);
@@ -421,7 +421,8 @@ namespace AdieLab.AffectCounsel.Editor
             refs.clientLine = CreateText("ClientLine", "요즘 회사에 가려고 하면 숨이 막히는 것 같아요.", speechCard, new Vector2(24f, -40f), new Vector2(492f, 58f), font, 18, Ink, FontStyle.Normal);
 
             RectTransform inputCard = CreatePanel("CounselorInputCard", canvas.transform, new Vector2(0f, 16f), new Vector2(1040f, 116f), new Vector2(0.5f, 0f), panelSprite, HudGlassStrong);
-            CreateAccentBar("InputAccent", inputCard, 116f, HudMint);
+            refs.inputCard = inputCard;
+            refs.inputAccent = CreateAccentBar("InputAccent", inputCard, 116f, HudMint);
             refs.feedbackLabel = CreateText("Feedback", "감정을 반영하고 내담자가 의미를 더 말할 수 있도록 응답해 보세요.", inputCard, new Vector2(22f, -8f), new Vector2(996f, 24f), font, 15, HudText, FontStyle.Normal);
             refs.input = CreateInputField(inputCard, new Vector2(22f, -38f), new Vector2(786f, 58f), font, panelSprite);
             refs.sendButton = CreateButton("SendButton", inputCard, new Vector2(824f, -38f), new Vector2(194f, 58f), "응답하기", font, panelSprite, 18);
@@ -601,13 +602,17 @@ namespace AdieLab.AffectCounsel.Editor
             EditorUtility.SetDirty(session);
         }
 
-        private static void WireWebExperience(CounselCueWebBridge bridge, CounselingSessionController session, CounselingSessionOrchestrator orchestrator, WebNpcConversationEngine webNpc, ClientAvatarController client)
+        private static void WireWebExperience(CounselCueWebBridge bridge, CounselingSessionController session, CounselingSessionOrchestrator orchestrator, WebNpcConversationEngine webNpc, ClientAvatarController client, UiReferences ui)
         {
             SerializedObject serialized = new SerializedObject(bridge);
             serialized.FindProperty("session").objectReferenceValue = session;
             serialized.FindProperty("orchestrator").objectReferenceValue = orchestrator;
             serialized.FindProperty("npcEngine").objectReferenceValue = webNpc;
             serialized.FindProperty("client").objectReferenceValue = client;
+            serialized.FindProperty("unityInputCard").objectReferenceValue = ui.inputCard;
+            serialized.FindProperty("unityInputAccent").objectReferenceValue = ui.inputAccent;
+            serialized.FindProperty("unityInputField").objectReferenceValue = ui.input.gameObject;
+            serialized.FindProperty("unitySendButton").objectReferenceValue = ui.sendButton.gameObject;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(bridge);
         }
@@ -861,7 +866,7 @@ namespace AdieLab.AffectCounsel.Editor
             return rect;
         }
 
-        private static void CreateAccentBar(string name, Transform parent, float height, Color color)
+        private static RectTransform CreateAccentBar(string name, Transform parent, float height, Color color)
         {
             GameObject gameObject = new GameObject(name, typeof(RectTransform), typeof(Image));
             RectTransform rect = gameObject.GetComponent<RectTransform>();
@@ -874,6 +879,7 @@ namespace AdieLab.AffectCounsel.Editor
             Image image = gameObject.GetComponent<Image>();
             image.color = color;
             image.raycastTarget = false;
+            return rect;
         }
 
         private static void CreateDivider(string name, Transform parent, Vector2 position, Vector2 size, Color color)
@@ -989,6 +995,8 @@ namespace AdieLab.AffectCounsel.Editor
             public GameObject briefingOverlay;
             public GameObject pauseOverlay;
             public GameObject debriefOverlay;
+            public RectTransform inputCard;
+            public RectTransform inputAccent;
             public InputField input;
             public Button sendButton;
             public Button practiceStartButton;
