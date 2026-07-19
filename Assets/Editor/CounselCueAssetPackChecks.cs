@@ -41,6 +41,26 @@ namespace AdieLab.AffectCounsel.Editor
             EditorApplication.Exit(0);
         }
 
+        public static void RunSceneIntegrationFromCommandLine()
+        {
+            AssetDatabase.Refresh();
+            CounselingRoomBuilder.Build();
+            Run();
+
+            GameObject premiumRoot = GameObject.Find("CounselCue_PremiumAssets");
+            Require(premiumRoot != null, "Premium room asset root is missing from the generated scene.");
+            Require(GameObject.Find("RoundOakTable_Blender") != null, "Blender table was not placed.");
+            Require(GameObject.Find("LinenTissueBox_Blender") != null, "Blender tissue box was not placed.");
+            Require(GameObject.Find("CeladonTeaCup_Blender") != null, "Blender tea cup was not placed.");
+            Require(GameObject.Find("HanjiFloorLamp_Blender") != null, "Blender floor lamp was not placed.");
+            Require(GameObject.Find("HanjiArtwork_Blender") != null, "Blender artwork was not placed.");
+            Require(GameObject.Find("AcousticRibPanel_Blender") != null, "Blender acoustic panel was not placed.");
+
+            int rendererCount = premiumRoot.GetComponentsInChildren<Renderer>(true).Length;
+            Require(rendererCount >= 50, $"Expected at least 50 integrated premium renderers, found {rendererCount}.");
+            Debug.Log($"COUNSELCUE_ROOM_INTEGRATION_PASS renderers={rendererCount}");
+            EditorApplication.Exit(0);
+        }
         private static void Require(bool condition, string message)
         {
             if (!condition) throw new System.InvalidOperationException(message);

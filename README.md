@@ -56,6 +56,12 @@ System evidence remains hidden until the learner records a self-assessment. A se
 
 The scene draws on a contemporary Korean private-practice context with warm ivory, sage, and walnut tones. Client observability takes priority over decoration: the face, upper body, and hands remain visible, while observation zoom moves between facial detail and posture without changing the counselor-client sightline.
 
+The live room now uses the project's Blender-authored asset pack for the hanji floor lamp, counseling books, acoustic wall panel, woven rug, basket plants, round oak table, linen tissue box, and celadon tea cup.
+
+| Blender-authored counseling room upgrade |
+|---|
+| ![Blender-authored Korean counseling room with an unobstructed client view](Screenshots/progress-40-blender-room-upgrade.png) |
+
 | Korean interface | English interface |
 |---|---|
 | ![Korean case briefing](Screenshots/progress-36-polished-briefing.png) | ![English case briefing](Screenshots/progress-37-english-ui.png) |

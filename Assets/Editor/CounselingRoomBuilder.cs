@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using AdieLab.AffectCounsel;
 using UnityEditor;
@@ -18,6 +19,7 @@ namespace AdieLab.AffectCounsel.Editor
         private const string FontPath = "Assets/Fonts/NotoSansKR-VF.ttf";
         private const string CasePath = "Assets/Data/Cases/WorkplaceAnxietyCase.asset";
         private const string ArtworkTexturePath = "Assets/Art/Textures/HanjiMountainArtwork.png";
+        private const string RoomAssetPackPath = "Assets/Models/CounselCue/CounselCueRoomAssetPack.fbx";
         private const string UiButtonSpritePath = "Assets/ThirdParty/Kenney/UI/button_rectangle_depth_flat.png";
         private const string UiPanelSpritePath = "Assets/ThirdParty/Kenney/UI/input_rectangle.png";
         private const string UiDividerSpritePath = "Assets/ThirdParty/Kenney/UI/divider_edges.png";
@@ -71,6 +73,7 @@ namespace AdieLab.AffectCounsel.Editor
             Transform environment = new GameObject("KoreanCounselingRoom_Environment").transform;
             BuildArchitecture(environment);
             BuildFurniture(environment);
+            BuildPremiumAssetSet(environment);
             BuildDecor(environment);
             Camera camera = BuildCameraAndLights();
             ClientAvatarController client = BuildClient(camera.transform, controller);
@@ -168,39 +171,115 @@ namespace AdieLab.AffectCounsel.Editor
 
         private static void BuildFurniture(Transform parent)
         {
-            GameObject rug = CreateCube("WovenRug", new Vector3(0f, 0.015f, 0.22f), new Vector3(4.30f, 0.025f, 3.70f), paper, parent);
-            for (int i = -5; i <= 5; i++)
-            {
-                CreateCube($"RugThread_{i + 5:00}", new Vector3(i * 0.36f, 0.032f, 0f), new Vector3(0.009f, 0.006f, 3.46f), warmWhite, rug.transform);
-            }
-
             CreateChair("ClientChair", new Vector3(0f, 0f, 1.30f), 180f, warmWhite, parent, true);
             CreateChair("CounselorChair", new Vector3(0.78f, 0f, -1.92f), 14f, sage, parent, false);
-
-            Vector3 sideTable = new Vector3(1.18f, 0f, 1.18f);
-            CreateCylinder("CoffeeTableTop", sideTable + new Vector3(0f, 0.55f, 0f), new Vector3(0.40f, 0.045f, 0.40f), darkOak, parent);
-            CreateCylinder("CoffeeTableStem", sideTable + new Vector3(0f, 0.30f, 0f), new Vector3(0.065f, 0.28f, 0.065f), darkOak, parent);
-            CreateCylinder("CoffeeTableBase", sideTable + new Vector3(0f, 0.04f, 0f), new Vector3(0.26f, 0.035f, 0.26f), darkOak, parent);
-
-            CreateCube("TissueBox", sideTable + new Vector3(-0.12f, 0.66f, 0f), new Vector3(0.22f, 0.13f, 0.16f), oak, parent);
-            CreateCube("Tissue", sideTable + new Vector3(-0.12f, 0.77f, 0f), new Vector3(0.045f, 0.10f, 0.025f), warmWhite, parent);
-            CreateCylinder("ClientTeaCup", sideTable + new Vector3(0.18f, 0.66f, 0.02f), new Vector3(0.075f, 0.10f, 0.075f), paper, parent);
             CreateLowConsole(new Vector3(-1.78f, 0f, 3.02f), parent);
+        }
+
+        private static void BuildPremiumAssetSet(Transform parent)
+        {
+            GameObject source = AssetDatabase.LoadAssetAtPath<GameObject>(RoomAssetPackPath);
+            if (source == null)
+            {
+                throw new System.InvalidOperationException($"CounselCue room asset pack is missing: {RoomAssetPackPath}");
+            }
+
+            Transform premiumRoot = new GameObject("CounselCue_PremiumAssets").transform;
+            premiumRoot.SetParent(parent);
+            GameObject packInstance = (GameObject)PrefabUtility.InstantiatePrefab(source, premiumRoot);
+            packInstance.name = "AssetPack_ExtractionSource";
+            PrefabUtility.UnpackPrefabInstance(packInstance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+
+            ExtractAssetGroup(packInstance.transform, premiumRoot, "WovenRug_Blender", "CC_WovenRug_",
+                new Vector3(0f, 0.002f, 0.22f), Quaternion.identity, new Vector3(2.55f, 1f, 3.25f));
+
+            Vector3 sideTable = new Vector3(1.20f, 0f, 1.22f);
+            ExtractAssetGroup(packInstance.transform, premiumRoot, "RoundOakTable_Blender", "CC_RoundOakTable_",
+                sideTable, Quaternion.Euler(0f, -12f, 0f), Vector3.one * 0.78f);
+            ExtractAssetGroup(packInstance.transform, premiumRoot, "LinenTissueBox_Blender", "CC_TissueBox_",
+                sideTable + new Vector3(-0.16f, 0.60f, 0.02f), Quaternion.Euler(0f, 18f, 0f), Vector3.one * 0.45f);
+            ExtractAssetGroup(packInstance.transform, premiumRoot, "CeladonTeaCup_Blender", "CC_CeladonTeaCup_",
+                sideTable + new Vector3(0.20f, 0.60f, -0.02f), Quaternion.Euler(0f, -16f, 0f), Vector3.one * 0.45f);
+
+            ExtractAssetGroup(packInstance.transform, premiumRoot, "HanjiFloorLamp_Blender", "CC_FloorLamp_",
+                new Vector3(-1.34f, 0f, 2.65f), Quaternion.Euler(0f, 8f, 0f), Vector3.one * 0.92f);
+            ExtractAssetGroup(packInstance.transform, premiumRoot, "CounselingBookStack_Blender", "CC_BookStack_",
+                new Vector3(-1.84f, 0.64f, 3.00f), Quaternion.Euler(0f, -8f, 0f), Vector3.one * 0.64f);
+
+            GameObject leftPlant = ExtractAssetGroup(packInstance.transform, premiumRoot, "BasketPlant_Left_Blender", "CC_BasketPlant_",
+                new Vector3(-2.35f, 0f, 2.42f), Quaternion.Euler(0f, -18f, 0f), Vector3.one * 0.78f);
+            GameObject rightPlant = UnityEngine.Object.Instantiate(leftPlant, premiumRoot);
+            rightPlant.name = "BasketPlant_Right_Blender";
+            rightPlant.transform.position = new Vector3(2.30f, 0f, 2.62f);
+            rightPlant.transform.rotation = Quaternion.Euler(0f, 34f, 0f);
+            rightPlant.transform.localScale = Vector3.one * 0.68f;
+
+            ExtractAssetGroup(packInstance.transform, premiumRoot, "HanjiArtwork_Blender", "CC_HanjiArtwork_",
+                new Vector3(0.34f, 1.44f, 3.38f), Quaternion.identity, Vector3.one * 1.02f);
+            ExtractAssetGroup(packInstance.transform, premiumRoot, "AcousticRibPanel_Blender", "CC_AcousticRibPanel_",
+                new Vector3(1.72f, 1.38f, 3.37f), Quaternion.identity, new Vector3(1.25f, 1.18f, 1f));
+
+            UnityEngine.Object.DestroyImmediate(packInstance);
+            int rendererCount = premiumRoot.GetComponentsInChildren<Renderer>(true).Length;
+            if (rendererCount < 50)
+            {
+                throw new System.InvalidOperationException($"Premium room integration expected at least 50 renderers, found {rendererCount}.");
+            }
+
+            Debug.Log($"COUNSELCUE_PREMIUM_ROOM_ASSETS_PLACED renderers={rendererCount}");
+        }
+
+        private static GameObject ExtractAssetGroup(
+            Transform packRoot,
+            Transform parent,
+            string groupName,
+            string namePrefix,
+            Vector3 position,
+            Quaternion rotation,
+            Vector3 scale)
+        {
+            List<Transform> matches = new List<Transform>();
+            for (int index = 0; index < packRoot.childCount; index++)
+            {
+                Transform child = packRoot.GetChild(index);
+                if (child.name.StartsWith(namePrefix, System.StringComparison.Ordinal)) matches.Add(child);
+            }
+
+            if (matches.Count == 0)
+            {
+                throw new System.InvalidOperationException($"No imported room assets matched prefix {namePrefix}.");
+            }
+
+            Renderer firstRenderer = matches[0].GetComponentInChildren<Renderer>(true);
+            if (firstRenderer == null)
+            {
+                throw new System.InvalidOperationException($"Imported room asset {matches[0].name} has no renderer.");
+            }
+
+            Bounds bounds = firstRenderer.bounds;
+            for (int index = 1; index < matches.Count; index++)
+            {
+                Renderer renderer = matches[index].GetComponentInChildren<Renderer>(true);
+                if (renderer != null) bounds.Encapsulate(renderer.bounds);
+            }
+
+            Vector3 pivot = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+            GameObject group = new GameObject(groupName);
+            group.transform.SetParent(parent);
+            group.transform.position = pivot;
+            for (int index = 0; index < matches.Count; index++)
+            {
+                matches[index].SetParent(group.transform, true);
+            }
+
+            group.transform.position = position;
+            group.transform.rotation = rotation;
+            group.transform.localScale = scale;
+            return group;
         }
 
         private static void BuildDecor(Transform parent)
         {
-            CreatePlant(new Vector3(-2.34f, 0f, 2.42f), 0.94f, parent);
-            CreatePlant(new Vector3(2.22f, 0f, 2.56f), 0.82f, parent);
-
-            CreateCube("ArtworkFrame", new Vector3(0.38f, 2.12f, 3.43f), new Vector3(1.34f, 1.34f, 0.07f), darkOak, parent);
-            GameObject hanjiArtwork = CreateCube("HanjiMountainArtwork", new Vector3(0.38f, 2.12f, 3.37f), new Vector3(1.18f, 1.18f, 0.025f), artwork, parent);
-            hanjiArtwork.transform.rotation = Quaternion.Euler(0f, 0f, 180f);
-
-            CreateCylinder("FloorLampStand", new Vector3(-1.34f, 0.82f, 2.65f), new Vector3(0.025f, 0.82f, 0.025f), darkOak, parent);
-            CreateCylinder("FloorLampBase", new Vector3(-1.34f, 0.05f, 2.65f), new Vector3(0.20f, 0.035f, 0.20f), darkOak, parent);
-            CreateCylinder("FloorLampShade", new Vector3(-1.34f, 1.68f, 2.65f), new Vector3(0.28f, 0.30f, 0.28f), paper, parent);
-
             GameObject lamp = new GameObject("FloorLampWarmLight");
             lamp.transform.SetParent(parent);
             lamp.transform.position = new Vector3(-1.34f, 1.58f, 2.65f);
@@ -211,7 +290,6 @@ namespace AdieLab.AffectCounsel.Editor
             light.range = 3.4f;
             light.shadows = LightShadows.Soft;
         }
-
         private static Camera BuildCameraAndLights()
         {
             GameObject cameraObject = new GameObject("CounselorViewCamera");
