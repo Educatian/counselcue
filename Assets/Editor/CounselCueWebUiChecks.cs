@@ -1,4 +1,5 @@
 using AdieLab.AffectCounsel;
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 
@@ -29,6 +30,23 @@ namespace AdieLab.AffectCounsel.Editor
             Require(Mathf.Approximately(accent.GetComponent<RectTransform>().sizeDelta.y, 44f), "Feedback accent must match the collapsed card.");
             Object.DestroyImmediate(card);
 
+            string bridgeSource = ReadAssetText("Scripts/CounselCueWebBridge.cs");
+            string webPlugin = ReadAssetText("Plugins/WebGL/CounselCueWebBridge.jslib");
+            bool releasesBrowserKeyboard = bridgeSource.Contains("WebGLInput.captureAllKeyboardInput = false;");
+            bool usesRootFullscreen =
+                webPlugin.Contains("document.documentElement.requestFullscreen()") &&
+                webPlugin.Contains(":fullscreen #unity-container");
+            bool keepsTutorialReadable =
+                !webPlugin.Contains("9999px") &&
+                webPlugin.Contains("p.offsetHeight") &&
+                webPlugin.Contains("innerHeight-cardHeight-16");
+            bool usesCanvasRelativeSpotlight =
+                webPlugin.Contains("document.querySelector(\"#unity-canvas\")") &&
+                webPlugin.Contains("z.left+z.width*lx");
+            Require(
+                releasesBrowserKeyboard && usesRootFullscreen && keepsTutorialReadable && usesCanvasRelativeSpotlight,
+                $"WebGL browser integration is incomplete: releasesBrowserKeyboard={releasesBrowserKeyboard}, usesRootFullscreen={usesRootFullscreen}, keepsTutorialReadable={keepsTutorialReadable}, usesCanvasRelativeSpotlight={usesCanvasRelativeSpotlight}.");
+
             CounselingRoomBuilder.Build();
             CounselCueWebBridge bridge = Object.FindAnyObjectByType<CounselCueWebBridge>();
             Require(bridge != null, "Generated scene must contain the WebGL bridge.");
@@ -40,6 +58,11 @@ namespace AdieLab.AffectCounsel.Editor
 
             Debug.Log("COUNSELCUE_WEB_UI_CHECKS_PASS");
             EditorApplication.Exit(0);
+        }
+
+        private static string ReadAssetText(string relativePath)
+        {
+            return File.ReadAllText(Path.Combine(Application.dataPath, relativePath));
         }
 
         private static void Require(bool condition, string message)

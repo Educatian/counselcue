@@ -51,6 +51,7 @@ namespace AdieLab.AffectCounsel
         private void Start()
         {
 #if UNITY_WEBGL && !UNITY_EDITOR
+            WebGLInput.captureAllKeyboardInput = false;
             WebGlHudLayout.ApplyBrowserInputLayout(
                 unityInputCard,
                 unityInputAccent,
