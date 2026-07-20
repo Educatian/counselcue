@@ -15,7 +15,9 @@ namespace AdieLab.AffectCounsel
     public sealed class ClientAvatarController : MonoBehaviour
     {
         private const int GestureLayer = 1;
-        private const float GestureLayerWeight = 0.58f;
+        private const float GestureLayerWeight = 0.42f;
+        private const float GestureFadeInSpeed = 0.72f;
+        private const float GestureFadeOutSpeed = 0.52f;
 
         [SerializeField] private Animator animator;
         [SerializeField] private Transform lookTarget;
@@ -27,6 +29,8 @@ namespace AdieLab.AffectCounsel
         private float speakingWeight;
         private float blinkWeight;
         private float nextBlink;
+        private float gestureLayerWeight;
+        private float gestureLayerTarget;
 
         private void Awake()
         {
@@ -35,7 +39,7 @@ namespace AdieLab.AffectCounsel
             nextBlink = Random.Range(1.8f, 4.2f);
             if (animator != null && animator.layerCount > GestureLayer)
             {
-                animator.SetLayerWeight(GestureLayer, GestureLayerWeight);
+                animator.SetLayerWeight(GestureLayer, 0f);
             }
 
             SetAffect(ClientAffect.Anxious, true);
@@ -51,6 +55,7 @@ namespace AdieLab.AffectCounsel
             }
 
             ApplyFace();
+            UpdateGestureLayer();
         }
 
         private void OnDisable()
@@ -59,6 +64,12 @@ namespace AdieLab.AffectCounsel
             speechRoutine = null;
             speakingWeight = 0f;
             blinkWeight = 0f;
+            gestureLayerTarget = 0f;
+            gestureLayerWeight = 0f;
+            if (animator != null && animator.layerCount > GestureLayer)
+            {
+                animator.SetLayerWeight(GestureLayer, 0f);
+            }
         }
 
         private void OnAnimatorIK(int layerIndex)
@@ -82,7 +93,7 @@ namespace AdieLab.AffectCounsel
                     ClientAffect.Guarded => "Waiting",
                     _ => "Idle"
                 };
-                animator.CrossFadeInFixedTime(state, immediate ? 0f : 0.45f, 0);
+                animator.CrossFadeInFixedTime(state, immediate ? 0f : 0.7f, 0);
             }
 
             if (immediate) ApplyFace(true);
@@ -107,7 +118,7 @@ namespace AdieLab.AffectCounsel
                 "relieved" => "TalkRelaxed",
                 "guarded" => variant % 2 == 0 ? "TalkSad" : "TalkNeutral",
                 "thoughtful" => "TalkNeutral",
-                _ => variant % 3 == 0 ? "TalkNeutral" : "TalkNervous"
+                _ => variant % 3 == 0 ? "TalkNeutral" : variant % 3 == 1 ? "TalkNervousSoft" : "TalkNervous"
             };
         }
 
@@ -131,21 +142,18 @@ namespace AdieLab.AffectCounsel
             if (speechRoutine != null) StopCoroutine(speechRoutine);
             speechRoutine = null;
             speakingWeight = 0f;
-            if (animator != null && animator.layerCount > GestureLayer)
-            {
-                animator.CrossFadeInFixedTime("Empty", 0.4f, GestureLayer);
-            }
+            gestureLayerTarget = 0f;
         }
 
         private IEnumerator SpeechRoutine(float duration, string emotion, int textLength)
         {
             float elapsed = 0f;
-            float gestureStart = Random.Range(0.35f, 0.75f);
-            float gestureEnd = Mathf.Min(duration - 0.2f, gestureStart + Random.Range(1.8f, 3.2f));
-            bool useGesture = textLength >= 18 && Random.value < 0.72f;
-            bool gestureStarted = false;
-            bool gestureFinished = false;
-            string gestureState = GestureStateFor(emotion, Random.Range(0, 6));
+            float nextGesture = Random.Range(0.55f, 0.95f);
+            float gestureEnd = float.PositiveInfinity;
+            bool useGesture = textLength >= 18 && (duration > 10f || Random.value < 0.72f);
+            bool gestureActive = false;
+            int gestureVariant = Random.Range(0, 12);
+            gestureLayerTarget = 0f;
 
             while (elapsed < duration)
             {
@@ -154,17 +162,25 @@ namespace AdieLab.AffectCounsel
                 float mouthTarget = Mathf.Clamp01((noise - 0.32f) * 1.55f);
                 speakingWeight = Mathf.MoveTowards(speakingWeight, mouthTarget, Time.deltaTime * 4.8f);
 
-                if (useGesture && !gestureStarted && elapsed >= gestureStart &&
+                if (useGesture && !gestureActive && elapsed >= nextGesture && duration - elapsed >= 1.3f &&
                     animator != null && animator.layerCount > GestureLayer)
                 {
-                    gestureStarted = true;
-                    animator.CrossFadeInFixedTime(gestureState, 0.38f, GestureLayer);
+                    string gestureState = GestureStateFor(emotion, gestureVariant++);
+                    animator.CrossFadeInFixedTime(
+                        gestureState,
+                        0.65f,
+                        GestureLayer,
+                        Random.Range(0.05f, 0.18f));
+                    gestureLayerTarget = GestureLayerWeight;
+                    gestureActive = true;
+                    gestureEnd = elapsed + Random.Range(2.4f, 3.4f);
                 }
 
-                if (gestureStarted && !gestureFinished && elapsed >= gestureEnd)
+                if (gestureActive && elapsed >= gestureEnd)
                 {
-                    gestureFinished = true;
-                    animator.CrossFadeInFixedTime("Empty", 0.5f, GestureLayer);
+                    gestureActive = false;
+                    gestureLayerTarget = 0f;
+                    nextGesture = elapsed + Random.Range(1.6f, 2.8f);
                 }
 
                 yield return null;
@@ -172,10 +188,18 @@ namespace AdieLab.AffectCounsel
 
             speechRoutine = null;
             speakingWeight = 0f;
-            if (animator != null && animator.layerCount > GestureLayer)
-            {
-                animator.CrossFadeInFixedTime("Empty", 0.4f, GestureLayer);
-            }
+            gestureLayerTarget = 0f;
+        }
+
+        private void UpdateGestureLayer()
+        {
+            if (animator == null || animator.layerCount <= GestureLayer) return;
+
+            float speed = gestureLayerTarget > gestureLayerWeight
+                ? GestureFadeInSpeed
+                : GestureFadeOutSpeed;
+            gestureLayerWeight = Mathf.MoveTowards(gestureLayerWeight, gestureLayerTarget, speed * Time.deltaTime);
+            animator.SetLayerWeight(GestureLayer, gestureLayerWeight);
         }
 
         private IEnumerator Blink()

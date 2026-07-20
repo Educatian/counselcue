@@ -448,9 +448,9 @@ namespace AdieLab.AffectCounsel.Editor
             refs.evaluationStartButton = CreateButton("StartEvaluation", briefingCard, new Vector2(500f, -434f), new Vector2(432f, 56f), "평가 모드 시작", font, panelSprite, 17);
             CreateDivider("PracticePathDivider", briefingCard, new Vector2(42f, -500f), new Vector2(890f, 4f), new Color(0.34f, 0.47f, 0.40f, 0.55f));
             CreateText("FocusedLabel", "미세기술 집중연습 · 시작값 3분 / 목표 3턴", briefingCard, new Vector2(42f, -512f), new Vector2(890f, 24f), font, 14, TealAction, FontStyle.Bold);
-            refs.focusOneButton = CreateButton("StartFocusOne", briefingCard, new Vector2(42f, -548f), new Vector2(280f, 54f), "감정 반영 · 3분", font, panelSprite, 15);
-            refs.focusTwoButton = CreateButton("StartFocusTwo", briefingCard, new Vector2(347f, -548f), new Vector2(280f, 54f), "개방형 질문 · 3분", font, panelSprite, 15);
-            refs.focusThreeButton = CreateButton("StartFocusThree", briefingCard, new Vector2(652f, -548f), new Vector2(280f, 54f), "전달 정합 · 3분", font, panelSprite, 15);
+            refs.focusOneButton = CreateButton("StartFocusOne", briefingCard, new Vector2(42f, -548f), new Vector2(280f, 54f), "감정 반영 연습 · 3분", font, panelSprite, 15);
+            refs.focusTwoButton = CreateButton("StartFocusTwo", briefingCard, new Vector2(347f, -548f), new Vector2(280f, 54f), "개방형 질문 연습 · 3분", font, panelSprite, 15);
+            refs.focusThreeButton = CreateButton("StartFocusThree", briefingCard, new Vector2(652f, -548f), new Vector2(280f, 54f), "전달 정합 연습 · 3분", font, panelSprite, 15);
             CreateText("PrivacyLine", "웹캠 원본 미저장 · 집중연습 시간은 사용자 연구로 조정할 시작값입니다.", briefingCard, new Vector2(42f, -628f), new Vector2(890f, 30f), font, 13, new Color(0.38f, 0.43f, 0.40f), FontStyle.Normal);
 
             RectTransform pauseRoot = CreateOverlayRoot("PauseOverlay", canvas.transform, 0.56f);

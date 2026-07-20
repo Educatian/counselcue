@@ -233,7 +233,7 @@ namespace AdieLab.AffectCounsel
             {
                 bool available = caseDefinition.FocusSkills != null && i < caseDefinition.FocusSkills.Length;
                 focusButtons[i].gameObject.SetActive(available);
-                if (available) focusButtons[i].GetComponentInChildren<Text>().text = $"{caseDefinition.FocusSkills[i].label} · 3분";
+                if (available) focusButtons[i].GetComponentInChildren<Text>().text = $"{caseDefinition.FocusSkills[i].label} 연습 · 3분";
             }
         }
 

@@ -35,6 +35,7 @@ namespace AdieLab.AffectCounsel.Editor
             AnimatorState empty = upperMachine.AddState("Empty");
             AddState(upperMachine, "TalkNeutral", "f_gestic_talk_neutral_01.max.fbx");
             AddState(upperMachine, "TalkNervous", "f_gestic_talk_nervous_02.max.fbx");
+            AddState(upperMachine, "TalkNervousSoft", "f_gestic_talk_nervous_01.max.fbx");
             AddState(upperMachine, "TalkSad", "f_gestic_talk_sad_01.max.fbx");
             AddState(upperMachine, "TalkRelaxed", "f_gestic_talk_relaxed_01.max.fbx");
             AddState(upperMachine, "ListenAccept", "f_gestic_listen_accept_01.max.fbx");
@@ -46,7 +47,7 @@ namespace AdieLab.AffectCounsel.Editor
                 stateMachine = upperMachine,
                 avatarMask = CreateUpperBodyMask(),
                 blendingMode = AnimatorLayerBlendingMode.Override,
-                defaultWeight = 0.58f,
+                defaultWeight = 0f,
                 iKPass = false
             });
 
@@ -59,6 +60,7 @@ namespace AdieLab.AffectCounsel.Editor
         {
             AnimatorState state = machine.AddState(name);
             state.motion = LoadClip(MotionRoot + fileName);
+            state.speed = machine.name == "Upper Body Gestures" ? 0.92f : 1f;
             return state;
         }
 

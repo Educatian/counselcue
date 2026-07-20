@@ -166,7 +166,9 @@ namespace AdieLab.AffectCounsel
                 .Replace("종결", "Closing")
                 .Replace("감정 반영", "Emotion reflection")
                 .Replace("개방형 질문", "Open questions")
-                .Replace("전달 정합", "Delivery alignment");
+                .Replace("전달 정합", "Delivery alignment")
+                .Replace(" 연습 ·", " practice ·")
+                .Replace("3분", "3 min");
             translated = Regex.Replace(translated, "(\\d+)번째 교환", "Turn $1");
             return Regex.Replace(translated, "(\\d+)/(\\d+)턴", "$1/$2 turns");
         }
