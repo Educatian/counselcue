@@ -415,7 +415,7 @@ namespace AdieLab.AffectCounsel.Editor
             refs.zoomInButton = CreateButton("ZoomIn", zoomCard, new Vector2(169f, -8f), new Vector2(55f, 42f), "+", font, panelSprite, 21);
             refs.zoomResetButton = CreateButton("ZoomReset", zoomCard, new Vector2(230f, -8f), new Vector2(78f, 42f), "초기", font, panelSprite, 14);
 
-            RectTransform speechCard = CreatePanel("ClientSpeechCard", canvas.transform, new Vector2(26f, 170f), new Vector2(540f, 112f), new Vector2(0f, 0f), panelSprite, PaperCard);
+            RectTransform speechCard = CreatePanel("ClientSpeechCard", canvas.transform, new Vector2(26f, 200f), new Vector2(540f, 112f), new Vector2(0f, 0f), panelSprite, PaperCard);
             CreateAccentBar("ClientAccent", speechCard, 112f, TealAction);
             CreateText("ClientName", "내담자  ·  김지혜, 32세", speechCard, new Vector2(24f, -12f), new Vector2(492f, 22f), font, 14, new Color(0.27f, 0.39f, 0.34f), FontStyle.Bold);
             refs.clientLine = CreateText("ClientLine", "요즘 회사에 가려고 하면 숨이 막히는 것 같아요.", speechCard, new Vector2(24f, -40f), new Vector2(492f, 58f), font, 18, Ink, FontStyle.Normal);
@@ -423,7 +423,7 @@ namespace AdieLab.AffectCounsel.Editor
             RectTransform inputCard = CreatePanel("CounselorInputCard", canvas.transform, new Vector2(0f, 16f), new Vector2(1040f, 116f), new Vector2(0.5f, 0f), panelSprite, HudGlassStrong);
             refs.inputCard = inputCard;
             refs.inputAccent = CreateAccentBar("InputAccent", inputCard, 116f, HudMint);
-            refs.feedbackLabel = CreateText("Feedback", "감정을 반영하고 내담자가 의미를 더 말할 수 있도록 응답해 보세요.", inputCard, new Vector2(22f, -8f), new Vector2(996f, 24f), font, 15, HudText, FontStyle.Normal);
+            refs.feedbackLabel = CreateText("Feedback", "감정을 반영하고 내담자가 의미를 더 말할 수 있도록 응답해 보세요.", inputCard, new Vector2(22f, -8f), new Vector2(996f, 30f), font, 18, HudText, FontStyle.Normal);
             refs.input = CreateInputField(inputCard, new Vector2(22f, -38f), new Vector2(786f, 58f), font, panelSprite);
             refs.sendButton = CreateButton("SendButton", inputCard, new Vector2(824f, -38f), new Vector2(194f, 58f), "응답하기", font, panelSprite, 18);
 
@@ -613,6 +613,7 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.FindProperty("unityInputAccent").objectReferenceValue = ui.inputAccent;
             serialized.FindProperty("unityInputField").objectReferenceValue = ui.input.gameObject;
             serialized.FindProperty("unitySendButton").objectReferenceValue = ui.sendButton.gameObject;
+            serialized.FindProperty("unityFeedbackLabel").objectReferenceValue = ui.feedbackLabel;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(bridge);
         }

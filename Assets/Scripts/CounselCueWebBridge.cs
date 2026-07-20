@@ -1,11 +1,11 @@
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace AdieLab.AffectCounsel
 {
     public static class WebGlHudLayout
     {
-        public const float FeedbackCardHeight = 44f;
 
         public static void ApplyBrowserInputLayout(
             RectTransform inputCard,
@@ -21,8 +21,7 @@ namespace AdieLab.AffectCounsel
 
             inputField.SetActive(false);
             sendButton.SetActive(false);
-            inputCard.sizeDelta = new Vector2(inputCard.sizeDelta.x, FeedbackCardHeight);
-            inputAccent.sizeDelta = new Vector2(inputAccent.sizeDelta.x, FeedbackCardHeight);
+            inputCard.gameObject.SetActive(false);
         }
     }
 
@@ -37,8 +36,10 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private RectTransform unityInputAccent;
         [SerializeField] private GameObject unityInputField;
         [SerializeField] private GameObject unitySendButton;
+        [SerializeField] private Text unityFeedbackLabel;
 
         private bool lastEnabled;
+        private string lastFeedbackText = string.Empty;
         private string pendingSpeechText = string.Empty;
         private string pendingSpeechEmotion = "anxious";
 
@@ -46,6 +47,7 @@ namespace AdieLab.AffectCounsel
         [DllImport("__Internal")] private static extern void CounselCueWeb_Initialize(string objectName, string apiBaseUrl);
         [DllImport("__Internal")] private static extern void CounselCueWeb_SetEnabled(int enabled);
         [DllImport("__Internal")] private static extern void CounselCueWeb_SetText(string value);
+        [DllImport("__Internal")] private static extern void CounselCueWeb_SetFeedback(string value);
         [DllImport("__Internal")] private static extern void CounselCueWeb_Speak(string text, string emotion);
 #endif
         private void Start()
@@ -58,17 +60,29 @@ namespace AdieLab.AffectCounsel
                 unityInputField,
                 unitySendButton);
             CounselCueWeb_Initialize(gameObject.name, npcEngine == null ? "" : npcEngine.ApiBaseUrl);
+            SyncFeedback();
             CounselCueWeb_SetEnabled(0);
 #endif
         }
 
         private void Update()
         {
+            SyncFeedback();
             bool enabled = orchestrator != null && orchestrator.CanSubmit && session != null && !session.IsSubmitting;
             if (enabled == lastEnabled) return;
             lastEnabled = enabled;
 #if UNITY_WEBGL && !UNITY_EDITOR
             CounselCueWeb_SetEnabled(enabled ? 1 : 0);
+#endif
+        }
+
+        private void SyncFeedback()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            string value = unityFeedbackLabel == null ? string.Empty : unityFeedbackLabel.text;
+            if (value == lastFeedbackText) return;
+            lastFeedbackText = value;
+            CounselCueWeb_SetFeedback(value);
 #endif
         }
 

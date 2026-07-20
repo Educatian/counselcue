@@ -26,8 +26,7 @@ namespace AdieLab.AffectCounsel.Editor
 
             Require(!input.activeSelf, "Unity input field must be hidden when browser input is active.");
             Require(!send.activeSelf, "Unity send button must be hidden when browser input is active.");
-            Require(Mathf.Approximately(card.GetComponent<RectTransform>().sizeDelta.y, 44f), "Feedback card must collapse to 44 pixels.");
-            Require(Mathf.Approximately(accent.GetComponent<RectTransform>().sizeDelta.y, 44f), "Feedback accent must match the collapsed card.");
+            Require(!card.activeSelf, "Unity feedback card must be hidden behind the embedded WebGL dialogue panel.");
             Object.DestroyImmediate(card);
 
             string bridgeSource = ReadAssetText("Scripts/CounselCueWebBridge.cs");
@@ -43,9 +42,14 @@ namespace AdieLab.AffectCounsel.Editor
             bool usesCanvasRelativeSpotlight =
                 webPlugin.Contains("document.querySelector(\"#unity-canvas\")") &&
                 webPlugin.Contains("z.left+z.width*lx");
+            bool embedsBrowserInput =
+                webPlugin.Contains("id=\"ccf\"") &&
+                webPlugin.Contains("CounselCueWeb_SetFeedback") &&
+                webPlugin.Contains("innerHeight-c.bottom+12") &&
+                webPlugin.Contains("c.width-24");
             Require(
-                releasesBrowserKeyboard && usesRootFullscreen && keepsTutorialReadable && usesCanvasRelativeSpotlight,
-                $"WebGL browser integration is incomplete: releasesBrowserKeyboard={releasesBrowserKeyboard}, usesRootFullscreen={usesRootFullscreen}, keepsTutorialReadable={keepsTutorialReadable}, usesCanvasRelativeSpotlight={usesCanvasRelativeSpotlight}.");
+                releasesBrowserKeyboard && usesRootFullscreen && keepsTutorialReadable && usesCanvasRelativeSpotlight && embedsBrowserInput,
+                $"WebGL browser integration is incomplete: releasesBrowserKeyboard={releasesBrowserKeyboard}, usesRootFullscreen={usesRootFullscreen}, keepsTutorialReadable={keepsTutorialReadable}, usesCanvasRelativeSpotlight={usesCanvasRelativeSpotlight}, embedsBrowserInput={embedsBrowserInput}.");
 
             CounselingRoomBuilder.Build();
             CounselCueWebBridge bridge = Object.FindAnyObjectByType<CounselCueWebBridge>();
@@ -55,6 +59,7 @@ namespace AdieLab.AffectCounsel.Editor
             Require(serializedBridge.FindProperty("unityInputAccent").objectReferenceValue != null, "WebGL bridge accent reference is missing.");
             Require(serializedBridge.FindProperty("unityInputField").objectReferenceValue != null, "WebGL bridge input field reference is missing.");
             Require(serializedBridge.FindProperty("unitySendButton").objectReferenceValue != null, "WebGL bridge send button reference is missing.");
+            Require(serializedBridge.FindProperty("unityFeedbackLabel").objectReferenceValue != null, "WebGL bridge feedback label reference is missing.");
 
             Debug.Log("COUNSELCUE_WEB_UI_CHECKS_PASS");
             EditorApplication.Exit(0);
