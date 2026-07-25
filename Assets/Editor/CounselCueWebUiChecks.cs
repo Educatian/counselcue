@@ -31,25 +31,31 @@ namespace AdieLab.AffectCounsel.Editor
 
             string bridgeSource = ReadAssetText("Scripts/CounselCueWebBridge.cs");
             string webPlugin = ReadAssetText("Plugins/WebGL/CounselCueWebBridge.jslib");
+            string webTemplate = ReadAssetText("WebGLTemplates/CounselCue/index.html");
+            string webStyles = ReadAssetText("WebGLTemplates/CounselCue/TemplateData/style.css");
             bool releasesBrowserKeyboard = bridgeSource.Contains("WebGLInput.captureAllKeyboardInput = false;");
-            bool usesRootFullscreen =
-                webPlugin.Contains("document.documentElement.requestFullscreen()") &&
-                webPlugin.Contains(":fullscreen #unity-container");
+            bool usesResponsiveCanvas =
+                webTemplate.Contains("viewport-fit=cover") &&
+                webStyles.Contains("#unity-container { position: fixed; inset: 0;") &&
+                webStyles.Contains("#unity-canvas { display: block; width: 100%; height: 100%;");
+            bool handlesPortraitSafely =
+                webTemplate.Contains("orientation-message") &&
+                webStyles.Contains("orientation: portrait");
             bool keepsTutorialReadable =
-                !webPlugin.Contains("9999px") &&
-                webPlugin.Contains("p.offsetHeight") &&
-                webPlugin.Contains("innerHeight-cardHeight-16");
+                webPlugin.Contains("var candidates = [") &&
+                webPlugin.Contains("innerHeight - cardHeight - 12") &&
+                !webPlugin.Contains("9999px");
             bool usesCanvasRelativeSpotlight =
                 webPlugin.Contains("document.querySelector(\"#unity-canvas\")") &&
-                webPlugin.Contains("z.left+z.width*lx");
+                webPlugin.Contains("rect.left + rect.width * left");
             bool embedsBrowserInput =
                 webPlugin.Contains("id=\"ccf\"") &&
                 webPlugin.Contains("CounselCueWeb_SetFeedback") &&
-                webPlugin.Contains("innerHeight-c.bottom+12") &&
-                webPlugin.Contains("c.width-24");
+                webPlugin.Contains("window.visualViewport") &&
+                webPlugin.Contains("rect.width - 24");
             Require(
-                releasesBrowserKeyboard && usesRootFullscreen && keepsTutorialReadable && usesCanvasRelativeSpotlight && embedsBrowserInput,
-                $"WebGL browser integration is incomplete: releasesBrowserKeyboard={releasesBrowserKeyboard}, usesRootFullscreen={usesRootFullscreen}, keepsTutorialReadable={keepsTutorialReadable}, usesCanvasRelativeSpotlight={usesCanvasRelativeSpotlight}, embedsBrowserInput={embedsBrowserInput}.");
+                releasesBrowserKeyboard && usesResponsiveCanvas && handlesPortraitSafely && keepsTutorialReadable && usesCanvasRelativeSpotlight && embedsBrowserInput,
+                $"WebGL browser integration is incomplete: releasesBrowserKeyboard={releasesBrowserKeyboard}, usesResponsiveCanvas={usesResponsiveCanvas}, handlesPortraitSafely={handlesPortraitSafely}, keepsTutorialReadable={keepsTutorialReadable}, usesCanvasRelativeSpotlight={usesCanvasRelativeSpotlight}, embedsBrowserInput={embedsBrowserInput}.");
 
             CounselingRoomBuilder.Build();
             CounselCueWebBridge bridge = Object.FindAnyObjectByType<CounselCueWebBridge>();

@@ -140,6 +140,7 @@ namespace AdieLab.AffectCounsel.Editor
             Directory.CreateDirectory("Builds/WebGL");
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
             PlayerSettings.WebGL.decompressionFallback = false;
+            PlayerSettings.WebGL.template = "PROJECT:CounselCue";
             BuildPlayerOptions options = new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
