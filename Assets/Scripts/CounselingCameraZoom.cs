@@ -12,6 +12,7 @@ namespace AdieLab.AffectCounsel
         public const float WideFieldOfView = 52f;
 
         [SerializeField] private Camera targetCamera;
+        [SerializeField] private ClientAvatarHost clientAvatar;
         [SerializeField] private Button zoomOutButton;
         [SerializeField] private Button zoomInButton;
         [SerializeField] private Button resetButton;
@@ -22,15 +23,39 @@ namespace AdieLab.AffectCounsel
         private const float SmoothTime = 0.12f;
         private float targetFieldOfView = DefaultFieldOfView;
         private float zoomVelocity;
+        private Quaternion defaultRotation;
+        private Quaternion bodyObservationRotation;
+        private Quaternion faceObservationRotation;
+        private bool hasObservationFrame;
+        private int framingRefreshFrames;
 
         private void Awake()
         {
+            defaultRotation = targetCamera.transform.rotation;
+            bodyObservationRotation = defaultRotation;
+            faceObservationRotation = defaultRotation;
             targetFieldOfView = Mathf.Clamp(targetCamera.fieldOfView, CloseFieldOfView, WideFieldOfView);
             zoomOutButton.onClick.AddListener(ZoomOut);
             zoomInButton.onClick.AddListener(ZoomIn);
             resetButton.onClick.AddListener(ResetZoom);
             faceObservationButton?.onClick.AddListener(ToggleFaceObservation);
             UpdateLabel();
+        }
+
+        private void OnEnable()
+        {
+            if (clientAvatar != null) clientAvatar.ActiveAvatarChanged += HandleAvatarChanged;
+        }
+
+        private void Start()
+        {
+            framingRefreshFrames = 90;
+            RefreshObservationFrame(true);
+        }
+
+        private void OnDisable()
+        {
+            if (clientAvatar != null) clientAvatar.ActiveAvatarChanged -= HandleAvatarChanged;
         }
 
         private void Update()
@@ -48,21 +73,48 @@ namespace AdieLab.AffectCounsel
 
         private void LateUpdate()
         {
+            if (framingRefreshFrames > 0)
+            {
+                RefreshObservationFrame(false);
+                framingRefreshFrames--;
+            }
+
             targetCamera.fieldOfView = Mathf.SmoothDamp(
                 targetCamera.fieldOfView,
                 targetFieldOfView,
                 ref zoomVelocity,
                 SmoothTime);
+
+            if (hasObservationFrame)
+            {
+                float observationWeight = ObservationWeight(targetFieldOfView);
+                Quaternion desired = Quaternion.Slerp(bodyObservationRotation, faceObservationRotation, observationWeight);
+                float rotationBlend = 1f - Mathf.Exp(-10f * Time.unscaledDeltaTime);
+                targetCamera.transform.rotation = Quaternion.Slerp(targetCamera.transform.rotation, desired, rotationBlend);
+            }
         }
 
-        public void ZoomIn() => SetTargetFieldOfView(targetFieldOfView - Step);
+        public void ZoomIn()
+        {
+            RefreshObservationFrame();
+            SetTargetFieldOfView(targetFieldOfView - Step);
+        }
 
-        public void ZoomOut() => SetTargetFieldOfView(targetFieldOfView + Step);
+        public void ZoomOut()
+        {
+            RefreshObservationFrame();
+            SetTargetFieldOfView(targetFieldOfView + Step);
+        }
 
-        public void ResetZoom() => SetTargetFieldOfView(DefaultFieldOfView);
+        public void ResetZoom()
+        {
+            SetTargetFieldOfView(DefaultFieldOfView);
+            RefreshObservationFrame();
+        }
 
         public void ToggleFaceObservation()
         {
+            RefreshObservationFrame();
             bool isClose = targetFieldOfView <= CloseFieldOfView + 0.2f;
             SetTargetFieldOfView(isClose ? DefaultFieldOfView : CloseFieldOfView);
         }
@@ -81,6 +133,44 @@ namespace AdieLab.AffectCounsel
 
         public static float ClampFieldOfView(float fieldOfView) =>
             Mathf.Clamp(fieldOfView, CloseFieldOfView, WideFieldOfView);
+
+        public static float ObservationWeight(float fieldOfView) =>
+            Mathf.InverseLerp(DefaultFieldOfView, CloseFieldOfView, ClampFieldOfView(fieldOfView));
+
+        public void RefreshObservationFrame() => RefreshObservationFrame(false);
+
+        private void HandleAvatarChanged()
+        {
+            framingRefreshFrames = 90;
+            RefreshObservationFrame(false);
+        }
+
+        private void RefreshObservationFrame(bool immediate)
+        {
+            if (targetCamera == null || clientAvatar == null ||
+                !clientAvatar.TryGetObservationAnchors(out Vector3 bodyAnchor, out Vector3 faceAnchor))
+            {
+                hasObservationFrame = false;
+                bodyObservationRotation = defaultRotation;
+                faceObservationRotation = defaultRotation;
+                return;
+            }
+
+            Vector3 cameraPosition = targetCamera.transform.position;
+            bodyObservationRotation = LookRotationOrDefault(bodyAnchor - cameraPosition, defaultRotation);
+            faceObservationRotation = LookRotationOrDefault(faceAnchor - cameraPosition, bodyObservationRotation);
+            hasObservationFrame = true;
+            if (immediate)
+            {
+                targetCamera.transform.rotation = Quaternion.Slerp(
+                    bodyObservationRotation,
+                    faceObservationRotation,
+                    ObservationWeight(targetFieldOfView));
+            }
+        }
+
+        private static Quaternion LookRotationOrDefault(Vector3 direction, Quaternion fallback) =>
+            direction.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(direction.normalized, Vector3.up) : fallback;
 
         private bool IsPointerOverUi() => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
 

@@ -41,6 +41,45 @@ namespace AdieLab.AffectCounsel
         public string ActiveFacialCue => facialDriver == null ? "Unavailable" : facialDriver.ActiveCueSummary;
         public void CycleDebugGaze() => gazeController?.CycleDebugState();
 
+        public bool TryGetObservationAnchors(out Vector3 bodyAnchor, out Vector3 faceAnchor)
+        {
+            animator ??= GetComponentInChildren<Animator>(true);
+            if (animator != null && animator.isHuman)
+            {
+                Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
+                Transform chest = animator.GetBoneTransform(HumanBodyBones.Chest) ??
+                                  animator.GetBoneTransform(HumanBodyBones.UpperChest);
+                Transform leftEye = animator.GetBoneTransform(HumanBodyBones.LeftEye);
+                Transform rightEye = animator.GetBoneTransform(HumanBodyBones.RightEye);
+
+                if (head != null)
+                {
+                    faceAnchor = leftEye != null && rightEye != null
+                        ? Vector3.Lerp(leftEye.position, rightEye.position, 0.5f)
+                        : head.position + (transform.up * 0.11f);
+                    Vector3 torsoAnchor = chest != null
+                        ? chest.position
+                        : Vector3.Lerp(transform.position, faceAnchor, 0.68f);
+                    bodyAnchor = Vector3.Lerp(torsoAnchor, faceAnchor, 0.30f);
+                    return true;
+                }
+            }
+
+            Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                bodyAnchor = transform.position + (transform.up * 1.25f);
+                faceAnchor = transform.position + (transform.up * 1.58f);
+                return false;
+            }
+
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+            bodyAnchor = bounds.center + (Vector3.up * bounds.extents.y * 0.18f);
+            faceAnchor = bounds.center + (Vector3.up * bounds.extents.y * 0.72f);
+            return true;
+        }
+
         public void Configure(
             Transform configuredLookTarget,
             ClientProfileDefinition configuredProfile,

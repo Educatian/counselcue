@@ -102,7 +102,7 @@ namespace AdieLab.AffectCounsel.Editor
             WireWebExperience(webBridge, session, orchestrator, webNpc, client, ui);
             WireSessionOrchestrator(orchestrator, session, reflection, caseDefinition, caseCatalog, client, ui);
             WireReflection(reflection, orchestrator, ui);
-            WireCameraZoom(cameraZoom, camera, ui);
+            WireCameraZoom(cameraZoom, camera, client, ui);
             WireClientDebug(debugHud, client, ui);
             WireLanguageToggle(languageToggle, ui);
 
@@ -665,10 +665,11 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void WireCameraZoom(CounselingCameraZoom cameraZoom, Camera camera, UiReferences ui)
+        private static void WireCameraZoom(CounselingCameraZoom cameraZoom, Camera camera, ClientAvatarHost client, UiReferences ui)
         {
             SerializedObject serialized = new SerializedObject(cameraZoom);
             serialized.FindProperty("targetCamera").objectReferenceValue = camera;
+            serialized.FindProperty("clientAvatar").objectReferenceValue = client;
             serialized.FindProperty("zoomOutButton").objectReferenceValue = ui.zoomOutButton;
             serialized.FindProperty("zoomInButton").objectReferenceValue = ui.zoomInButton;
             serialized.FindProperty("resetButton").objectReferenceValue = ui.zoomResetButton;

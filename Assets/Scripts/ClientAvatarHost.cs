@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace AdieLab.AffectCounsel
@@ -12,6 +13,8 @@ namespace AdieLab.AffectCounsel
 
         private ClientAvatarController activeClient;
         private string activePresentationId = string.Empty;
+
+        public event Action ActiveAvatarChanged;
 
         public string GazeStateLabel => activeClient == null ? "Unavailable" : activeClient.GazeStateLabel;
         public float GazeContactWeight => activeClient == null ? 0f : activeClient.GazeContactWeight;
@@ -52,6 +55,7 @@ namespace AdieLab.AffectCounsel
             if (activeClient != null && activePresentationId == presentation.PresentationId)
             {
                 activeClient.Configure(lookTarget, profile, presentation);
+                ActiveAvatarChanged?.Invoke();
                 return;
             }
 
@@ -77,6 +81,15 @@ namespace AdieLab.AffectCounsel
             activeClient = avatar.AddComponent<ClientAvatarController>();
             activeClient.Configure(lookTarget, profile, presentation);
             activePresentationId = presentation.PresentationId;
+            ActiveAvatarChanged?.Invoke();
+        }
+
+        public bool TryGetObservationAnchors(out Vector3 bodyAnchor, out Vector3 faceAnchor)
+        {
+            if (activeClient != null) return activeClient.TryGetObservationAnchors(out bodyAnchor, out faceAnchor);
+            bodyAnchor = transform.position + (Vector3.up * 1.25f);
+            faceAnchor = transform.position + (Vector3.up * 1.58f);
+            return false;
         }
 
         public void SetAffect(ClientAffect value, bool immediate = false) => activeClient?.SetAffect(value, immediate);
