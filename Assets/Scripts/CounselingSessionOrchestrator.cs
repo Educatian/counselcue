@@ -13,6 +13,9 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private CounselingSessionController sessionController;
         [SerializeField] private CounselingReflectionController reflectionController;
         [SerializeField] private CounselingCaseDefinition caseDefinition;
+        [SerializeField] private CaseCatalog caseCatalog;
+        [SerializeField] private ClientAvatarHost clientAvatar;
+        [SerializeField] private Button[] caseButtons = Array.Empty<Button>();
         [SerializeField] private GameObject activeControlCard;
         [SerializeField] private GameObject briefingOverlay;
         [SerializeField] private GameObject pauseOverlay;
@@ -21,6 +24,7 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Text stageLabel;
         [SerializeField] private Text briefingCaseLabel;
         [SerializeField] private Text briefingBodyLabel;
+        [SerializeField] private Text clientNameLabel;
         [SerializeField] private Text debriefTitle;
         [SerializeField] private Button practiceStartButton;
         [SerializeField] private Button evaluationStartButton;
@@ -77,6 +81,11 @@ namespace AdieLab.AffectCounsel
 
         private void Awake()
         {
+            for (int i = 0; i < caseButtons.Length; i++)
+            {
+                int selectedIndex = i;
+                caseButtons[i].onClick.AddListener(() => SelectCase(selectedIndex));
+            }
             practiceStartButton.onClick.AddListener(BeginPracticeSession);
             evaluationStartButton.onClick.AddListener(BeginEvaluationSession);
             focusOneButton.onClick.AddListener(() => BeginFocusedPractice(0));
@@ -91,6 +100,7 @@ namespace AdieLab.AffectCounsel
 
         private void Start()
         {
+            if (caseCatalog != null && caseCatalog.DefaultCase != null) SelectCase(0);
             ConfigureBriefing();
             ShowBriefing();
         }
@@ -160,6 +170,18 @@ namespace AdieLab.AffectCounsel
 
         public void ReturnToBriefing() => ShowBriefing();
 
+        public void SelectCase(int index)
+        {
+            if (phase != TrainingSessionPhase.Briefing || caseCatalog == null) return;
+            CounselingCaseDefinition selected = caseCatalog.GetCase(index);
+            if (selected == null) return;
+            caseDefinition = selected;
+            sessionController.SetCaseDefinition(selected);
+            clientAvatar?.ApplyCase(selected);
+            ConfigureBriefing();
+            UpdateCaseButtons(index);
+        }
+
         private void BeginSession(TrainingMode selectedMode, int focusIndex, CounselingTurnSnapshot source)
         {
             mode = selectedMode;
@@ -218,6 +240,7 @@ namespace AdieLab.AffectCounsel
         {
             if (caseDefinition == null) return;
             briefingCaseLabel.text = $"{caseDefinition.CaseTitle} · {caseDefinition.ClientName}, {caseDefinition.ClientProfile}";
+            if (clientNameLabel != null) clientNameLabel.text = $"내담자  ·  {caseDefinition.ClientName}, {caseDefinition.ClientProfile}";
             StringBuilder body = new StringBuilder();
             body.AppendLine("상황");
             body.AppendLine(caseDefinition.PresentingConcern);
@@ -234,6 +257,22 @@ namespace AdieLab.AffectCounsel
                 bool available = caseDefinition.FocusSkills != null && i < caseDefinition.FocusSkills.Length;
                 focusButtons[i].gameObject.SetActive(available);
                 if (available) focusButtons[i].GetComponentInChildren<Text>().text = $"{caseDefinition.FocusSkills[i].label} 연습 · 3분";
+            }
+        }
+
+        private void UpdateCaseButtons(int selectedIndex)
+        {
+            for (int i = 0; i < caseButtons.Length; i++)
+            {
+                if (caseButtons[i] == null) continue;
+                Text label = caseButtons[i].GetComponentInChildren<Text>();
+                CounselingCaseDefinition item = caseCatalog.GetCase(i);
+                if (label != null && item != null) label.text = item.CaseTitle;
+                ColorBlock colors = caseButtons[i].colors;
+                colors.normalColor = i == selectedIndex ? new Color(0.20f, 0.48f, 0.37f, 1f) : Color.white;
+                colors.highlightedColor = i == selectedIndex ? new Color(0.26f, 0.56f, 0.44f, 1f) : new Color(0.90f, 0.94f, 0.91f, 1f);
+                caseButtons[i].colors = colors;
+                if (label != null) label.color = i == selectedIndex ? Color.white : new Color(0.105f, 0.13f, 0.12f, 1f);
             }
         }
 

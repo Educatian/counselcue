@@ -61,7 +61,8 @@ namespace AdieLab.AffectCounsel.Editor
             RuntimeAnimatorController controller = CounselingAnimatorFactory.Create();
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            CounselingCaseDefinition caseDefinition = CreateDefaultCaseDefinition();
+            CaseCatalog caseCatalog = CounselingContentFactory.CreateOrUpdate();
+            CounselingCaseDefinition caseDefinition = caseCatalog.DefaultCase;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = new Color(0.74f, 0.72f, 0.66f);
             RenderSettings.ambientEquatorColor = new Color(0.46f, 0.41f, 0.34f);
@@ -76,7 +77,10 @@ namespace AdieLab.AffectCounsel.Editor
             BuildPremiumAssetSet(environment);
             BuildDecor(environment);
             Camera camera = BuildCameraAndLights();
-            ClientAvatarController client = BuildClient(camera.transform, controller);
+            Transform lookTarget = new GameObject("CounselorEyeContactTarget").transform;
+            lookTarget.SetParent(camera.transform, false);
+            lookTarget.localPosition = new Vector3(0f, -0.04f, 0.18f);
+            ClientAvatarHost client = BuildClient(lookTarget, controller, caseDefinition);
             UiReferences ui = BuildUi();
 
             GameObject runtime = new GameObject("CounselCue_Runtime");
@@ -90,14 +94,16 @@ namespace AdieLab.AffectCounsel.Editor
             CounselingSessionController session = runtime.AddComponent<CounselingSessionController>();
             CounselingCameraZoom cameraZoom = runtime.AddComponent<CounselingCameraZoom>();
             CounselingLanguageToggle languageToggle = runtime.AddComponent<CounselingLanguageToggle>();
+            ClientObservationDebugHud debugHud = runtime.AddComponent<ClientObservationDebugHud>();
             runtime.AddComponent<DemoCaptureController>();
             WireWebcam(webcam, ui);
             WireActionUnits(actionUnits, ui);
             WireSession(session, orchestrator, caseDefinition, client, webcam, actionUnits, realtime, webNpc, webBridge, ui);
             WireWebExperience(webBridge, session, orchestrator, webNpc, client, ui);
-            WireSessionOrchestrator(orchestrator, session, reflection, caseDefinition, ui);
+            WireSessionOrchestrator(orchestrator, session, reflection, caseDefinition, caseCatalog, client, ui);
             WireReflection(reflection, orchestrator, ui);
             WireCameraZoom(cameraZoom, camera, ui);
+            WireClientDebug(debugHud, client, ui);
             WireLanguageToggle(languageToggle, ui);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -322,8 +328,8 @@ namespace AdieLab.AffectCounsel.Editor
             GameObject softbox = new GameObject("ClientFaceSoftbox");
             Light face = softbox.AddComponent<Light>();
             face.type = LightType.Spot;
-            face.color = new Color(1f, 0.82f, 0.68f);
-            face.intensity = 1.34f;
+            face.color = new Color(1f, 0.90f, 0.84f);
+            face.intensity = 1.08f;
             face.range = 5f;
             face.spotAngle = 78f;
             face.shadows = LightShadows.Soft;
@@ -332,39 +338,13 @@ namespace AdieLab.AffectCounsel.Editor
             return camera;
         }
 
-        private static ClientAvatarController BuildClient(Transform lookTarget, RuntimeAnimatorController controller)
+        private static ClientAvatarHost BuildClient(Transform lookTarget, RuntimeAnimatorController controller, CounselingCaseDefinition definition)
         {
-            GameObject source = AssetDatabase.LoadAssetAtPath<GameObject>(AvatarPath);
-            GameObject root;
-            if (source == null)
-            {
-                root = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                root.name = "ClientFallback";
-                root.GetComponent<MeshRenderer>().sharedMaterial = teal;
-                Debug.LogWarning($"Rocketbox avatar was not imported: {AvatarPath}");
-            }
-            else
-            {
-                root = (GameObject)PrefabUtility.InstantiatePrefab(source);
-                root.name = "Client_Jihye_Rocketbox";
-            }
-
-            root.transform.position = new Vector3(0f, 0.08f, 1.02f);
-            root.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
-            Animator animator = root.GetComponentInChildren<Animator>();
-            if (animator != null)
-            {
-                animator.runtimeAnimatorController = controller;
-                animator.applyRootMotion = false;
-                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-            }
-
-            ClientAvatarController client = root.AddComponent<ClientAvatarController>();
-            SerializedObject serialized = new SerializedObject(client);
-            serialized.FindProperty("animator").objectReferenceValue = animator;
-            serialized.FindProperty("lookTarget").objectReferenceValue = lookTarget;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
-            return client;
+            GameObject root = new GameObject("ClientAvatarHost");
+            ClientAvatarHost host = root.AddComponent<ClientAvatarHost>();
+            host.Configure(lookTarget, controller, definition.AvatarPresentation, definition.ProfileDefinition);
+            host.ApplyCase(definition);
+            return host;
         }
 
         private static UiReferences BuildUi()
@@ -407,17 +387,19 @@ namespace AdieLab.AffectCounsel.Editor
             refs.auStatus = CreateText("AuStatus", "AU 분석 대기 · 선택 기능", cameraCard, new Vector2(16f, -104f), new Vector2(290f, 24f), font, 13, HudMint, FontStyle.Bold);
             refs.allianceLabel = CreateText("Alliance", "안전 38 · 경계 62 · 공개 25", cameraCard, new Vector2(16f, -138f), new Vector2(290f, 26f), font, 13, HudGold, FontStyle.Bold);
 
-            RectTransform zoomCard = CreatePanel("ZoomCard", canvas.transform, new Vector2(-26f, -218f), new Vector2(326f, 58f), new Vector2(1f, 1f), panelSprite, HudGlass);
-            CreateAccentBar("ZoomAccent", zoomCard, 58f, HudGold);
+            RectTransform zoomCard = CreatePanel("ZoomCard", canvas.transform, new Vector2(-26f, -218f), new Vector2(326f, 108f), new Vector2(1f, 1f), panelSprite, HudGlass);
+            CreateAccentBar("ZoomAccent", zoomCard, 108f, HudGold);
             CreateText("ZoomEyebrow", "관찰 줌", zoomCard, new Vector2(16f, -7f), new Vector2(82f, 20f), font, 12, HudMuted, FontStyle.Bold);
             refs.zoomLabel = CreateText("ZoomValue", "100%", zoomCard, new Vector2(16f, -27f), new Vector2(82f, 24f), font, 16, HudGold, FontStyle.Bold);
             refs.zoomOutButton = CreateButton("ZoomOut", zoomCard, new Vector2(108f, -8f), new Vector2(55f, 42f), "−", font, panelSprite, 21);
             refs.zoomInButton = CreateButton("ZoomIn", zoomCard, new Vector2(169f, -8f), new Vector2(55f, 42f), "+", font, panelSprite, 21);
             refs.zoomResetButton = CreateButton("ZoomReset", zoomCard, new Vector2(230f, -8f), new Vector2(78f, 42f), "초기", font, panelSprite, 14);
+            refs.faceObservationButton = CreateButton("FaceObservation", zoomCard, new Vector2(108f, -58f), new Vector2(122f, 38f), "얼굴 관찰", font, panelSprite, 13);
+            refs.faceDebugButton = CreateButton("FaceDebugToggle", zoomCard, new Vector2(238f, -58f), new Vector2(70f, 38f), "진단", font, panelSprite, 13);
 
             RectTransform speechCard = CreatePanel("ClientSpeechCard", canvas.transform, new Vector2(26f, 200f), new Vector2(540f, 112f), new Vector2(0f, 0f), panelSprite, PaperCard);
             CreateAccentBar("ClientAccent", speechCard, 112f, TealAction);
-            CreateText("ClientName", "내담자  ·  김지혜, 32세", speechCard, new Vector2(24f, -12f), new Vector2(492f, 22f), font, 14, new Color(0.27f, 0.39f, 0.34f), FontStyle.Bold);
+            refs.clientNameLabel = CreateText("ClientName", "내담자  ·  김지혜, 32세", speechCard, new Vector2(24f, -12f), new Vector2(492f, 22f), font, 14, new Color(0.27f, 0.39f, 0.34f), FontStyle.Bold);
             refs.clientLine = CreateText("ClientLine", "요즘 회사에 가려고 하면 숨이 막히는 것 같아요.", speechCard, new Vector2(24f, -40f), new Vector2(492f, 58f), font, 18, Ink, FontStyle.Normal);
 
             RectTransform inputCard = CreatePanel("CounselorInputCard", canvas.transform, new Vector2(0f, 16f), new Vector2(1040f, 116f), new Vector2(0.5f, 0f), panelSprite, HudGlassStrong);
@@ -436,13 +418,26 @@ namespace AdieLab.AffectCounsel.Editor
             Text briefingTitle = CreateText("BriefingTitle", "오늘의 연습 경로 선택", briefingCard, new Vector2(42f, -62f), new Vector2(890f, 50f), font, 31, Ink, FontStyle.Bold);
             briefingTitle.verticalOverflow = VerticalWrapMode.Overflow;
             refs.briefingCaseLabel = CreateText("BriefingCase", "직장 불안 · 김지혜, 32세 · 초기면담", briefingCard, new Vector2(42f, -116f), new Vector2(890f, 30f), font, 17, new Color(0.27f, 0.39f, 0.34f), FontStyle.Bold);
+            refs.caseButtons = new Button[5];
+            for (int i = 0; i < refs.caseButtons.Length; i++)
+            {
+                refs.caseButtons[i] = CreateButton($"SelectCase{i + 1}", briefingCard, new Vector2(42f + i * 180f, -152f), new Vector2(166f, 38f), $"사례 {i + 1}", font, panelSprite, 12);
+            }
             string briefingBody =
                 "상황\n최근 회사에 가려고 하면 숨이 막히고, 자신이 약한 사람인지 걱정합니다.\n\n" +
                 "이번 세션의 목표\n1. 관계 안전감을 형성하고 상담 구조를 안내합니다.\n" +
                 "2. 반영과 개방형 질문으로 경험을 탐색합니다.\n" +
                 "3. 해결책을 서두르지 않고 내담자의 응답 공간을 지킵니다.\n\n" +
                 "15분 · 목표 10턴 · 웹캠 원본 미저장";
-            refs.briefingBodyLabel = CreateText("BriefingBody", briefingBody, briefingCard, new Vector2(42f, -158f), new Vector2(890f, 236f), font, 16, Ink, FontStyle.Normal);
+            refs.briefingBodyLabel = CreateText("BriefingBody", briefingBody, briefingCard, new Vector2(42f, -204f), new Vector2(890f, 190f), font, 15, Ink, FontStyle.Normal);
+
+            RectTransform debugPanel = CreatePanel("FaceDebugPanel", canvas.transform, new Vector2(-26f, -340f), new Vector2(326f, 172f), new Vector2(1f, 1f), panelSprite, HudGlassStrong);
+            refs.faceDebugPanel = debugPanel.gameObject;
+            CreateAccentBar("FaceDebugAccent", debugPanel, 172f, HudMint);
+            CreateText("FaceDebugTitle", "표정·시선 진단", debugPanel, new Vector2(18f, -12f), new Vector2(286f, 24f), font, 14, HudMint, FontStyle.Bold);
+            refs.faceDebugLabel = CreateText("FaceDebugReadout", "준비 중", debugPanel, new Vector2(18f, -42f), new Vector2(286f, 78f), font, 13, HudText, FontStyle.Normal);
+            refs.gazeCycleButton = CreateButton("CycleGazeState", debugPanel, new Vector2(18f, -126f), new Vector2(286f, 34f), "시선 상태 순환", font, panelSprite, 12);
+            refs.faceDebugPanel.SetActive(false);
             CreateText("FullSessionLabel", "전체 회기 · 15분 / 목표 10턴", briefingCard, new Vector2(42f, -402f), new Vector2(890f, 24f), font, 14, TealAction, FontStyle.Bold);
             refs.practiceStartButton = CreateButton("StartPractice", briefingCard, new Vector2(42f, -434f), new Vector2(430f, 56f), "코칭 연습 시작", font, panelSprite, 17);
             refs.evaluationStartButton = CreateButton("StartEvaluation", briefingCard, new Vector2(500f, -434f), new Vector2(432f, 56f), "평가 모드 시작", font, panelSprite, 17);
@@ -581,7 +576,7 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void WireSession(CounselingSessionController session, CounselingSessionOrchestrator orchestrator, CounselingCaseDefinition caseDefinition, ClientAvatarController client, WebcamSignalMonitor webcam, FacialActionUnitMonitor actionUnits, GptRealtimeConversationEngine realtime, WebNpcConversationEngine webNpc, CounselCueWebBridge webBridge, UiReferences ui)
+        private static void WireSession(CounselingSessionController session, CounselingSessionOrchestrator orchestrator, CounselingCaseDefinition caseDefinition, ClientAvatarHost client, WebcamSignalMonitor webcam, FacialActionUnitMonitor actionUnits, GptRealtimeConversationEngine realtime, WebNpcConversationEngine webNpc, CounselCueWebBridge webBridge, UiReferences ui)
         {
             SerializedObject serialized = new SerializedObject(session);
             serialized.FindProperty("client").objectReferenceValue = client;
@@ -602,7 +597,7 @@ namespace AdieLab.AffectCounsel.Editor
             EditorUtility.SetDirty(session);
         }
 
-        private static void WireWebExperience(CounselCueWebBridge bridge, CounselingSessionController session, CounselingSessionOrchestrator orchestrator, WebNpcConversationEngine webNpc, ClientAvatarController client, UiReferences ui)
+        private static void WireWebExperience(CounselCueWebBridge bridge, CounselingSessionController session, CounselingSessionOrchestrator orchestrator, WebNpcConversationEngine webNpc, ClientAvatarHost client, UiReferences ui)
         {
             SerializedObject serialized = new SerializedObject(bridge);
             serialized.FindProperty("session").objectReferenceValue = session;
@@ -618,12 +613,17 @@ namespace AdieLab.AffectCounsel.Editor
             EditorUtility.SetDirty(bridge);
         }
 
-        private static void WireSessionOrchestrator(CounselingSessionOrchestrator orchestrator, CounselingSessionController session, CounselingReflectionController reflection, CounselingCaseDefinition caseDefinition, UiReferences ui)
+        private static void WireSessionOrchestrator(CounselingSessionOrchestrator orchestrator, CounselingSessionController session, CounselingReflectionController reflection, CounselingCaseDefinition caseDefinition, CaseCatalog caseCatalog, ClientAvatarHost client, UiReferences ui)
         {
             SerializedObject serialized = new SerializedObject(orchestrator);
             serialized.FindProperty("sessionController").objectReferenceValue = session;
             serialized.FindProperty("reflectionController").objectReferenceValue = reflection;
             serialized.FindProperty("caseDefinition").objectReferenceValue = caseDefinition;
+            serialized.FindProperty("caseCatalog").objectReferenceValue = caseCatalog;
+            serialized.FindProperty("clientAvatar").objectReferenceValue = client;
+            SerializedProperty caseButtons = serialized.FindProperty("caseButtons");
+            caseButtons.arraySize = ui.caseButtons.Length;
+            for (int i = 0; i < ui.caseButtons.Length; i++) caseButtons.GetArrayElementAtIndex(i).objectReferenceValue = ui.caseButtons[i];
             serialized.FindProperty("activeControlCard").objectReferenceValue = ui.activeControlCard;
             serialized.FindProperty("briefingOverlay").objectReferenceValue = ui.briefingOverlay;
             serialized.FindProperty("pauseOverlay").objectReferenceValue = ui.pauseOverlay;
@@ -632,6 +632,7 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.FindProperty("stageLabel").objectReferenceValue = ui.stageLabel;
             serialized.FindProperty("briefingCaseLabel").objectReferenceValue = ui.briefingCaseLabel;
             serialized.FindProperty("briefingBodyLabel").objectReferenceValue = ui.briefingBodyLabel;
+            serialized.FindProperty("clientNameLabel").objectReferenceValue = ui.clientNameLabel;
             serialized.FindProperty("debriefTitle").objectReferenceValue = ui.debriefTitle;
             serialized.FindProperty("practiceStartButton").objectReferenceValue = ui.practiceStartButton;
             serialized.FindProperty("evaluationStartButton").objectReferenceValue = ui.evaluationStartButton;
@@ -670,7 +671,19 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.FindProperty("zoomOutButton").objectReferenceValue = ui.zoomOutButton;
             serialized.FindProperty("zoomInButton").objectReferenceValue = ui.zoomInButton;
             serialized.FindProperty("resetButton").objectReferenceValue = ui.zoomResetButton;
+            serialized.FindProperty("faceObservationButton").objectReferenceValue = ui.faceObservationButton;
             serialized.FindProperty("zoomLabel").objectReferenceValue = ui.zoomLabel;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void WireClientDebug(ClientObservationDebugHud debugHud, ClientAvatarHost client, UiReferences ui)
+        {
+            SerializedObject serialized = new SerializedObject(debugHud);
+            serialized.FindProperty("client").objectReferenceValue = client;
+            serialized.FindProperty("panel").objectReferenceValue = ui.faceDebugPanel;
+            serialized.FindProperty("diagnosticsLabel").objectReferenceValue = ui.faceDebugLabel;
+            serialized.FindProperty("toggleButton").objectReferenceValue = ui.faceDebugButton;
+            serialized.FindProperty("cycleGazeButton").objectReferenceValue = ui.gazeCycleButton;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -1017,6 +1030,10 @@ namespace AdieLab.AffectCounsel.Editor
             public Button zoomOutButton;
             public Button zoomInButton;
             public Button zoomResetButton;
+            public Button faceObservationButton;
+            public Button faceDebugButton;
+            public Button gazeCycleButton;
+            public Button[] caseButtons;
             public Button languageToggleButton;
             public Text clientLine;
             public Text sessionStatus;
@@ -1027,6 +1044,8 @@ namespace AdieLab.AffectCounsel.Editor
             public Text stageLabel;
             public Text briefingCaseLabel;
             public Text briefingBodyLabel;
+            public Text clientNameLabel;
+            public Text faceDebugLabel;
             public Text debriefTitle;
             public Text debriefReport;
             public Text sceneDetailLabel;
@@ -1034,6 +1053,7 @@ namespace AdieLab.AffectCounsel.Editor
             public Text webcamStatus;
             public Text auStatus;
             public RawImage webcamPreview;
+            public GameObject faceDebugPanel;
         }
     }
 }

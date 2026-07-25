@@ -21,40 +21,66 @@ namespace AdieLab.AffectCounsel
 
         [SerializeField] private Animator animator;
         [SerializeField] private Transform lookTarget;
-        [SerializeField, Min(1f)] private float blendSpeed = 95f;
+        [SerializeField] private ClientProfileDefinition clientProfile;
+        [SerializeField] private AvatarPresentationDefinition avatarPresentation;
 
-        private SkinnedMeshRenderer[] renderers;
         private ClientAffect affect = ClientAffect.Anxious;
+        private ClientRelationalState relationalState = ClientRelationalState.Initial;
         private Coroutine speechRoutine;
-        private float speakingWeight;
-        private float blinkWeight;
-        private float nextBlink;
         private float gestureLayerWeight;
         private float gestureLayerTarget;
+        private ClientGazeController gazeController;
+        private ClientFacialExpressionDriver facialDriver;
+        private ClientRenderingController renderingController;
+
+        public string GazeStateLabel => gazeController == null ? "Unavailable" : gazeController.State.ToString();
+        public float GazeContactWeight => gazeController == null ? 0f : gazeController.ContactWeight;
+        public int FacialBlendShapeCount => facialDriver == null ? 0 : facialDriver.BlendShapeCount;
+        public string ActiveFacialCue => facialDriver == null ? "Unavailable" : facialDriver.ActiveCueSummary;
+        public void CycleDebugGaze() => gazeController?.CycleDebugState();
+
+        public void Configure(
+            Transform configuredLookTarget,
+            ClientProfileDefinition configuredProfile,
+            AvatarPresentationDefinition configuredPresentation)
+        {
+            lookTarget = configuredLookTarget;
+            clientProfile = configuredProfile;
+            avatarPresentation = configuredPresentation;
+            animator ??= GetComponentInChildren<Animator>(true);
+            InitializeDrivers();
+        }
 
         private void Awake()
         {
             animator ??= GetComponentInChildren<Animator>();
-            renderers = GetComponentsInChildren<SkinnedMeshRenderer>(true);
-            nextBlink = Random.Range(1.8f, 4.2f);
+            InitializeDrivers();
+            SetAffect(ClientAffect.Anxious, true);
+        }
+
+        private void InitializeDrivers()
+        {
+            if (animator != null)
+            {
+                gazeController = animator.GetComponent<ClientGazeController>() ?? animator.gameObject.AddComponent<ClientGazeController>();
+                facialDriver = animator.GetComponent<ClientFacialExpressionDriver>() ?? animator.gameObject.AddComponent<ClientFacialExpressionDriver>();
+                if (animator.GetComponent<ClientMicroMotionController>() == null) animator.gameObject.AddComponent<ClientMicroMotionController>();
+                gazeController.Initialize(lookTarget, clientProfile, avatarPresentation);
+                facialDriver.Initialize(avatarPresentation);
+            }
+            renderingController = GetComponent<ClientRenderingController>() ?? gameObject.AddComponent<ClientRenderingController>();
+            renderingController.ApplyReadableFaceMaterials();
             if (animator != null && animator.layerCount > GestureLayer)
             {
                 animator.SetLayerWeight(GestureLayer, 0f);
             }
 
-            SetAffect(ClientAffect.Anxious, true);
         }
 
         private void Update()
         {
-            nextBlink -= Time.deltaTime;
-            if (nextBlink <= 0f)
-            {
-                StartCoroutine(Blink());
-                nextBlink = Random.Range(2.4f, 5.2f);
-            }
-
-            ApplyFace();
+            gazeController?.SetContext(affect, relationalState, speechRoutine != null);
+            facialDriver?.SetContext(affect, relationalState);
             UpdateGestureLayer();
         }
 
@@ -62,23 +88,13 @@ namespace AdieLab.AffectCounsel
         {
             if (speechRoutine != null) StopCoroutine(speechRoutine);
             speechRoutine = null;
-            speakingWeight = 0f;
-            blinkWeight = 0f;
+            facialDriver?.EndSpeech();
             gestureLayerTarget = 0f;
             gestureLayerWeight = 0f;
             if (animator != null && animator.layerCount > GestureLayer)
             {
                 animator.SetLayerWeight(GestureLayer, 0f);
             }
-        }
-
-        private void OnAnimatorIK(int layerIndex)
-        {
-            if (animator == null || lookTarget == null) return;
-
-            float gaze = affect == ClientAffect.Guarded ? 0.28f : 0.72f;
-            animator.SetLookAtWeight(gaze, 0.12f, 0.76f, 0.62f, 0.42f);
-            animator.SetLookAtPosition(lookTarget.position);
         }
 
         public void SetAffect(ClientAffect value, bool immediate = false)
@@ -96,7 +112,13 @@ namespace AdieLab.AffectCounsel
                 animator.CrossFadeInFixedTime(state, immediate ? 0f : 0.7f, 0);
             }
 
-            if (immediate) ApplyFace(true);
+            facialDriver?.SetContext(affect, relationalState);
+        }
+
+        public void SetRelationalState(ClientRelationalState state)
+        {
+            relationalState = state;
+            facialDriver?.SetContext(affect, relationalState);
         }
 
         public static ClientAffect AffectForEmotion(string emotion)
@@ -128,12 +150,14 @@ namespace AdieLab.AffectCounsel
         {
             StopSpeaking();
             float duration = Mathf.Clamp((text ?? string.Empty).Length * 0.055f, 1.2f, 8f);
+            facialDriver?.BeginSpeech(text, duration);
             speechRoutine = StartCoroutine(SpeechRoutine(duration, emotion, (text ?? string.Empty).Length));
         }
 
         public void BeginSpeaking(string text, string emotion)
         {
             StopSpeaking();
+            facialDriver?.BeginSpeech(text, 60f);
             speechRoutine = StartCoroutine(SpeechRoutine(60f, emotion, (text ?? string.Empty).Length));
         }
 
@@ -141,7 +165,7 @@ namespace AdieLab.AffectCounsel
         {
             if (speechRoutine != null) StopCoroutine(speechRoutine);
             speechRoutine = null;
-            speakingWeight = 0f;
+            facialDriver?.EndSpeech();
             gestureLayerTarget = 0f;
         }
 
@@ -158,10 +182,6 @@ namespace AdieLab.AffectCounsel
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                float noise = Mathf.PerlinNoise(Time.unscaledTime * 5.4f, 0.31f);
-                float mouthTarget = Mathf.Clamp01((noise - 0.32f) * 1.55f);
-                speakingWeight = Mathf.MoveTowards(speakingWeight, mouthTarget, Time.deltaTime * 4.8f);
-
                 if (useGesture && !gestureActive && elapsed >= nextGesture && duration - elapsed >= 1.3f &&
                     animator != null && animator.layerCount > GestureLayer)
                 {
@@ -187,7 +207,7 @@ namespace AdieLab.AffectCounsel
             }
 
             speechRoutine = null;
-            speakingWeight = 0f;
+            facialDriver?.EndSpeech();
             gestureLayerTarget = 0f;
         }
 
@@ -202,58 +222,5 @@ namespace AdieLab.AffectCounsel
             animator.SetLayerWeight(GestureLayer, gestureLayerWeight);
         }
 
-        private IEnumerator Blink()
-        {
-            float elapsed = 0f;
-            while (elapsed < 0.16f)
-            {
-                elapsed += Time.deltaTime;
-                blinkWeight = Mathf.Sin(elapsed / 0.16f * Mathf.PI);
-                yield return null;
-            }
-
-            blinkWeight = 0f;
-        }
-
-        private void ApplyFace(bool immediate = false)
-        {
-            if (renderers == null) return;
-
-            float browUp = affect == ClientAffect.Anxious ? 32f : affect == ClientAffect.Guarded ? 16f : 8f;
-            float browDown = affect == ClientAffect.Guarded ? 28f : 4f;
-            float smile = affect == ClientAffect.Relieved ? 16f : 0f;
-            float mouthOpen = speakingWeight * 30f;
-            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
-            {
-                SkinnedMeshRenderer renderer = renderers[rendererIndex];
-                Mesh mesh = renderer.sharedMesh;
-                if (mesh == null) continue;
-
-                for (int shapeIndex = 0; shapeIndex < mesh.blendShapeCount; shapeIndex++)
-                {
-                    string name = mesh.GetBlendShapeName(shapeIndex).ToLowerInvariant();
-                    float target = 0f;
-                    if (Matches(name, "browinnerup", "innerbrowraiser", "au1")) target = browUp;
-                    else if (Matches(name, "browdown", "browlower", "au4")) target = browDown;
-                    else if (Matches(name, "mouthsmile", "lipcornerpull", "au12")) target = smile;
-                    else if (Matches(name, "jawopen", "mouthopen", "au26")) target = mouthOpen;
-                    else if (Matches(name, "eyeblink", "blinktop", "au45")) target = blinkWeight * 100f;
-                    float current = renderer.GetBlendShapeWeight(shapeIndex);
-                    renderer.SetBlendShapeWeight(
-                        shapeIndex,
-                        immediate ? target : Mathf.MoveTowards(current, target, blendSpeed * Time.deltaTime));
-                }
-            }
-        }
-
-        private static bool Matches(string source, params string[] tokens)
-        {
-            for (int i = 0; i < tokens.Length; i++)
-            {
-                if (source.Contains(tokens[i])) return true;
-            }
-
-            return false;
-        }
     }
 }

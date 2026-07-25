@@ -6,6 +6,8 @@ namespace AdieLab.AffectCounsel.Editor
     {
         private const string Root = "Assets/ThirdParty/MicrosoftRocketbox/";
 
+        public override uint GetVersion() => 2;
+
         private void OnPreprocessModel()
         {
             if (!assetPath.StartsWith(Root)) return;
@@ -35,9 +37,10 @@ namespace AdieLab.AffectCounsel.Editor
         {
             if (!assetPath.StartsWith(Root)) return;
             TextureImporter importer = (TextureImporter)assetImporter;
-            importer.maxTextureSize = 2048;
+            string lower = assetPath.ToLowerInvariant();
+            importer.maxTextureSize = lower.Contains("head_color") ? 2048 : 1024;
             importer.textureCompression = TextureImporterCompression.CompressedHQ;
-            if (assetPath.ToLowerInvariant().Contains("normal")) importer.textureType = TextureImporterType.NormalMap;
+            if (lower.Contains("normal")) importer.textureType = TextureImporterType.NormalMap;
         }
 
         private void OnPostprocessMeshHierarchy(UnityEngine.GameObject gameObject)

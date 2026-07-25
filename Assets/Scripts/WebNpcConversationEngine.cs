@@ -24,14 +24,20 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private string apiBaseUrl = "https://counselcue-api.jewoong-moon.workers.dev";
         [SerializeField, Range(5f, 45f)] private float timeoutSeconds = 25f;
         [SerializeField] private bool enableInEditor;
+        [SerializeField] private string activeCaseId = "workplace-anxiety-01";
         public string ApiBaseUrl => apiBaseUrl.TrimEnd('/');
         public bool IsAvailable => Application.platform == RuntimePlatform.WebGLPlayer || enableInEditor;
+
+        public void ConfigureCase(CounselingCaseDefinition definition)
+        {
+            activeCaseId = definition == null ? "workplace-anxiety-01" : definition.CaseId;
+        }
 
         public async Task<NpcTurnReply> RequestReplyAsync(string sessionId, int turn, string stage, string utterance, ClientRelationalState state)
         {
             if (!IsAvailable) return NpcTurnReply.Failure("웹 NPC 엔진 비활성화");
             TurnRequest payload = new TurnRequest {
-                sessionId=sessionId, turn=turn, stage=stage, counselorUtterance=utterance,
+                sessionId=sessionId, caseId=activeCaseId, turn=turn, stage=stage, counselorUtterance=utterance,
                 safety=state.Safety, guardedness=state.Guardedness, disclosure=state.WillingnessToDisclose
             };
             byte[] bytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(payload));
@@ -57,7 +63,7 @@ namespace AdieLab.AffectCounsel
         }
 
         [Serializable] private sealed class TurnRequest {
-            public string sessionId; public int turn; public string stage; public string counselorUtterance;
+            public string sessionId; public string caseId; public int turn; public string stage; public string counselorUtterance;
             public float safety; public float guardedness; public float disclosure;
         }
         [Serializable] private sealed class TurnResponse { public string reply; public string emotion; }

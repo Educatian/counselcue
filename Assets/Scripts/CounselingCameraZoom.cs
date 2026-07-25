@@ -7,7 +7,7 @@ namespace AdieLab.AffectCounsel
     [DisallowMultipleComponent]
     public sealed class CounselingCameraZoom : MonoBehaviour
     {
-        public const float CloseFieldOfView = 26f;
+        public const float CloseFieldOfView = 23.5f;
         public const float DefaultFieldOfView = 38.25f;
         public const float WideFieldOfView = 52f;
 
@@ -15,6 +15,7 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Button zoomOutButton;
         [SerializeField] private Button zoomInButton;
         [SerializeField] private Button resetButton;
+        [SerializeField] private Button faceObservationButton;
         [SerializeField] private Text zoomLabel;
 
         private const float Step = 3.5f;
@@ -28,6 +29,7 @@ namespace AdieLab.AffectCounsel
             zoomOutButton.onClick.AddListener(ZoomOut);
             zoomInButton.onClick.AddListener(ZoomIn);
             resetButton.onClick.AddListener(ResetZoom);
+            faceObservationButton?.onClick.AddListener(ToggleFaceObservation);
             UpdateLabel();
         }
 
@@ -59,6 +61,12 @@ namespace AdieLab.AffectCounsel
 
         public void ResetZoom() => SetTargetFieldOfView(DefaultFieldOfView);
 
+        public void ToggleFaceObservation()
+        {
+            bool isClose = targetFieldOfView <= CloseFieldOfView + 0.2f;
+            SetTargetFieldOfView(isClose ? DefaultFieldOfView : CloseFieldOfView);
+        }
+
         public void SetTargetFieldOfView(float fieldOfView, bool immediate = false)
         {
             targetFieldOfView = Mathf.Clamp(fieldOfView, CloseFieldOfView, WideFieldOfView);
@@ -82,6 +90,11 @@ namespace AdieLab.AffectCounsel
             zoomLabel.text = $"{percentage}%";
             zoomInButton.interactable = targetFieldOfView > CloseFieldOfView;
             zoomOutButton.interactable = targetFieldOfView < WideFieldOfView;
+            if (faceObservationButton != null)
+            {
+                Text label = faceObservationButton.GetComponentInChildren<Text>();
+                if (label != null) label.text = targetFieldOfView <= CloseFieldOfView + 0.2f ? "전체 보기" : "얼굴 관찰";
+            }
         }
     }
 }

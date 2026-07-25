@@ -31,7 +31,7 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private CounselingSessionController session;
         [SerializeField] private CounselingSessionOrchestrator orchestrator;
         [SerializeField] private WebNpcConversationEngine npcEngine;
-        [SerializeField] private ClientAvatarController client;
+        [SerializeField] private ClientAvatarHost client;
         [SerializeField] private RectTransform unityInputCard;
         [SerializeField] private RectTransform unityInputAccent;
         [SerializeField] private GameObject unityInputField;

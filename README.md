@@ -47,9 +47,9 @@ System evidence remains hidden until the learner records a self-assessment. A se
 
 | Status | Scope |
 |---|---|
-| **Implemented** | Rocketbox virtual client, close observation camera, full and focused sessions, coached and assessment modes, replay, relational trajectory, local JSONL logging, Korean/English UI, browser-native Korean input, Korean microphone dictation, spotlight onboarding, and ElevenLabs v3 client speech through a server proxy |
-| **Experimental** | Server-owned Korean client persona through the OpenAI Responses API, bounded relational-state prompting, four-state emotional voice direction, thirteen MediaPipe-derived AU proxies, personal baseline calibration, and deterministic local fallback |
-| **Planned** | Temporal alignment of speaking rate, silence, gaze, and head nods, expert case-authoring tools, consent and deletion flows, an educator dashboard, and multi-site user research |
+| **Implemented** | Five selectable counseling cases with distinct Rocketbox avatars, FACS/viseme facial layers, five-state gaze behavior, Korean viseme planning, micro-blinks/breath/head motion, face-observation zoom and diagnostics, full and focused sessions, replay, relational trajectory, local JSONL logging, Korean/English UI, browser-native Korean input, microphone dictation, spotlight onboarding, and ElevenLabs v3 client speech through a server proxy |
+| **Experimental** | Case-specific Korean client personas through OpenRouter, bounded relational-state prompting, four-state emotional voice direction, thirteen MediaPipe-derived counselor AU proxies, personal baseline calibration, and deterministic local fallback |
+| **Planned** | Audio-aligned phoneme timing, expert case-authoring tools, consent and deletion flows, an educator dashboard, and multi-site user research |
 | **Requires validation** | Agreement between AU proxies and human FACS coding, expert inter-rater reliability for feedback rules, culture-specific cue interpretation, learning transfer, and change in counseling competence |
 
 ## Interface
@@ -57,6 +57,16 @@ System evidence remains hidden until the learner records a self-assessment. A se
 The scene draws on a contemporary Korean private-practice context with warm ivory, sage, and walnut tones. Client observability takes priority over decoration: the face, upper body, and hands remain visible, while observation zoom moves between facial detail and posture without changing the counselor-client sightline.
 
 The live room now uses the project's Blender-authored asset pack for the hanji floor lamp, counseling books, acoustic wall panel, woven rug, basket plants, round oak table, linen tissue box, and celadon tea cup.
+
+### Face readability and case selection
+
+The pilot catalog now includes workplace anxiety, adolescent academic pressure, career transition and burnout, older-adult bereavement, and international-student belonging. Selecting a case changes the client profile, facial avatar, nonverbal interpretation parameters, disclosure trajectory, and server persona key together.
+
+| Five-case catalog | Face observation and gaze diagnostics |
+|---|---|
+| ![Five selectable counseling cases](Screenshots/progress-41-case-selector.png) | ![Close facial observation with gaze diagnostics](Screenshots/progress-42-face-observation-debug.png) |
+
+The Rocketbox face audit detects 175 blendshapes on the reference avatar, including 15 visemes and the AU shapes used by the relational expression layer. The diagnostics panel exposes the current gaze state, LookAt weight, bound facial shapes, and active viseme for development and expert review.
 
 | Blender-authored counseling room upgrade |
 |---|

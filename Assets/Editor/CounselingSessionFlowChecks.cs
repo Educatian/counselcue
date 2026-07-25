@@ -29,8 +29,9 @@ namespace AdieLab.AffectCounsel.Editor
             passed &= Expect(CounselingSessionFlow.ModeLabel(TrainingMode.Evaluation) == "평가 모드", "evaluation label");
             passed &= Expect(CounselingSessionFlow.ModeLabel(TrainingMode.FocusedPractice) == "집중연습", "focused practice label");
             passed &= Expect(CounselingSessionFlow.ModeLabel(TrainingMode.SceneReplay) == "장면 재연습", "scene replay label");
-            CounselingCaseDefinition definition = AssetDatabase.LoadAssetAtPath<CounselingCaseDefinition>(
-                "Assets/Data/Cases/WorkplaceAnxietyCase.asset");
+            CaseCatalog catalog = CounselingContentFactory.CreateOrUpdate();
+            CounselingCaseDefinition definition = catalog.DefaultCase;
+            passed &= Expect(catalog.Count == 5, "five-case catalog");
             passed &= Expect(definition != null, "workplace anxiety case asset");
             if (definition != null)
             {

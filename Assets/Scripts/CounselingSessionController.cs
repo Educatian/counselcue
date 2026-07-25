@@ -10,7 +10,7 @@ namespace AdieLab.AffectCounsel
     {
         private const string InitialClientLine = "요즘 회사에 가려고 하면 숨이 막히는 것 같아요.\n제가 너무 약한 사람인가 싶기도 하고요.";
 
-        [SerializeField] private ClientAvatarController client;
+        [SerializeField] private ClientAvatarHost client;
         [SerializeField] private WebcamSignalMonitor webcam;
         [SerializeField] private FacialActionUnitMonitor actionUnits;
         [SerializeField] private GptRealtimeConversationEngine realtimeEngine;
@@ -63,6 +63,14 @@ namespace AdieLab.AffectCounsel
         private int submissionGeneration;
 
         public bool IsSubmitting => isSubmitting;
+
+        public void SetCaseDefinition(CounselingCaseDefinition definition)
+        {
+            caseDefinition = definition;
+            webNpcEngine?.ConfigureCase(definition);
+            client?.ApplyCase(definition);
+            UpdateLabels();
+        }
 
         public void SetCounselorInput(string value)
         {
@@ -202,6 +210,7 @@ namespace AdieLab.AffectCounsel
                 if (!IsCurrentSubmission(expectedSession, expectedSubmission)) return;
 
                 relationalState = relationalResult.State;
+                client.SetRelationalState(relationalState);
                 turn = proposedTurn;
                 conversationEngine = selectedEngine;
                 SetClientLine(reply);

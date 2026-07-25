@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b010993c6320bdc45bfdb32c93cecfa4, type: 3}
+  m_Name: adolescent-pressure-01
+  m_EditorClassIdentifier: Assembly-CSharp::AdieLab.AffectCounsel.ClientProfileDefinition
+  profileId: adolescent-pressure-01
+  displayName: "\uBC15\uC11C\uC724"
+  ageLabel: "16\uC138"
+  counselingDomain: "\uCCAD\uC18C\uB144\xB7\uD559\uAD50\uC0C1\uB2F4"
+  culturalContext: "\uC131\uC778 \uAD8C\uC704\uC5D0 \uB300\uD55C \uACBD\uACC4\uB97C
+    \uACE0\uB824\uD558\uACE0 \uC874\uB313\uB9D0\uC744 \uAC15\uC694\uD558\uC9C0 \uC54A\uC73C\uBA70
+    \uBE44\uBC00\uBCF4\uC7A5\uC758 \uD55C\uACC4\uB97C \uD22C\uBA85\uD558\uAC8C \uC124\uBA85\uD55C\uB2E4."
+  nonverbalStyle: "\uC9C1\uC811 \uB208\uB9DE\uCDA4\uC774 \uAE38\uBA74 \uBD80\uB2F4\uC744
+    \uB290\uB07C\uACE0 \uC606\uC744 \uBCF4\uBA70 \uC0DD\uAC01\uD55C\uB2E4. \uC7AC\uCD09\uD558\uC9C0
+    \uC54A\uC73C\uBA74 \uC9E7\uAC8C \uC7AC\uC811\uCD09\uD55C\uB2E4."
+  baselineGazeComfort: 0.34
+  disclosurePace: 0.34

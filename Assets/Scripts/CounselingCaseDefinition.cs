@@ -34,6 +34,11 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private string[] learningObjectives = Array.Empty<string>();
         [SerializeField] private CounselingDisclosureStep[] disclosureLadder = Array.Empty<CounselingDisclosureStep>();
         [SerializeField] private CounselingFocusSkill[] focusSkills = Array.Empty<CounselingFocusSkill>();
+        [SerializeField] private ClientProfileDefinition clientProfileDefinition;
+        [SerializeField] private AvatarPresentationDefinition avatarPresentation;
+        [SerializeField] private string counselingDomain = "직업·성인상담";
+        [SerializeField] private string difficultyLabel = "기초";
+        [SerializeField, TextArea] private string personaPromptKey = "workplace-anxiety-01";
 
         public string CaseId => caseId;
         public string CaseTitle => caseTitle;
@@ -46,6 +51,11 @@ namespace AdieLab.AffectCounsel
         public int FocusedTargetTurns => focusedTargetTurns;
         public string[] LearningObjectives => learningObjectives;
         public CounselingFocusSkill[] FocusSkills => focusSkills;
+        public ClientProfileDefinition ProfileDefinition => clientProfileDefinition;
+        public AvatarPresentationDefinition AvatarPresentation => avatarPresentation;
+        public string CounselingDomain => counselingDomain;
+        public string DifficultyLabel => difficultyLabel;
+        public string PersonaPromptKey => personaPromptKey;
 
         public string GetReply(int turnIndex, bool supportive)
         {
@@ -80,6 +90,20 @@ namespace AdieLab.AffectCounsel
             learningObjectives = configuredObjectives;
             disclosureLadder = configuredLadder;
             focusSkills = configuredFocusSkills;
+        }
+
+        public void ConfigurePresentation(
+            ClientProfileDefinition configuredProfile,
+            AvatarPresentationDefinition configuredPresentation,
+            string configuredDomain,
+            string configuredDifficulty,
+            string configuredPersonaPromptKey)
+        {
+            clientProfileDefinition = configuredProfile;
+            avatarPresentation = configuredPresentation;
+            counselingDomain = configuredDomain;
+            difficultyLabel = configuredDifficulty;
+            personaPromptKey = configuredPersonaPromptKey;
         }
     }
 }

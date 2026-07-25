@@ -1,0 +1,4 @@
+Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Male_Adult_07/Textures/*.tga filter=lfs diff=lfs merge=lfs -text
+Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Male_Adult_09/Textures/*.tga filter=lfs diff=lfs merge=lfs -text
+Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Male_Adult_14/Textures/*.tga filter=lfs diff=lfs merge=lfs -text
+Assets/ThirdParty/MicrosoftRocketbox/Avatars/Children/Female_Child_02/Textures/*.tga filter=lfs diff=lfs merge=lfs -text
