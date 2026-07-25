@@ -36,6 +36,8 @@ namespace AdieLab.AffectCounsel
         public string GazeStateLabel => gazeController == null ? "Unavailable" : gazeController.State.ToString();
         public float GazeContactWeight => gazeController == null ? 0f : gazeController.ContactWeight;
         public int FacialBlendShapeCount => facialDriver == null ? 0 : facialDriver.BlendShapeCount;
+        public int FacialSemanticChannelCount => facialDriver == null ? 0 : facialDriver.SemanticChannelCount;
+        public int SuppressedCombinedShapeCount => facialDriver == null ? 0 : facialDriver.SuppressedCombinedShapeCount;
         public string ActiveFacialCue => facialDriver == null ? "Unavailable" : facialDriver.ActiveCueSummary;
         public void CycleDebugGaze() => gazeController?.CycleDebugState();
 

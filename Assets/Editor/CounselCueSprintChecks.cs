@@ -46,6 +46,13 @@ namespace AdieLab.AffectCounsel.Editor
                 Require(names.Any(n => n.Contains("AU_04_BrowLowerer")), "Brow lowerer AU missing.");
                 Require(names.Count(n => n.Contains("AA_VI_")) >= 15, "Fifteen visemes required.");
                 Require(KoreanVisemePlanner.Build("상담을 시작해요").Any(v => v != "AA_VI_00_Sil"), "Korean viseme plan is silent.");
+                HashSet<string> semanticNames = new HashSet<string>(names.Select(FacialRigSemanticAdapter.Normalize), StringComparer.OrdinalIgnoreCase);
+                HashSet<string> shadowed = FacialRigSemanticAdapter.FindCombinedShapesShadowedByLaterals(semanticNames);
+                Require(shadowed.Contains("AU_12_LipCornerPuller"), "Combined/lateral AU duplicate detection failed.");
+                Require(FacialMorphDynamics.BlinkWeight(0.065f) > 0.95f, "Blink must contain a short natural hold.");
+                float morphVelocity = 0f;
+                float morphStep = FacialMorphDynamics.Step(0f, 100f, ref morphVelocity, 0.16f, 170f, 1f / 60f);
+                Require(morphStep > 0f && morphStep < 10f, "Facial morph dynamics must prevent one-frame popping.");
                 Require(Enum.GetValues(typeof(ClientGazeState)).Length >= 5, "Five observable gaze states required.");
                 Require(CounselingCameraZoom.CloseFieldOfView <= 24f, "Face observation preset must be close enough.");
 

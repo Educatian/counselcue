@@ -16,6 +16,8 @@ namespace AdieLab.AffectCounsel
         public string GazeStateLabel => activeClient == null ? "Unavailable" : activeClient.GazeStateLabel;
         public float GazeContactWeight => activeClient == null ? 0f : activeClient.GazeContactWeight;
         public int FacialBlendShapeCount => activeClient == null ? 0 : activeClient.FacialBlendShapeCount;
+        public int FacialSemanticChannelCount => activeClient == null ? 0 : activeClient.FacialSemanticChannelCount;
+        public int SuppressedCombinedShapeCount => activeClient == null ? 0 : activeClient.SuppressedCombinedShapeCount;
         public string ActiveFacialCue => activeClient == null ? "Unavailable" : activeClient.ActiveFacialCue;
 
         private void Awake()
