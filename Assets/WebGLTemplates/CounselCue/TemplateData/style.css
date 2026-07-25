@@ -15,7 +15,8 @@ body { min-height: 100dvh; }
   position: absolute; inset: 0; z-index: 20; display: none; flex-direction: column;
   align-items: center; justify-content: center; gap: 12px; background: #17211e;
 }
-#unity-logo { width: 154px; height: 130px; background: url('unity-logo-dark.png') no-repeat center; }
+#unity-logo { display: flex; align-items: center; justify-content: center; width: 240px; height: 72px; color: #edf5ef; font-size: 30px; font-weight: 800; letter-spacing: -.03em; }
+#unity-logo::before { content: "CounselCue"; }
 #unity-progress-bar-empty { width: min(240px, 66vw); height: 10px; overflow: hidden; border: 1px solid #dce9e1; border-radius: 999px; }
 #unity-progress-bar-full { width: 0; height: 100%; background: #82c3a1; transition: width .15s linear; }
 #unity-loading-label { color: #edf5ef; font-size: 14px; }
