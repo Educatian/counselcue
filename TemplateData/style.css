@@ -107,6 +107,42 @@ body.counselcue-input-active #unity-container {
 
 #unity-fullscreen-button:hover { background: #245e47; }
 
+#readability-controls {
+  position: fixed;
+  z-index: 90;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid #9eaaa4;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .97);
+  color: #25312d;
+}
+
+#readability-controls span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#readability-toggle {
+  min-height: 42px;
+  border: 1px solid #245e47;
+  border-radius: 4px;
+  padding: 0 14px;
+  background: #347a5d;
+  color: #ffffff;
+  font: 700 14px/1 "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  cursor: pointer;
+}
+
+#readability-toggle:focus-visible {
+  outline: 3px solid #f3c778;
+  outline-offset: 2px;
+}
+
 #unity-warning {
   position: absolute;
   z-index: 40;
@@ -245,4 +281,31 @@ body.counselcue-input-active #unity-container {
   .ccb { min-width: 62px; height: 60px; padding: 0 10px; font-size: 15px; }
   .lbl { display: none; }
   #ccn { bottom: 66px; font-size: 12px; }
+}
+
+@media (max-width: 1000px), (max-aspect-ratio: 4/3) {
+  #readability-controls { display: flex; }
+
+  body.counselcue-readable-mode #unity-stage {
+    display: block;
+    overflow: auto;
+    padding: 58px 8px 8px;
+    scrollbar-gutter: stable both-edges;
+    overscroll-behavior: contain;
+  }
+
+  body.counselcue-readable-mode #unity-container,
+  body.counselcue-readable-mode.counselcue-input-active #unity-container {
+    width: 1280px;
+    height: 720px;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border-radius: 4px;
+  }
+
+  body.counselcue-readable-mode #counselcue-composer-slot {
+    position: relative;
+    z-index: 80;
+  }
 }
