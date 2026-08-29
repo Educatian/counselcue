@@ -5,7 +5,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>CounselCue</title>
-    <link rel="stylesheet" href="TemplateData/style.css?v=1.4.0-feedback-closure">
+    <link rel="stylesheet" href="TemplateData/style.css?v=1.6.0-facial-ui-safety&amp;layout=20260828b">
   </head>
   <body>
     <main id="app-shell" aria-label="CounselCue 상담 훈련">
@@ -24,8 +24,8 @@
       <div id="counselcue-composer-slot" aria-live="polite"></div>
     </main>
     <div id="readability-controls" aria-label="화면 가독성 설정">
-      <span id="readability-status">읽기 확대</span>
-      <button id="readability-toggle" type="button" aria-pressed="true">전체 보기</button>
+      <span id="readability-status">전체 맞춤</span>
+      <button id="readability-toggle" type="button" aria-pressed="false">읽기 확대</button>
     </div>
     <script>
       const canvas = document.querySelector("#unity-canvas");
@@ -35,7 +35,9 @@
       const readabilityToggle = document.querySelector("#readability-toggle");
       const readabilityStatus = document.querySelector("#readability-status");
       const compactViewport = window.matchMedia("(max-width: 1000px), (max-aspect-ratio: 4/3)");
-      let readabilityMode = compactViewport.matches;
+      // Always start with the complete 16:9 research interface in view. Users can
+      // opt into the scrollable reading enlargement when they need larger text.
+      let readabilityMode = false;
 
       function applyReadabilityMode() {
         document.body.classList.toggle("counselcue-readable-mode", compactViewport.matches && readabilityMode);
@@ -49,7 +51,7 @@
         applyReadabilityMode();
       });
       compactViewport.addEventListener?.("change", event => {
-        readabilityMode = event.matches;
+        if (!event.matches) readabilityMode = false;
         applyReadabilityMode();
       });
       applyReadabilityMode();
@@ -69,7 +71,7 @@
       }
 
       const buildUrl = "Build";
-      const assetVersion = encodeURIComponent("1.4.0-feedback-closure");
+      const assetVersion = encodeURIComponent("1.6.0-facial-ui-safety");
       const versionQuery = "?v=" + assetVersion;
       const loaderUrl = buildUrl + "/WebGL.loader.js" + versionQuery;
       const config = {
@@ -80,7 +82,7 @@
         streamingAssetsUrl: "StreamingAssets",
         companyName: "Educatian",
         productName: "CounselCue",
-        productVersion: "1.4.0-feedback-closure",
+        productVersion: "1.6.0-facial-ui-safety",
         showBanner: unityShowBanner,
         devicePixelRatio: Math.min(Math.max(window.devicePixelRatio || 1, 1.5), 2)
       };

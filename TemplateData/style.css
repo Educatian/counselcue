@@ -269,9 +269,10 @@ body.counselcue-input-active #unity-container {
 
 @media (max-width: 720px) {
   #unity-stage { padding: 4px; }
+  body.counselcue-input-active #unity-stage { align-items: center; }
   #unity-container,
   body.counselcue-input-active #unity-container {
-    width: 100vw;
+    width: calc(100vw - 8px);
     border-radius: 0;
     border-left: 0;
     border-right: 0;
