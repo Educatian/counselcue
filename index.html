@@ -5,7 +5,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>CounselCue</title>
-    <link rel="stylesheet" href="TemplateData/style.css">
+    <link rel="stylesheet" href="TemplateData/style.css?v=1.4.0-feedback-closure">
   </head>
   <body>
     <main id="app-shell" aria-label="CounselCue 상담 훈련">
@@ -69,12 +69,14 @@
       }
 
       const buildUrl = "Build";
-      const loaderUrl = buildUrl + "/WebGL.loader.js";
+      const assetVersion = encodeURIComponent("1.4.0-feedback-closure");
+      const versionQuery = "?v=" + assetVersion;
+      const loaderUrl = buildUrl + "/WebGL.loader.js" + versionQuery;
       const config = {
         arguments: [],
-        dataUrl: buildUrl + "/WebGL.data",
-        frameworkUrl: buildUrl + "/WebGL.framework.js",
-        codeUrl: buildUrl + "/WebGL.wasm",
+        dataUrl: buildUrl + "/WebGL.data" + versionQuery,
+        frameworkUrl: buildUrl + "/WebGL.framework.js" + versionQuery,
+        codeUrl: buildUrl + "/WebGL.wasm" + versionQuery,
         streamingAssetsUrl: "StreamingAssets",
         companyName: "Educatian",
         productName: "CounselCue",
