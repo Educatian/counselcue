@@ -5,10 +5,14 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>CounselCue</title>
-    <link rel="stylesheet" href="TemplateData/style.css?v=1.10.0-avatar-vertical-slice&amp;layout=20260829-fullbleed1">
+    <link rel="stylesheet" href="TemplateData/style.css?v=1.11.0-cinematic-linear-render&amp;layout=20260829-fullbleed1">
   </head>
   <body>
     <main id="app-shell" aria-label="CounselCue 상담 훈련">
+      <div id="readability-controls" aria-label="화면 가독성 설정">
+        <span id="readability-status">전체 맞춤</span>
+        <button id="readability-toggle" type="button" aria-pressed="false">읽기 확대</button>
+      </div>
       <section id="unity-stage" aria-label="상담 훈련 화면">
         <div id="unity-container">
           <canvas id="unity-canvas" width="960" height="600" tabindex="0" aria-label="CounselCue Unity 애플리케이션"></canvas>
@@ -23,10 +27,6 @@
       </section>
       <div id="counselcue-composer-slot" aria-live="polite"></div>
     </main>
-    <div id="readability-controls" aria-label="화면 가독성 설정">
-      <span id="readability-status">전체 맞춤</span>
-      <button id="readability-toggle" type="button" aria-pressed="false">읽기 확대</button>
-    </div>
     <script>
       const canvas = document.querySelector("#unity-canvas");
       const loadingBar = document.querySelector("#unity-loading-bar");
@@ -71,7 +71,7 @@
       }
 
       const buildUrl = "Build";
-      const assetVersion = encodeURIComponent("1.10.0-avatar-vertical-slice");
+      const assetVersion = encodeURIComponent("1.11.0-cinematic-linear-render");
       const versionQuery = "?v=" + assetVersion;
       const loaderUrl = buildUrl + "/WebGL.loader.js" + versionQuery;
       const config = {
@@ -82,7 +82,7 @@
         streamingAssetsUrl: "StreamingAssets",
         companyName: "Educatian",
         productName: "CounselCue",
-        productVersion: "1.10.0-avatar-vertical-slice",
+        productVersion: "1.11.0-cinematic-linear-render",
         showBanner: unityShowBanner,
         devicePixelRatio: Math.min(Math.max(window.devicePixelRatio || 1, 1.5), 2)
       };

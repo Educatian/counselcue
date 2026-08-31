@@ -17,7 +17,7 @@ html, body {
 
 #app-shell {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) 0;
+  grid-template-rows: 0 minmax(0, 1fr) 0;
   width: 100vw;
   height: 100vh;
   height: 100dvh;
@@ -25,10 +25,11 @@ html, body {
 }
 
 body.counselcue-input-active #app-shell {
-  grid-template-rows: minmax(0, 1fr) 92px;
+  grid-template-rows: 0 minmax(0, 1fr) 92px;
 }
 
 #unity-stage {
+  grid-row: 2;
   display: grid;
   place-items: stretch;
   width: 100%;
@@ -114,17 +115,19 @@ body.counselcue-input-active #unity-container {
 #unity-fullscreen-button:hover { background: #245e47; }
 
 #readability-controls {
-  position: fixed;
+  grid-row: 1;
+  position: relative;
   z-index: 90;
-  top: max(8px, env(safe-area-inset-top));
-  right: max(8px, env(safe-area-inset-right));
   display: none;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  padding: 6px;
-  border: 1px solid #9eaaa4;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, .97);
+  min-width: 0;
+  padding: 4px max(8px, env(safe-area-inset-right)) 4px 8px;
+  border: 0;
+  border-bottom: 1px solid #d5ddd9;
+  border-radius: 0;
+  background: #ffffff;
   color: #25312d;
 }
 
@@ -134,13 +137,13 @@ body.counselcue-input-active #unity-container {
 }
 
 #readability-toggle {
-  min-height: 42px;
+  min-height: 34px;
   border: 1px solid #245e47;
   border-radius: 4px;
-  padding: 0 14px;
+  padding: 0 12px;
   background: #347a5d;
   color: #ffffff;
-  font: 700 14px/1 "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  font: 700 13px/1 "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
   cursor: pointer;
 }
 
@@ -164,6 +167,7 @@ body.counselcue-input-active #unity-container {
 .warning-error { color: #7a1f1f; background: #ffe4e4; }
 
 #counselcue-composer-slot {
+  grid-row: 3;
   display: grid;
   place-items: center;
   min-width: 0;
@@ -291,6 +295,14 @@ body.counselcue-input-active #unity-container {
 }
 
 @media (max-width: 1000px), (max-aspect-ratio: 4/3) {
+  #app-shell {
+    grid-template-rows: 44px minmax(0, 1fr) 0;
+  }
+
+  body.counselcue-input-active #app-shell {
+    grid-template-rows: 44px minmax(0, 1fr) 92px;
+  }
+
   #readability-controls { display: flex; }
 
   body.counselcue-readable-mode #unity-stage {
@@ -298,7 +310,7 @@ body.counselcue-input-active #unity-container {
     align-items: flex-start;
     justify-content: flex-start;
     overflow: auto;
-    padding: 58px 8px 8px;
+    padding: 8px;
     scrollbar-gutter: stable both-edges;
     overscroll-behavior: contain;
   }
