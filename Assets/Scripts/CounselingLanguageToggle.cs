@@ -23,7 +23,7 @@ namespace AdieLab.AffectCounsel
         private static readonly HashSet<string> DynamicKeys = new HashSet<string>
         {
             "WebcamStatus", "AuStatus", "SessionStatus", "StageLabel", "Alliance", "Feedback", "DataStatus",
-            "DebriefTitle", "DebriefSummary", "SceneDetail", "AssessmentStatus"
+            "DebriefTitle", "DebriefSummary", "SceneDetail", "AssessmentStatus", "FaceObservation"
         };
 
         private static readonly Dictionary<string, string> EnglishByKey = new Dictionary<string, string>
@@ -35,6 +35,7 @@ namespace AdieLab.AffectCounsel
             { "PauseSession", "Pause" },
             { "EndSession", "End" },
             { "ZoomReset", "Reset" },
+            { "FaceDebugToggle", "Debug" },
             { "SendButton", "Respond" },
             { "BriefingTitle", "Choose today's practice path" },
             { "FullSessionLabel", "FULL SESSION · 15 MIN / TARGET 10 TURNS" },
@@ -164,6 +165,11 @@ namespace AdieLab.AffectCounsel
                     .Replace("삭제할 로컬 기록이 없습니다.", "There are no local records to delete.");
                 data = Regex.Replace(data, "이 기기에 기록 파일 (\\d+)개", "$1 record file(s) on this device");
                 return Regex.Replace(data, "로컬 기록 파일 (\\d+)개를 삭제했습니다\\.", "Deleted $1 local record file(s).");
+            }
+            if (key == "FaceObservation")
+            {
+                // CounselingCameraZoom flips this label between the two states.
+                return source.Replace("얼굴 관찰", "Face view").Replace("전체 보기", "Full view");
             }
             if (key == "Alliance")
             {

@@ -75,3 +75,14 @@ MonoBehaviour:
   counselingDomain: "\uC9C4\uB85C\xB7\uC9C1\uC5C5\uC0C1\uB2F4"
   difficultyLabel: "\uC911\uAE09"
   personaPromptKey: career-transition-01
+  briefingPortrait: {fileID: 0}
+  english:
+    title: Career transition and burnout
+    clientName: Minjun Choi
+    clientProfile: "39 \xB7 Career counseling"
+    presentingConcern: Torn between wanting to leave a stable job and his responsibility
+      to support his family.
+    learningObjectives:
+    - Reflect both sides of the ambivalence together.
+    - Explore values separately from role responsibilities.
+    - Avoid prescribing a career decision too early.

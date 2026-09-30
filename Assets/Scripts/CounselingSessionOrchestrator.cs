@@ -195,6 +195,9 @@ namespace AdieLab.AffectCounsel
             sessionController.SetCaseDefinition(selected);
             clientAvatar?.ApplyCase(selected);
             selectedCaseIndex = index;
+            // Refresh the client's speech card too, so the line behind the briefing belongs
+            // to the newly selected case rather than the previous one.
+            sessionController.PrepareBriefing();
             ConfigureBriefing();
             UpdateCaseButtons(index);
         }
