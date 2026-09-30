@@ -81,6 +81,8 @@ AdieLab.AffectCounsel.Editor.RelationalDeliveryModelChecks.RunFromCommandLine
 AdieLab.AffectCounsel.Editor.CounselingRoomBuilder.BuildWebGLFromCommandLine
 ```
 
+In the editor, **Tools → CounselCue → Review → Run All Checks** runs every suite without quitting, and **Capture Review Screenshots** plays through the briefing (five cases, Korean and English), two live turns, face observation, and the debrief, saving captures to `Screenshots/review/`.
+
 `CounselingResponseEvaluatorChecks` holds Korean counselor-utterance fixtures for the pilot micro-skill detector (conjugated feeling words, open questions, premature reassurance, advice, and "why" questions). Add a fixture whenever expert reviewers report a misclassification.
 
 Generated Windows output is written to `Builds/CounselCue/`; WebGL output is written to `Builds/WebGL/`. Both are intentionally excluded from Git. The hosted build adds browser-native Korean text input, Korean microphone dictation, spotlight onboarding, and ElevenLabs v3 emotional client speech. A server-owned OpenRouter persona endpoint is used when configured; each turn resends the case opening line and up to eight recent exchanges so the client stays consistent, with deterministic local fallback. Client speech uses a per-case ElevenLabs voice map (see `Server/CounselCue.EdgeWorker/README.md`). Provider keys stay on the edge worker. UDP AU input remains desktop-only.
