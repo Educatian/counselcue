@@ -213,3 +213,7 @@ Unity 캐시, Windows 빌드, 로컬 로그와 세션 데이터는 Git 저장소
 ## 제3자 자산
 
 Microsoft Rocketbox 자산은 `Assets/ThirdParty/MicrosoftRocketbox/LICENSE.md`의 라이선스를 따릅니다. UI 패널·버튼·구분선은 [Kenney UI Pack 2.0](https://kenney.nl/assets/ui-pack)의 CC0 에셋이며 원문은 `Assets/ThirdParty/Kenney/UI/LICENSE.txt`에 포함했습니다. Noto Sans KR은 SIL Open Font License 1.1로 배포되며 원문은 `Assets/Fonts/OFL.txt`에 포함했습니다.
+
+## 2D 비주얼 에셋 (Higgsfield)
+
+사례 브리핑 일러스트, 창밖 풍경, 벽 액자 그림, WebGL 로딩·튜토리얼·링크 미리보기 이미지는 정해진 경로에 파일을 넣으면 빌더와 WebGL 템플릿이 자동으로 반영합니다. 파일이 없으면 현재 모습이 유지됩니다. 프롬프트, 규격, 검수 기준, 홍보 영상 촬영 구성은 [Docs/HIGGSFIELD_ASSET_PACK.md](Docs/HIGGSFIELD_ASSET_PACK.md)에 있습니다.

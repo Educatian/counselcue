@@ -39,6 +39,8 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private string counselingDomain = "직업·성인상담";
         [SerializeField] private string difficultyLabel = "기초";
         [SerializeField, TextArea] private string personaPromptKey = "workplace-anxiety-01";
+        [Tooltip("Optional AI-generated case illustration shown on the briefing card (Assets/Art/Higgsfield/Portraits/{caseId}).")]
+        [SerializeField] private Sprite briefingPortrait;
 
         public string CaseId => caseId;
         public string CaseTitle => caseTitle;
@@ -56,6 +58,7 @@ namespace AdieLab.AffectCounsel
         public string CounselingDomain => counselingDomain;
         public string DifficultyLabel => difficultyLabel;
         public string PersonaPromptKey => personaPromptKey;
+        public Sprite BriefingPortrait => briefingPortrait;
 
         public string GetReply(int turnIndex, bool supportive)
         {
@@ -90,6 +93,11 @@ namespace AdieLab.AffectCounsel
             learningObjectives = configuredObjectives;
             disclosureLadder = configuredLadder;
             focusSkills = configuredFocusSkills;
+        }
+
+        public void ConfigurePortrait(Sprite portrait)
+        {
+            briefingPortrait = portrait;
         }
 
         public void ConfigurePresentation(

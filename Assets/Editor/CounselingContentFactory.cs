@@ -51,6 +51,7 @@ namespace AdieLab.AffectCounsel.Editor
             definition.Configure(spec.Id, spec.Title, spec.Name, $"{spec.Age} · {spec.Domain}", spec.Concern, spec.InitialLine,
                 900f, 180f, 3, spec.Objectives, BuildLadder(spec.Supportive, spec.Guarded), DefaultFocusSkills());
             definition.ConfigurePresentation(profile, presentation, spec.Domain, spec.Difficulty, spec.Id);
+            definition.ConfigurePortrait(HiggsfieldAssetSlots.LoadPortrait(spec.Id));
             EditorUtility.SetDirty(profile);
             EditorUtility.SetDirty(presentation);
             EditorUtility.SetDirty(definition);

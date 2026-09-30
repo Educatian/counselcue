@@ -36,6 +36,7 @@ namespace AdieLab.AffectCounsel.Editor
         private static Material leaf;
         private static Material paper;
         private static Material artwork;
+        private static Material windowView;
         private static Sprite uiButtonSprite;
         private static Sprite uiInputSprite;
         private static Sprite uiDividerSprite;
@@ -171,7 +172,7 @@ namespace AdieLab.AffectCounsel.Editor
             CreateCube("Window", new Vector3(-3.01f, 1.82f, 0.78f), new Vector3(0.045f, 1.82f, 2.28f), windowGlow, parent);
             CreateCube("SheerWindow", new Vector3(-2.96f, 1.82f, 0.78f), new Vector3(0.035f, 1.74f, 2.16f), warmWhite, parent);
 
-            CreateCube("BackWindowGlow", new Vector3(-2.14f, 1.76f, 3.46f), new Vector3(1.18f, 2.28f, 0.05f), windowGlow, parent);
+            CreateCube("BackWindowGlow", new Vector3(-2.14f, 1.76f, 3.46f), new Vector3(1.18f, 2.28f, 0.05f), windowView != null ? windowView : windowGlow, parent);
             CreateCurtain("LeftCurtain", -2.64f, 1.62f, 3.38f, 0.78f, parent);
             CreateCurtain("RightCurtain", 2.34f, 1.62f, 3.38f, 0.92f, parent);
         }
@@ -221,8 +222,9 @@ namespace AdieLab.AffectCounsel.Editor
             rightPlant.transform.rotation = Quaternion.Euler(0f, 34f, 0f);
             rightPlant.transform.localScale = Vector3.one * 0.68f;
 
-            ExtractAssetGroup(packInstance.transform, premiumRoot, "HanjiArtwork_Blender", "CC_HanjiArtwork_",
+            GameObject artworkGroup = ExtractAssetGroup(packInstance.transform, premiumRoot, "HanjiArtwork_Blender", "CC_HanjiArtwork_",
                 new Vector3(0.34f, 1.44f, 3.38f), Quaternion.identity, Vector3.one * 1.02f);
+            AddArtworkCanvas(artworkGroup);
             ExtractAssetGroup(packInstance.transform, premiumRoot, "AcousticRibPanel_Blender", "CC_AcousticRibPanel_",
                 new Vector3(1.72f, 1.38f, 3.37f), Quaternion.identity, new Vector3(1.25f, 1.18f, 1f));
 
@@ -234,6 +236,39 @@ namespace AdieLab.AffectCounsel.Editor
             }
 
             Debug.Log($"COUNSELCUE_PREMIUM_ROOM_ASSETS_PLACED renderers={rendererCount}");
+        }
+
+        /// <summary>
+        /// The imported frame renders as a dark walnut slab directly behind the client's head,
+        /// which lowers face/hair contrast. A textured canvas inside the frame shows the hanji
+        /// artwork (or a Higgsfield wall_artwork override) and keeps the background light.
+        /// </summary>
+        private static void AddArtworkCanvas(GameObject artworkGroup)
+        {
+            Renderer frame = null;
+            foreach (Renderer renderer in artworkGroup.GetComponentsInChildren<Renderer>(true))
+            {
+                if (renderer.name.Contains("Frame")) { frame = renderer; break; }
+            }
+            if (frame == null || artwork == null || artwork.mainTexture == null)
+            {
+                Debug.LogWarning("CounselCue artwork canvas skipped: frame renderer or artwork texture not found.");
+                return;
+            }
+
+            Bounds bounds = frame.bounds;
+            float side = Mathf.Min(bounds.size.x * 0.80f, bounds.size.y * 0.80f);
+            GameObject canvas = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            canvas.name = "CC_HanjiArtwork_Canvas";
+            canvas.transform.SetParent(artworkGroup.transform, true);
+            // Unity quads face -Z, i.e. toward the counselor camera; sit just in front of the frame.
+            canvas.transform.position = new Vector3(bounds.center.x, bounds.center.y, bounds.min.z - 0.006f);
+            canvas.transform.rotation = Quaternion.identity;
+            canvas.transform.localScale = Vector3.one;
+            Vector3 lossy = canvas.transform.lossyScale;
+            canvas.transform.localScale = new Vector3(side / Mathf.Max(0.0001f, lossy.x), side / Mathf.Max(0.0001f, lossy.y), 1f);
+            canvas.GetComponent<MeshRenderer>().sharedMaterial = artwork;
+            Object.DestroyImmediate(canvas.GetComponent<Collider>());
         }
 
         private static GameObject ExtractAssetGroup(
@@ -431,6 +466,11 @@ namespace AdieLab.AffectCounsel.Editor
                 "3. 해결책을 서두르지 않고 내담자의 응답 공간을 지킵니다.\n\n" +
                 "15분 · 목표 10턴 · 웹캠 원본 미저장";
             refs.briefingBodyLabel = CreateText("BriefingBody", briefingBody, briefingCard, new Vector2(42f, -204f), new Vector2(890f, 190f), font, 15, Ink, FontStyle.Normal);
+            refs.briefingPortrait = CreateBriefingPortrait(briefingCard, new Vector2(762f, -200f), new Vector2(170f, 170f));
+            refs.briefingPortraitCaption = CreateText("BriefingPortraitCaption", "AI 생성 사례 일러스트", briefingCard, new Vector2(762f, -374f), new Vector2(170f, 18f), font, 11, new Color(0.38f, 0.43f, 0.40f), FontStyle.Normal);
+            refs.briefingPortraitCaption.alignment = TextAnchor.UpperCenter;
+            refs.briefingPortrait.gameObject.SetActive(false);
+            refs.briefingPortraitCaption.gameObject.SetActive(false);
 
             RectTransform debugPanel = CreatePanel("FaceDebugPanel", canvas.transform, new Vector2(-26f, -340f), new Vector2(326f, 172f), new Vector2(1f, 1f), panelSprite, HudGlassStrong);
             refs.faceDebugPanel = debugPanel.gameObject;
@@ -634,6 +674,8 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.FindProperty("briefingCaseLabel").objectReferenceValue = ui.briefingCaseLabel;
             serialized.FindProperty("briefingBodyLabel").objectReferenceValue = ui.briefingBodyLabel;
             serialized.FindProperty("clientNameLabel").objectReferenceValue = ui.clientNameLabel;
+            serialized.FindProperty("briefingPortrait").objectReferenceValue = ui.briefingPortrait;
+            serialized.FindProperty("briefingPortraitCaption").objectReferenceValue = ui.briefingPortraitCaption;
             serialized.FindProperty("debriefTitle").objectReferenceValue = ui.debriefTitle;
             serialized.FindProperty("practiceStartButton").objectReferenceValue = ui.practiceStartButton;
             serialized.FindProperty("evaluationStartButton").objectReferenceValue = ui.evaluationStartButton;
@@ -801,9 +843,25 @@ namespace AdieLab.AffectCounsel.Editor
             windowGlow.SetColor("_EmissionColor", new Color(0.30f, 0.34f, 0.30f));
 
             artwork = MaterialAsset("HanjiArtwork", Color.white, 0.02f);
-            Texture2D artworkTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(ArtworkTexturePath);
+            Texture2D artworkTexture = HiggsfieldAssetSlots.LoadWallArtwork();
+            if (artworkTexture == null) artworkTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(ArtworkTexturePath);
             artwork.mainTexture = artworkTexture;
             EditorUtility.SetDirty(artwork);
+
+            // Optional daylight view behind the back window. Emission keeps it readable as
+            // "outside" without adding a light source that would change the face lighting.
+            Texture2D viewTexture = HiggsfieldAssetSlots.LoadWindowView();
+            windowView = null;
+            if (viewTexture != null)
+            {
+                windowView = MaterialAsset("WindowView", new Color(0.86f, 0.86f, 0.84f), 0.05f);
+                windowView.mainTexture = viewTexture;
+                windowView.EnableKeyword("_EMISSION");
+                windowView.SetTexture("_EmissionMap", viewTexture);
+                windowView.SetColor("_EmissionColor", new Color(0.42f, 0.42f, 0.40f));
+                windowView.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                EditorUtility.SetDirty(windowView);
+            }
         }
 
         private static Material MaterialAsset(string name, Color color, float smoothness, float metallic = 0f)
@@ -913,6 +971,25 @@ namespace AdieLab.AffectCounsel.Editor
             image.type = Image.Type.Sliced;
             image.color = color;
             image.raycastTarget = false;
+        }
+
+        private static Image CreateBriefingPortrait(Transform parent, Vector2 position, Vector2 size)
+        {
+            GameObject gameObject = new GameObject("BriefingPortrait", typeof(RectTransform), typeof(Image), typeof(Outline));
+            RectTransform rect = gameObject.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            Image image = gameObject.GetComponent<Image>();
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+            Outline outline = gameObject.GetComponent<Outline>();
+            outline.effectColor = new Color(0.34f, 0.47f, 0.40f, 0.35f);
+            outline.effectDistance = new Vector2(1f, -1f);
+            return image;
         }
 
         private static Text CreateText(string name, string value, Transform parent, Vector2 position, Vector2 size, Font font, int fontSize, Color color, FontStyle style)
@@ -1046,6 +1123,8 @@ namespace AdieLab.AffectCounsel.Editor
             public Text stageLabel;
             public Text briefingCaseLabel;
             public Text briefingBodyLabel;
+            public Image briefingPortrait;
+            public Text briefingPortraitCaption;
             public Text clientNameLabel;
             public Text faceDebugLabel;
             public Text debriefTitle;

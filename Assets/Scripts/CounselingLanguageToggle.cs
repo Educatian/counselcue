@@ -35,6 +35,7 @@ namespace AdieLab.AffectCounsel
             { "BriefingCase", "Workplace anxiety · Jihye Kim, 32 · Intake" },
             { "BriefingBody", "Situation\nShe feels short of breath before work and worries that she may be weak.\n\nSession goals\n1. Build relational safety and explain the counseling structure.\n2. Explore experience with reflections and open questions.\n3. Protect response space without rushing to solutions.\n\n15 min · target 10 turns · webcam video not saved" },
             { "FullSessionLabel", "FULL SESSION · 15 MIN / TARGET 10 TURNS" },
+            { "BriefingPortraitCaption", "AI-generated case illustration" },
             { "StartPractice", "Start coached practice" },
             { "StartEvaluation", "Start assessment mode" },
             { "FocusedLabel", "MICRO-SKILL PRACTICE · 3 MIN / TARGET 3 TURNS" },

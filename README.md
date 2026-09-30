@@ -125,6 +125,7 @@ The complete construct model, cultural interpretation principles, and validation
 - [Korean documentation](README.ko.md): session flow, LXD loop, AU calibration, GPT Realtime architecture, and privacy boundaries
 - [English documentation](README.en.md): capabilities, architecture, build workflow, privacy, and validation boundaries
 - [GAME_CONCEPT.md](GAME_CONCEPT.md): research framing, cultural profile, and validation plan
+- [Docs/HIGGSFIELD_ASSET_PACK.md](Docs/HIGGSFIELD_ASSET_PACK.md): Higgsfield prompts and drop-in file slots for case illustrations, room art, loading/onboarding visuals, and an honest promo-video shot list
 
 ---
 

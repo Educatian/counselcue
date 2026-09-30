@@ -24,6 +24,9 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Text briefingCaseLabel;
         [SerializeField] private Text briefingBodyLabel;
         [SerializeField] private Text clientNameLabel;
+        [SerializeField] private Image briefingPortrait;
+        [SerializeField] private Text briefingPortraitCaption;
+        [SerializeField] private float briefingBodyWidthWithPortrait = 680f;
         [SerializeField] private Text debriefTitle;
         [SerializeField] private Button practiceStartButton;
         [SerializeField] private Button evaluationStartButton;
@@ -275,6 +278,7 @@ namespace AdieLab.AffectCounsel
                 body.AppendLine($"{i + 1}. {caseDefinition.LearningObjectives[i]}");
             }
             briefingBodyLabel.text = body.ToString();
+            ApplyBriefingPortrait();
             Button[] focusButtons = { focusOneButton, focusTwoButton, focusThreeButton };
             for (int i = 0; i < focusButtons.Length; i++)
             {
@@ -282,6 +286,25 @@ namespace AdieLab.AffectCounsel
                 focusButtons[i].gameObject.SetActive(available);
                 if (available) focusButtons[i].GetComponentInChildren<Text>().text = $"{caseDefinition.FocusSkills[i].label} 연습 · 3분";
             }
+        }
+
+        private float briefingBodyFullWidth = -1f;
+
+        private void ApplyBriefingPortrait()
+        {
+            if (briefingPortrait == null) return;
+            Sprite portrait = caseDefinition == null ? null : caseDefinition.BriefingPortrait;
+            bool visible = portrait != null;
+            briefingPortrait.sprite = portrait;
+            briefingPortrait.preserveAspect = true;
+            briefingPortrait.gameObject.SetActive(visible);
+            if (briefingPortraitCaption != null) briefingPortraitCaption.gameObject.SetActive(visible);
+
+            // Narrow the case description only while an illustration is shown.
+            RectTransform bodyRect = briefingBodyLabel.rectTransform;
+            if (briefingBodyFullWidth < 0f) briefingBodyFullWidth = bodyRect.sizeDelta.x;
+            float width = visible ? Mathf.Min(briefingBodyFullWidth, briefingBodyWidthWithPortrait) : briefingBodyFullWidth;
+            bodyRect.sizeDelta = new Vector2(width, bodyRect.sizeDelta.y);
         }
 
         private void UpdateCaseButtons(int selectedIndex)

@@ -30,6 +30,7 @@ mergeInto(LibraryManager.library, {
       "#ccp{position:fixed;width:370px;max-width:calc(100vw - 24px);box-sizing:border-box;background:#faf6ec;border-radius:18px;padding:20px 22px;box-shadow:0 16px 46px #0007;pointer-events:auto;color:#24352f}" +
       "#ccp h3{margin:0 0 8px;color:#245e47;font-size:20px}#ccp p{margin:0 0 16px;line-height:1.55;font-size:15px}" +
       ".ctb{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer}.next{float:right;background:#347a5d;color:white}" +
+      ".ccart{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;margin:0 0 12px;background:#e8e1d2}.ccart[hidden]{display:none}" +
       "@media(max-width:1100px){#ccn{display:none}#cci{width:min(calc(100vw - 24px),900px)}}" +
       "@media(max-width:700px) and (orientation:landscape){#cci{bottom:6px;gap:4px}#ccf{min-height:34px;max-height:40px;padding:6px 10px;font-size:13px;line-height:17px}#cci textarea,.ccb{height:48px}.ccb{min-width:72px;padding:0 10px;font-size:14px}#cch{bottom:96px;font-size:12px}.lbl{display:none}#ccp{width:330px;padding:16px 18px}#ccp h3{font-size:17px}#ccp p{font-size:13px;margin-bottom:10px}}" +
       "@media(max-height:520px) and (orientation:landscape){#cci{bottom:5px;gap:3px;width:calc(100vw - 12px)!important}#ccf{min-height:30px;max-height:34px;padding:5px 9px;font-size:12px;line-height:16px}#cci textarea,.ccb{height:44px}.ccb{min-width:72px;padding:0 10px;font-size:14px}#ccn{display:none}#cch{bottom:87px;font-size:12px;padding:6px 10px}.lbl{display:none}#ccp{width:320px;padding:14px 16px}#ccp h3{font-size:17px}#ccp p{font-size:13px;margin-bottom:10px}}" +
@@ -106,7 +107,7 @@ mergeInto(LibraryManager.library, {
 
     var tour = document.createElement("div");
     tour.id = "cct";
-    tour.innerHTML = '<div id="ccs"></div><div id="ccp"><h3></h3><p></p><button class="ctb skip">건너뛰기</button><button class="ctb next">다음</button></div>';
+    tour.innerHTML = '<div id="ccs"></div><div id="ccp"><img class="ccart" alt="" hidden><h3></h3><p></p><button class="ctb skip">건너뛰기</button><button class="ctb next">다음</button></div>';
     document.body.appendChild(tour);
     var help = document.createElement("button");
     help.id = "cch";
@@ -115,6 +116,12 @@ mergeInto(LibraryManager.library, {
     var spotlight = tour.querySelector("#ccs");
     var card = tour.querySelector("#ccp");
     var next = tour.querySelector(".next");
+    // Optional first-step illustration (TemplateData/tour-welcome.jpg). It stays hidden if the
+    // file is absent, so the tour never shows a broken image.
+    var art = tour.querySelector(".ccart");
+    art.onload = function () { S.artOk = true; if (tour.style.display === "block") draw(); };
+    art.onerror = function () { S.artOk = false; art.hidden = true; };
+    art.src = "TemplateData/tour-welcome.jpg";
     var canvasRect = function () { return canvas.getBoundingClientRect(); };
     var canvasArea = function (left, top, width, height) {
       var rect = canvasRect();
@@ -141,6 +148,7 @@ mergeInto(LibraryManager.library, {
       var width = clamp(target[2] + pad * 2, 24, innerWidth - left - 6);
       var height = clamp(target[3] + pad * 2, 24, innerHeight - top - 6);
       Object.assign(spotlight.style, { left: left + "px", top: top + "px", width: width + "px", height: height + "px" });
+      art.hidden = !(S.artOk && S.i === 0);
       card.querySelector("h3").textContent = step[0];
       card.querySelector("p").textContent = step[1];
       card.style.visibility = "hidden";
