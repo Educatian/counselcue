@@ -78,6 +78,16 @@ namespace AdieLab.AffectCounsel.Editor
                 profile);
             Require(adviceFirst.Alignment == DeliveryAlignment.RelationalOrderMismatch, "Advice before disclosure must flag relational order.");
             Require(adviceFirst.State.Guardedness > initial.Guardedness, "Advice-first response must increase guardedness in the pilot model.");
+
+            ResponseAssessment reassurance = CounselingResponseEvaluator.Evaluate("시간이 지나면 괜찮아질 거예요.");
+            RelationalTurnResult reassuranceFirst = RelationalDeliveryEvaluator.Evaluate(
+                reassurance,
+                DeliveryObservation.Unavailable,
+                initial,
+                profile);
+            Require(reassurance.Move == CounselingMove.PrematureReassurance, "Premature reassurance must not be scored as validation.");
+            Require(reassuranceFirst.Alignment == DeliveryAlignment.RelationalOrderMismatch, "Reassurance before understanding must flag relational order.");
+            Require(reassuranceFirst.State.WillingnessToDisclose < initial.WillingnessToDisclose, "Premature reassurance must not open disclosure.");
         }
 
         private static void Require(bool condition, string message)

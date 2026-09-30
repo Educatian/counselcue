@@ -8,6 +8,10 @@
   "vars": {
     "OPENROUTER_MODEL": "openai/gpt-5.6-terra",
     "ELEVENLABS_VOICE_ID": "21m00Tcm4TlvDq8ikWAM",
+    // Per-case client voices (caseId -> ElevenLabs voice id). Cases without an
+    // entry fall back to ELEVENLABS_VOICE_ID. Pick voices that match each
+    // client's age and gender, e.g. "adolescent-pressure-01": "<voice id>".
+    "ELEVENLABS_VOICE_IDS": {},
   },
   "ratelimits": [
     {

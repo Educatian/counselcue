@@ -1,9 +1,29 @@
 # CounselCue Edge Worker
 
-Secure server-side proxy for the hosted WebGL demo.
+Server-side proxy for the hosted WebGL demo. API keys and persona prompts stay on the server.
 
-- `POST /turn`: OpenAI Responses API with the server-owned Kim Ji-hye persona prompt.
-- `POST /voice`: ElevenLabs v3 emotional TTS with bounded audio tags.
-- `GET /health`: configuration presence without exposing secrets.
+| Route | Purpose |
+|---|---|
+| `POST /turn` | Case-specific Korean client persona through OpenRouter (`OPENROUTER_MODEL`). Receives the counselor utterance, the bounded relational state, the case's opening line, and up to 8 recent exchanges so the client stays consistent and discloses gradually. |
+| `POST /voice` | ElevenLabs v3 client speech with bounded emotion tags. The voice is chosen per case from `ELEVENLABS_VOICE_IDS`, falling back to `ELEVENLABS_VOICE_ID`. |
+| `GET /health` | Reports which services are configured, never the secrets themselves. |
 
-Required Wrangler secrets: `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`.
+## Configuration
+
+Secrets (`wrangler secret put …`): `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`.
+
+Vars (`wrangler.jsonc`): `OPENROUTER_MODEL`, `ELEVENLABS_VOICE_ID`, and `ELEVENLABS_VOICE_IDS`, a `caseId → voiceId` map. The five pilot clients differ in age and gender (16-year-old student, 24-, 39- and 68-year-old men, 32-year-old woman), so assign a matching voice to each case before a pilot.
+
+## Safeguards
+
+- Only allow-listed browser origins are served; rejected origins never receive a matching CORS header.
+- Request bodies over 16 KB are rejected; all text fields are length-bounded and control characters are stripped.
+- Rate limits (`TURN_LIMITER`, `VOICE_LIMITER`) are keyed on the caller's address, not on the client-generated session id.
+- Upstream calls time out after 20 s and return `504`; a missing key returns `503` without calling out.
+- The persona prompt forbids acute-crisis role-play and any self-harm method detail, and treats counselor text as dialogue, not instructions.
+
+## Test
+
+```bash
+npm test
+```

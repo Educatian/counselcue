@@ -1,5 +1,5 @@
 using System;
-using System.IO;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -105,6 +105,7 @@ namespace AdieLab.AffectCounsel
             isSubmitting = false;
             conversationEngine = "local";
             counselorInput.text = string.Empty;
+            webNpcEngine?.ResetConversation(InitialLine);
             SetClientLine(InitialLine);
             client.SetAffect(ClientAffect.Anxious, true);
             feedbackLabel.text = sessionOrchestrator.ShowLiveCoaching
@@ -114,7 +115,7 @@ namespace AdieLab.AffectCounsel
             SetInteractionEnabled(true);
         }
 
-        public void BeginReplaySession(CounselingTurnSnapshot source)
+        public void BeginReplaySession(CounselingTurnSnapshot source, IReadOnlyList<CounselingTurnSnapshot> priorTurns = null)
         {
             InvalidateSession();
             sessionId = Guid.NewGuid().ToString("N");
@@ -123,6 +124,7 @@ namespace AdieLab.AffectCounsel
             isSubmitting = false;
             conversationEngine = "local";
             counselorInput.text = string.Empty;
+            webNpcEngine?.ResetConversation(InitialLine, priorTurns);
             SetClientLine(string.IsNullOrWhiteSpace(source.clientPrompt) ? InitialLine : source.clientPrompt);
             client.SetAffect(relationalState.Guardedness > 0.65f ? ClientAffect.Guarded : ClientAffect.Anxious, true);
             feedbackLabel.text = $"선택 장면 재연습 · 원래 응답: {source.skill} · 다른 전달을 시도해 보세요.";
@@ -215,6 +217,7 @@ namespace AdieLab.AffectCounsel
                 conversationEngine = selectedEngine;
                 SetClientLine(reply);
                 client.SetAffect(ClientAvatarController.AffectForEmotion(replyEmotion));
+                webNpcEngine?.RecordExchange(utterance, reply);
                 if (webBridge != null) webBridge.SpeakClient(reply, replyEmotion);
                 else client.Speak(reply, replyEmotion);
                 string engineLabel = conversationEngine == "local" ? "로컬 사례" :
@@ -336,7 +339,7 @@ namespace AdieLab.AffectCounsel
                 deliveryModifier = relationalResult.DeliveryModifier,
                 conversationEngine = conversationEngine
             };
-            File.AppendAllText(Path.Combine(Application.persistentDataPath, "counseling-sessions.jsonl"), JsonUtility.ToJson(record) + Environment.NewLine);
+            LocalJsonlLog.Append("counseling-sessions.jsonl", record);
         }
 
         private static int Percent(float value) => Mathf.RoundToInt(value * 100f);

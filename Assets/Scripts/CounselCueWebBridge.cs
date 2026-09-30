@@ -49,6 +49,7 @@ namespace AdieLab.AffectCounsel
         [DllImport("__Internal")] private static extern void CounselCueWeb_SetText(string value);
         [DllImport("__Internal")] private static extern void CounselCueWeb_SetFeedback(string value);
         [DllImport("__Internal")] private static extern void CounselCueWeb_Speak(string text, string emotion);
+        [DllImport("__Internal")] private static extern void CounselCueWeb_SetCase(string caseId);
 #endif
         private void Start()
         {
@@ -107,6 +108,8 @@ namespace AdieLab.AffectCounsel
             pendingSpeechText = text ?? string.Empty;
             pendingSpeechEmotion = emotion ?? "anxious";
 #if UNITY_WEBGL && !UNITY_EDITOR
+            // The server picks a case-specific voice so each client sounds their age and gender.
+            CounselCueWeb_SetCase(npcEngine == null ? "" : npcEngine.ActiveCaseId);
             CounselCueWeb_Speak(pendingSpeechText, pendingSpeechEmotion);
 #else
             client?.Speak(pendingSpeechText, pendingSpeechEmotion);

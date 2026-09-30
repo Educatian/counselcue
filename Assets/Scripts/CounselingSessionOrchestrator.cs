@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -184,6 +183,16 @@ namespace AdieLab.AffectCounsel
 
         private void BeginSession(TrainingMode selectedMode, int focusIndex, CounselingTurnSnapshot source)
         {
+            List<CounselingTurnSnapshot> priorTurns = new List<CounselingTurnSnapshot>();
+            if (source != null)
+            {
+                // Keep the exchanges that led up to the replayed scene so the AI client
+                // remembers them; the list is cleared for the new session below.
+                for (int i = 0; i < turns.Count; i++)
+                {
+                    if (turns[i] != null && turns[i].turn < source.turn) priorTurns.Add(turns[i]);
+                }
+            }
             mode = selectedMode;
             selectedFocusIndex = focusIndex;
             replaySource = source;
@@ -204,7 +213,7 @@ namespace AdieLab.AffectCounsel
             debriefOverlay.SetActive(false);
             activeControlCard.SetActive(true);
             if (source == null) sessionController.BeginNewSession();
-            else sessionController.BeginReplaySession(source);
+            else sessionController.BeginReplaySession(source, priorTurns);
             UpdateHud();
         }
 
@@ -343,7 +352,7 @@ namespace AdieLab.AffectCounsel
                 guardedness = latestState.Guardedness,
                 willingnessToDisclose = latestState.WillingnessToDisclose
             };
-            File.AppendAllText(Path.Combine(Application.persistentDataPath, "counseling-session-summaries.jsonl"), JsonUtility.ToJson(record) + Environment.NewLine);
+            LocalJsonlLog.Append("counseling-session-summaries.jsonl", record);
         }
 
         private static int Percent(float value) => Mathf.RoundToInt(value * 100f);

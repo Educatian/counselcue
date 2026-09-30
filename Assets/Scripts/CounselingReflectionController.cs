@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -131,9 +130,7 @@ namespace AdieLab.AffectCounsel
                 skill = turn.skill,
                 quality = turn.quality
             };
-            File.AppendAllText(
-                Path.Combine(Application.persistentDataPath, "counseling-self-assessments.jsonl"),
-                JsonUtility.ToJson(record) + Environment.NewLine);
+            LocalJsonlLog.Append("counseling-self-assessments.jsonl", record);
             RefreshTimeline();
             RefreshSelection();
         }

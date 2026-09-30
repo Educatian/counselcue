@@ -101,6 +101,12 @@ namespace AdieLab.AffectCounsel
                 modifier = -0.05f;
                 coaching = "관계가 아직 경계된 상태입니다. 해결책보다 감정 반영과 탐색을 먼저 시도해 보세요.";
             }
+            else if (response.Move == CounselingMove.PrematureReassurance && current.Guardedness >= profile.AdviceGuardednessThreshold)
+            {
+                alignment = DeliveryAlignment.RelationalOrderMismatch;
+                modifier = -0.04f;
+                coaching = "안심시키기 전에 내담자가 이해받았다고 느끼도록 감정을 먼저 반영해 보세요.";
+            }
             else if (!delivery.IsAvailable)
             {
                 alignment = DeliveryAlignment.EvidenceUnavailable;
@@ -146,6 +152,7 @@ namespace AdieLab.AffectCounsel
         private static float DisclosureEffect(CounselingMove move, int quality)
         {
             if (move == CounselingMove.Advice) return -0.09f;
+            if (move == CounselingMove.PrematureReassurance) return -0.06f;
             if (move == CounselingMove.ReflectionAndExploration) return 0.14f;
             if (move == CounselingMove.Reflection || move == CounselingMove.Validation) return 0.10f;
             if (move == CounselingMove.OpenQuestion) return 0.06f;

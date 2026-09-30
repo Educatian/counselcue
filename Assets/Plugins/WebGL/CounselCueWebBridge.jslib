@@ -4,8 +4,14 @@ mergeInto(LibraryManager.library, {
       o: UTF8ToString(objectPointer),
       a: UTF8ToString(apiPointer).replace(/\/$/, ""),
       on: false,
-      i: 0
+      i: 0,
+      c: "",
+      v: 0
     };
+    // Browser storage can throw (blocked site data, some private modes); the tour
+    // flag is a convenience and must never stop the bridge from initializing.
+    S.get = function (key) { try { return window.localStorage.getItem(key); } catch (error) { return null; } };
+    S.set = function (key, value) { try { window.localStorage.setItem(key, value); } catch (error) {} };
     var canvas = document.querySelector("#unity-canvas");
     var css = document.createElement("style");
     css.textContent =
@@ -77,11 +83,17 @@ mergeInto(LibraryManager.library, {
       var recognition = new Recognition();
       recognition.lang = "ko-KR";
       recognition.interimResults = true;
-      recognition.onstart = function () { mic.classList.add("on"); };
+      var dictationBase = "";
+      recognition.onstart = function () {
+        mic.classList.add("on");
+        dictationBase = S.x.value.replace(/\s+$/, "");
+      };
       recognition.onresult = function (event) {
+        // Rebuild from every result so typed text before dictation is kept and
+        // finalized phrases are not dropped when interim results arrive.
         var text = "";
-        for (var j = event.resultIndex; j < event.results.length; j++) text += event.results[j][0].transcript;
-        S.x.value = text;
+        for (var j = 0; j < event.results.length; j++) text += event.results[j][0].transcript;
+        S.x.value = dictationBase ? dictationBase + " " + text.trim() : text.trim();
         changed();
       };
       recognition.onend = function () { mic.classList.remove("on"); S.x.focus(); };
@@ -157,13 +169,13 @@ mergeInto(LibraryManager.library, {
     };
     var closeTour = function () {
       tour.style.display = "none";
-      localStorage.setItem("counselcue-tour-v3", "done");
+      S.set("counselcue-tour-v3", "done");
     };
     next.onclick = function () { if (++S.i >= steps.length) closeTour(); else draw(); };
     tour.querySelector(".skip").onclick = closeTour;
     help.onclick = function () { S.i = 0; draw(); };
     addEventListener("resize", function () { S.place(); if (tour.style.display === "block") draw(); });
-    S.show = function () { if (!localStorage.getItem("counselcue-tour-v3")) { S.i = 0; draw(); } };
+    S.show = function () { if (!S.get("counselcue-tour-v3")) { S.i = 0; draw(); } };
   },
 
   CounselCueWeb_SetEnabled: function (value) {
@@ -182,17 +194,27 @@ mergeInto(LibraryManager.library, {
   CounselCueWeb_SetFeedback: function (pointer) {
     var S = window.CounselCueWeb;
     if (!S) return;
-    var decoder = document.createElement("div");
-    decoder.innerHTML = UTF8ToString(pointer);
-    var value = decoder.textContent || "";
+    // Strip Unity rich-text tags without executing markup: DOMParser documents
+    // are inert, unlike innerHTML on an element owned by the live page.
+    var parsed = new DOMParser().parseFromString(UTF8ToString(pointer), "text/html");
+    var value = (parsed.body && parsed.body.textContent) || "";
     S.f.textContent = value;
     S.f.title = value;
+  },
+
+  CounselCueWeb_SetCase: function (casePointer) {
+    var S = window.CounselCueWeb;
+    if (S) S.c = UTF8ToString(casePointer);
   },
 
   CounselCueWeb_Speak: function (textPointer, emotionPointer) {
     var S = window.CounselCueWeb;
     if (!S || !S.a) return;
-    var notify = function (name) { SendMessage(S.o, name, ""); };
+    // Each request gets a token; a slower earlier request must not start playing
+    // over (or report on behalf of) the reply that superseded it.
+    var token = ++S.v;
+    var current = function () { return token === S.v; };
+    var notify = function (name) { if (current()) SendMessage(S.o, name, ""); };
     var clean = function () {
       if (S.auUrl) URL.revokeObjectURL(S.auUrl);
       S.auUrl = "";
@@ -207,7 +229,7 @@ mergeInto(LibraryManager.library, {
     }
     var failed = false;
     var fail = function (error) {
-      if (failed) return;
+      if (failed || !current()) return;
       failed = true;
       if (error) console.warn(error);
       clean();
@@ -216,11 +238,12 @@ mergeInto(LibraryManager.library, {
     fetch(S.a + "/voice", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: UTF8ToString(textPointer), emotion: UTF8ToString(emotionPointer) })
+      body: JSON.stringify({ text: UTF8ToString(textPointer), emotion: UTF8ToString(emotionPointer), caseId: S.c })
     }).then(function (response) {
-      if (!response.ok) throw Error(response.status);
+      if (!response.ok) throw Error("voice " + response.status);
       return response.blob();
     }).then(function (blob) {
+      if (!current()) return;
       var url = URL.createObjectURL(blob);
       var audio = new Audio(url);
       S.au = audio;

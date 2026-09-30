@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -25,12 +26,43 @@ namespace AdieLab.AffectCounsel
         [SerializeField, Range(5f, 45f)] private float timeoutSeconds = 25f;
         [SerializeField] private bool enableInEditor;
         [SerializeField] private string activeCaseId = "workplace-anxiety-01";
+        [SerializeField, Range(0, 12)] private int historyTurns = 8;
+
+        // The persona server is stateless, so the recent dialogue is resent each turn.
+        // Without it the LLM client cannot remember what it already disclosed.
+        private readonly List<HistoryEntry> history = new List<HistoryEntry>();
+        private string openingLine = string.Empty;
+
         public string ApiBaseUrl => apiBaseUrl.TrimEnd('/');
+        public string ActiveCaseId => activeCaseId;
         public bool IsAvailable => Application.platform == RuntimePlatform.WebGLPlayer || enableInEditor;
 
         public void ConfigureCase(CounselingCaseDefinition definition)
         {
-            activeCaseId = definition == null ? "workplace-anxiety-01" : definition.CaseId;
+            if (definition == null) activeCaseId = "workplace-anxiety-01";
+            else activeCaseId = string.IsNullOrWhiteSpace(definition.PersonaPromptKey)
+                ? definition.CaseId
+                : definition.PersonaPromptKey.Trim();
+        }
+
+        public void ResetConversation(string clientOpeningLine, IReadOnlyList<CounselingTurnSnapshot> priorTurns = null)
+        {
+            history.Clear();
+            openingLine = clientOpeningLine ?? string.Empty;
+            if (priorTurns == null) return;
+            for (int i = 0; i < priorTurns.Count; i++)
+            {
+                CounselingTurnSnapshot snapshot = priorTurns[i];
+                if (snapshot != null) RecordExchange(snapshot.counselorUtterance, snapshot.clientReply);
+            }
+        }
+
+        public void RecordExchange(string counselorUtterance, string clientReply)
+        {
+            if (string.IsNullOrWhiteSpace(counselorUtterance) && string.IsNullOrWhiteSpace(clientReply)) return;
+            history.Add(new HistoryEntry { counselor = counselorUtterance ?? string.Empty, client = clientReply ?? string.Empty });
+            int overflow = history.Count - Mathf.Max(0, historyTurns);
+            if (overflow > 0) history.RemoveRange(0, overflow);
         }
 
         public async Task<NpcTurnReply> RequestReplyAsync(string sessionId, int turn, string stage, string utterance, ClientRelationalState state)
@@ -38,7 +70,8 @@ namespace AdieLab.AffectCounsel
             if (!IsAvailable) return NpcTurnReply.Failure("웹 NPC 엔진 비활성화");
             TurnRequest payload = new TurnRequest {
                 sessionId=sessionId, caseId=activeCaseId, turn=turn, stage=stage, counselorUtterance=utterance,
-                safety=state.Safety, guardedness=state.Guardedness, disclosure=state.WillingnessToDisclose
+                safety=state.Safety, guardedness=state.Guardedness, disclosure=state.WillingnessToDisclose,
+                openingLine=openingLine, history=history.ToArray()
             };
             byte[] bytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(payload));
             using UnityWebRequest request = new UnityWebRequest(ApiBaseUrl + "/turn", UnityWebRequest.kHttpVerbPOST) {
@@ -65,7 +98,9 @@ namespace AdieLab.AffectCounsel
         [Serializable] private sealed class TurnRequest {
             public string sessionId; public string caseId; public int turn; public string stage; public string counselorUtterance;
             public float safety; public float guardedness; public float disclosure;
+            public string openingLine; public HistoryEntry[] history;
         }
+        [Serializable] private sealed class HistoryEntry { public string counselor; public string client; }
         [Serializable] private sealed class TurnResponse { public string reply; public string emotion; }
     }
 }
