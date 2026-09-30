@@ -17,11 +17,13 @@ namespace AdieLab.AffectCounsel
         private readonly Dictionary<Text, string> koreanByText = new Dictionary<Text, string>();
         private readonly Dictionary<Text, string> koreanByDynamicText = new Dictionary<Text, string>();
         private readonly List<Text> dynamicTexts = new List<Text>();
+        private readonly Dictionary<Text, string> lastTranslation = new Dictionary<Text, string>();
         private bool useEnglish;
 
         private static readonly HashSet<string> DynamicKeys = new HashSet<string>
         {
-            "WebcamStatus", "AuStatus", "SessionStatus", "StageLabel", "Alliance", "Feedback", "DataStatus"
+            "WebcamStatus", "AuStatus", "SessionStatus", "StageLabel", "Alliance", "Feedback", "DataStatus",
+            "DebriefTitle", "DebriefSummary", "SceneDetail", "AssessmentStatus"
         };
 
         private static readonly Dictionary<string, string> EnglishByKey = new Dictionary<string, string>
@@ -47,10 +49,7 @@ namespace AdieLab.AffectCounsel
             { "PauseBody", "The timer and counseling input are paused.\nContinue from the same scene when you are ready." },
             { "ResumeSession", "Continue" },
             { "PauseEndSession", "End session" },
-            { "DebriefTitle", "Reflect and retry" },
             { "TimelineHeading", "SCENE TIMELINE · SELECT A SCENE" },
-            { "SceneDetail", "Select a scene to review the counselor response and system evidence." },
-            { "AssessmentStatus", "Choose your own judgment first." },
             { "AssessEffective", "Effective scene" },
             { "AssessRetry", "Needs another try" },
             { "ReplaySelected", "Practice this scene again" },
@@ -67,7 +66,7 @@ namespace AdieLab.AffectCounsel
             {
                 string key = GetKey(text);
                 if (EnglishByKey.ContainsKey(key)) koreanByText[text] = text.text;
-                if (!DynamicKeys.Contains(key)) continue;
+                if (!DynamicKeys.Contains(key) && !key.StartsWith("TimelineTurn")) continue;
                 dynamicTexts.Add(text);
                 koreanByDynamicText[text] = text.text;
             }
@@ -84,8 +83,14 @@ namespace AdieLab.AffectCounsel
                     continue;
                 }
 
-                if (ContainsKorean(text.text)) koreanByDynamicText[text] = text.text;
-                text.text = TranslateDynamic(GetKey(text), koreanByDynamicText[text]);
+                // A new source is anything other than our own last output. Utterances inside a
+                // translated scene stay Korean, so "contains Korean" alone would mistake our
+                // output for a new source and later restore half-English text.
+                if (!lastTranslation.TryGetValue(text, out string previous) || text.text != previous)
+                    koreanByDynamicText[text] = text.text;
+                string translated = TranslateDynamic(GetKey(text), koreanByDynamicText[text]);
+                text.text = translated;
+                lastTranslation[text] = translated;
             }
         }
 
@@ -101,6 +106,7 @@ namespace AdieLab.AffectCounsel
             {
                 foreach (KeyValuePair<Text, string> entry in koreanByDynamicText) entry.Key.text = entry.Value;
             }
+            lastTranslation.Clear();
             // Case title, client name, briefing body, case and focus buttons depend on the
             // selected case, so the orchestrator renders them instead of a fixed string table.
             if (orchestrator != null) orchestrator.SetEnglish(useEnglish);
@@ -132,6 +138,9 @@ namespace AdieLab.AffectCounsel
             CounselingCaseDefinition activeCase = orchestrator == null ? null : orchestrator.ActiveCase;
             if (activeCase != null && !string.IsNullOrEmpty(activeCase.CaseTitle))
                 source = source.Replace(activeCase.CaseTitle, activeCase.LocalizedTitle(true));
+            if (key == "SceneDetail") return UiPhrasebook.TranslateScene(source);
+            if (key == "DebriefTitle" || key == "DebriefSummary" || key == "AssessmentStatus" || key.StartsWith("TimelineTurn"))
+                return UiPhrasebook.Translate(source);
             if (key == "WebcamStatus")
             {
                 if (source == "웹캠 준비 중") return "Webcam starting";
@@ -170,6 +179,7 @@ namespace AdieLab.AffectCounsel
                     return "Assessment · Delivery feedback appears after the session.";
                 if (source == "GPT 내담자 연결 중…") return "Connecting to the GPT client…";
                 if (source == "응답 처리 중 문제가 발생했습니다. 다시 시도해 주세요.") return "The response could not be processed. Please try again.";
+                return UiPhrasebook.Translate(source);
             }
 
             string translated = source
