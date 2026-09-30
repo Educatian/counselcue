@@ -171,7 +171,7 @@ namespace AdieLab.AffectCounsel
 
         private static void MaskWebcamPreview()
         {
-            RawImage[] rawImages = FindObjectsByType<RawImage>();
+            RawImage[] rawImages = FindObjectsByType<RawImage>(FindObjectsSortMode.None);
             foreach (RawImage rawImage in rawImages)
             {
                 if (rawImage.name != "WebcamPreview") continue;
@@ -182,7 +182,7 @@ namespace AdieLab.AffectCounsel
 
         private static bool InvokeButton(string buttonName)
         {
-            Button[] buttons = FindObjectsByType<Button>();
+            Button[] buttons = FindObjectsByType<Button>(FindObjectsSortMode.None);
             foreach (Button button in buttons)
             {
                 if (button.name != buttonName || !button.gameObject.activeInHierarchy) continue;
