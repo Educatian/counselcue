@@ -65,3 +65,6 @@ Screenshots/*
 !Screenshots/progress-35-reference-room.png
 !Screenshots/progress-36-polished-briefing.png
 !Screenshots/progress-37-english-ui.png
+
+# Editor automation mailbox (Assets/Editor/Automation)
+/Automation/
