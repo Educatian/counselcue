@@ -63,6 +63,7 @@ namespace AdieLab.AffectCounsel
         private int submissionGeneration;
 
         public bool IsSubmitting => isSubmitting;
+        public string SessionId => sessionId;
 
         public void SetCaseDefinition(CounselingCaseDefinition definition)
         {
@@ -299,6 +300,9 @@ namespace AdieLab.AffectCounsel
         {
             CounselingSessionRecord record = new CounselingSessionRecord
             {
+                appVersion = Application.version,
+                caseId = caseDefinition == null ? "unknown" : caseDefinition.CaseId,
+                lexiconVersion = CounselingResponseEvaluator.Active.version,
                 sessionId = sessionId,
                 timestampUtc = DateTime.UtcNow.ToString("O"),
                 turn = turn,

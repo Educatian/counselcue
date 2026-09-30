@@ -54,7 +54,7 @@ namespace AdieLab.AffectCounsel
             { "AssessRetry", "Needs another try" },
             { "ReplaySelected", "Practice this scene again" },
             { "ReturnToBriefing", "Practice paths" },
-            { "DebriefDisclaimer", "※ Compare system evidence only after self-assessment. Training feedback, not a clinical evaluation." }
+            { "DebriefDisclaimer", "※ Compare system evidence only after self-assessment. Training feedback, not a clinical evaluation.\nIf practice left you uneasy, take a break and talk with your supervisor or instructor." }
         };
 
         private void Awake()

@@ -271,7 +271,7 @@ namespace AdieLab.AffectCounsel
                 ? "시간이 종료되었습니다"
                 : mode == TrainingMode.SceneReplay ? "장면 재연습 결과" : "세션 성찰 및 재연습";
             string report = BuildDebriefReport();
-            reflectionController.Present(caseDefinition, mode, turns, report);
+            reflectionController.Present(caseDefinition, mode, turns, report, sessionController.SessionId);
             WriteSummary(timedOut);
         }
 
@@ -405,6 +405,8 @@ namespace AdieLab.AffectCounsel
         {
             TrainingSessionSummaryRecord record = new TrainingSessionSummaryRecord
             {
+                appVersion = Application.version,
+                sessionId = sessionController.SessionId,
                 timestampUtc = DateTime.UtcNow.ToString("O"),
                 caseId = caseDefinition == null ? "unknown" : caseDefinition.CaseId,
                 trainingMode = mode.ToString(),
@@ -428,6 +430,9 @@ namespace AdieLab.AffectCounsel
         [Serializable]
         private sealed class TrainingSessionSummaryRecord
         {
+            public int schemaVersion = ResearchRecord.SchemaVersion;
+            public string appVersion;
+            public string sessionId;
             public string timestampUtc;
             public string caseId;
             public string trainingMode;

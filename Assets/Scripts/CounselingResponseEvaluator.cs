@@ -41,7 +41,7 @@ namespace AdieLab.AffectCounsel
     public static class CounselingResponseEvaluator
     {
         // Feeling words, including ㅂ-irregular and ㄹ-stem conjugations.
-        private static readonly string[] ReflectionTerms =
+        private static readonly string[] DefaultReflectionTerms =
         {
             "느껴", "느끼", "느낌", "마음", "감정", "기분",
             "불안", "걱정", "긴장", "초조", "조마조마",
@@ -56,7 +56,7 @@ namespace AdieLab.AffectCounsel
 
         // Legitimising or permission-giving responses. Bare "이해" is avoided because
         // "이해가 안 돼요" is the opposite of validation.
-        private static readonly string[] ValidationTerms =
+        private static readonly string[] DefaultValidationTerms =
         {
             "그럴 수", "그럴 만", "그러실 만", "그렇게 느끼실 만", "그럴 법", "충분히 그럴",
             "이해가 돼", "이해돼", "이해가 됩", "이해됩", "이해할 수 있", "이해해요", "이해합니다",
@@ -67,7 +67,7 @@ namespace AdieLab.AffectCounsel
         // Directives and prescriptions. Matched only after invitations, introspective
         // prompts and questions are removed (see Neutralize), so "말씀해 보세요",
         // "떠올려 보세요" and "어떻게 생각하세요?" are not treated as advice.
-        private static readonly string[] AdviceTerms =
+        private static readonly string[] DefaultAdviceTerms =
         {
             "해야", "셔야 해", "셔야 합", "셔야 돼", "셔야 됩", "하세요", "해 보세요", "해보세요", "드려 보세요", "드려보세요", "가 보세요", "가보세요",
             "만나 보세요", "만나보세요", "바꿔 보세요", "바꿔보세요", "써 보세요", "써보세요", "찾아 보세요", "찾아보세요",
@@ -78,7 +78,7 @@ namespace AdieLab.AffectCounsel
 
         // Invitations to keep talking with the counselor, and introspective prompts.
         // They look like imperatives but are exploration.
-        private static readonly string[] InvitationTerms =
+        private static readonly string[] DefaultInvitationTerms =
         {
             "말씀해 보", "말씀해보", "말씀하세요", "말씀하셔도", "이야기해 보", "이야기해보", "이야기하셔도",
             "얘기해 보", "얘기해보", "말해 보", "말해보", "들려주",
@@ -88,15 +88,15 @@ namespace AdieLab.AffectCounsel
 
         // A talk invitation aimed at someone else ("팀장님께 이야기해 보세요") is advice.
         // The counselor as addressee ("저에게") is removed before this check.
-        private static readonly string[] ThirdPartyMarkers =
+        private static readonly string[] DefaultThirdPartyMarkers =
         {
             "께 ", "께서", "에게", "한테", "랑 ", "과 이야기", "와 이야기", "과 얘기", "와 얘기", "과 한번", "와 한번"
         };
 
-        private static readonly string[] CounselorAddressTerms = { "저에게", "저한테", "제게", "여기서", "여기에서" };
+        private static readonly string[] DefaultCounselorAddressTerms = { "저에게", "저한테", "제게", "여기서", "여기에서" };
 
         // Question and reported-speech forms that contain advice stems but are not advice.
-        private static readonly string[] NonDirectiveForms =
+        private static readonly string[] DefaultNonDirectiveForms =
         {
             "생각하세요", "생각하시", "느끼세요", "하세요?", "하세요 ?", "하시나요", "하셨어요", "하셨나요",
             "해야 한다고", "해야 한다는", "해야 된다고", "해야 된다는", "해야 하나", "해야 할지"
@@ -106,7 +106,7 @@ namespace AdieLab.AffectCounsel
         // exploration before the client feels understood. A match followed by a
         // quotative ("잘될 거라고 믿으셨는데", "누구나 겪는 일이라는 말") reflects what
         // the client or others said, and is not counted.
-        private static readonly string[] ReassuranceTerms =
+        private static readonly string[] DefaultReassuranceTerms =
         {
             "괜찮아질", "잘될 거", "잘 될 거", "잘될 겁", "잘 될 겁", "좋아질 거", "좋아질 겁", "나아질 거", "나아질 겁",
             "다 지나갈", "지나갈 거", "금방 나아", "걱정하지 마", "걱정 마", "걱정 안 하셔도", "걱정 안 해도", "걱정하실 필요",
@@ -114,12 +114,12 @@ namespace AdieLab.AffectCounsel
             "힘내세요", "힘내요", "힘 내세요", "힘 내요", "힘내!", "기운 내세요", "기운내세요", "기운 내요"
         };
 
-        private static readonly string[] QuotativeMarkers =
+        private static readonly string[] DefaultQuotativeMarkers =
         {
             "라고", "라는", "다고", "다는", "는 말", "말하", "말을", "말씀", "생각하", "믿으", "희망", "기대"
         };
 
-        private static readonly string[] OpenQuestionTerms =
+        private static readonly string[] DefaultOpenQuestionTerms =
         {
             "어떤", "어떻게", "어떠", "어땠", "무엇", "무슨 일", "무슨 생각", "무슨 마음", "무슨 느낌", "무슨 의미",
             "뭐가", "뭘", "뭔가요", "언제", "어디서",
@@ -127,10 +127,57 @@ namespace AdieLab.AffectCounsel
             "설명해 주", "설명해주", "더 해 주", "더 해주", "더 듣고 싶"
         };
 
-        private static readonly string[] NegatedUnderstandingTerms =
+        private static readonly string[] DefaultNegatedUnderstandingTerms =
         {
             "이해가 안", "이해 안", "이해가 잘 안", "이해할 수 없", "이해가 되지 않"
         };
+
+
+        private static SkillLexicon active;
+
+        /// <summary>
+        /// The term lists in use. Experts can override any list by placing
+        /// Resources/CounselCue/skill-lexicon.json (see Tools → CounselCue → Export Skill Lexicon JSON);
+        /// lists missing or empty in the file keep the built-in defaults below.
+        /// </summary>
+        public static SkillLexicon Active
+        {
+            get
+            {
+                if (active == null) active = SkillLexicon.LoadOrDefault(Defaults());
+                return active;
+            }
+        }
+
+        /// <summary>Replaces the active lexicon (tests, expert tools). Pass null to reload.</summary>
+        public static void UseLexicon(SkillLexicon lexicon) => active = lexicon;
+
+        public static SkillLexicon Defaults() => new SkillLexicon
+        {
+            reflection = (string[])DefaultReflectionTerms.Clone(),
+            validation = (string[])DefaultValidationTerms.Clone(),
+            advice = (string[])DefaultAdviceTerms.Clone(),
+            invitation = (string[])DefaultInvitationTerms.Clone(),
+            thirdPartyMarkers = (string[])DefaultThirdPartyMarkers.Clone(),
+            counselorAddress = (string[])DefaultCounselorAddressTerms.Clone(),
+            nonDirective = (string[])DefaultNonDirectiveForms.Clone(),
+            reassurance = (string[])DefaultReassuranceTerms.Clone(),
+            quotative = (string[])DefaultQuotativeMarkers.Clone(),
+            openQuestion = (string[])DefaultOpenQuestionTerms.Clone(),
+            negatedUnderstanding = (string[])DefaultNegatedUnderstandingTerms.Clone()
+        };
+
+        private static string[] ReflectionTerms => Active.reflection;
+        private static string[] ValidationTerms => Active.validation;
+        private static string[] AdviceTerms => Active.advice;
+        private static string[] InvitationTerms => Active.invitation;
+        private static string[] ThirdPartyMarkers => Active.thirdPartyMarkers;
+        private static string[] CounselorAddressTerms => Active.counselorAddress;
+        private static string[] NonDirectiveForms => Active.nonDirective;
+        private static string[] ReassuranceTerms => Active.reassurance;
+        private static string[] QuotativeMarkers => Active.quotative;
+        private static string[] OpenQuestionTerms => Active.openQuestion;
+        private static string[] NegatedUnderstandingTerms => Active.negatedUnderstanding;
 
         public static ResponseAssessment Evaluate(string utterance)
         {

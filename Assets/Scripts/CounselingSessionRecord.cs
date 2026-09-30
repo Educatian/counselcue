@@ -5,6 +5,10 @@ namespace AdieLab.AffectCounsel
     [Serializable]
     internal sealed class CounselingSessionRecord
     {
+        public int schemaVersion = ResearchRecord.SchemaVersion;
+        public string appVersion;
+        public string caseId;
+        public string lexiconVersion;
         public string sessionId;
         public string timestampUtc;
         public string trainingMode;

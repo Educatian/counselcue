@@ -530,7 +530,7 @@ namespace AdieLab.AffectCounsel.Editor
             refs.retryNeededButton = CreateButton("AssessRetry", debriefCard, new Vector2(274f, -548f), new Vector2(230f, 50f), "다시 연습 필요", font, panelSprite, 15);
             refs.replayButton = CreateButton("ReplaySelected", debriefCard, new Vector2(522f, -548f), new Vector2(260f, 50f), "이 장면 다시 연습", font, panelSprite, 15);
             refs.returnButton = CreateButton("ReturnToBriefing", debriefCard, new Vector2(800f, -548f), new Vector2(274f, 50f), "연습 경로로", font, panelSprite, 15);
-            CreateText("DebriefDisclaimer", "※ 먼저 자기평가한 뒤 시스템 근거와 비교합니다. 훈련용 피드백이며 임상평가가 아닙니다.", debriefCard, new Vector2(46f, -620f), new Vector2(1028f, 36f), font, 13, new Color(0.38f, 0.43f, 0.40f), FontStyle.Normal);
+            CreateText("DebriefDisclaimer", "※ 먼저 자기평가한 뒤 시스템 근거와 비교합니다. 훈련용 피드백이며 임상평가가 아닙니다.\n연습 뒤 불편감이 남았다면 잠시 쉬고, 지도감독자나 교육 담당자와 이야기해 보세요.", debriefCard, new Vector2(46f, -620f), new Vector2(1028f, 46f), font, 13, new Color(0.38f, 0.43f, 0.40f), FontStyle.Normal);
 
             refs.languageToggleButton = CreateButton("LanguageToggle", canvas.transform, new Vector2(735f, -22f), new Vector2(130f, 38f), "UI: EN", font, panelSprite, 13);
 

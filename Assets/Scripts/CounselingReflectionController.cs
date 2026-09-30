@@ -17,6 +17,7 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Button replayButton;
         [SerializeField] private Button[] timelineButtons;
 
+        private string sessionId = string.Empty;
         private readonly List<CounselingTurnSnapshot> turns = new List<CounselingTurnSnapshot>();
         private CounselingCaseDefinition caseDefinition;
         private TrainingMode mode;
@@ -39,8 +40,10 @@ namespace AdieLab.AffectCounsel
             CounselingCaseDefinition selectedCase,
             TrainingMode trainingMode,
             IReadOnlyList<CounselingTurnSnapshot> sessionTurns,
-            string summary)
+            string summary,
+            string sessionIdentifier = "")
         {
+            sessionId = sessionIdentifier ?? string.Empty;
             caseDefinition = selectedCase;
             mode = trainingMode;
             fullSummary = summary;
@@ -122,6 +125,7 @@ namespace AdieLab.AffectCounsel
             turn.selfAssessment = assessment;
             CounselingSelfAssessmentRecord record = new CounselingSelfAssessmentRecord
             {
+                sessionId = sessionId,
                 timestampUtc = DateTime.UtcNow.ToString("O"),
                 caseId = caseDefinition == null ? "unknown" : caseDefinition.CaseId,
                 trainingMode = mode.ToString(),

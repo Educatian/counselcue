@@ -125,6 +125,10 @@ The complete construct model, cultural interpretation principles, and validation
 - [Korean documentation](README.ko.md): session flow, LXD loop, AU calibration, GPT Realtime architecture, and privacy boundaries
 - [English documentation](README.en.md): capabilities, architecture, build workflow, privacy, and validation boundaries
 - [GAME_CONCEPT.md](GAME_CONCEPT.md): research framing, cultural profile, and validation plan
+- [Docs/DATA_SCHEMA.md](Docs/DATA_SCHEMA.md): opt-in local research records (schema v2), join keys, and handling guidance
+- Skill lexicon: **Tools → CounselCue → Export Skill Lexicon JSON** writes the pilot term lists to `Assets/Resources/CounselCue/skill-lexicon.json` so counseling experts can revise them; rerun the Response Evaluator Checks after edits
+- Persona evaluation: `WORKER_URL=… npm run eval` in `Server/CounselCue.EdgeWorker` checks role consistency, memory, safety and latency on a deployed worker
+- CI (`.github/workflows/ci.yml`) runs the worker tests, the Mono-compiled skill-detector and relational-model checks, and case/persona/web-bridge consistency checks without a Unity license
 - [Docs/HIGGSFIELD_ASSET_PACK.md](Docs/HIGGSFIELD_ASSET_PACK.md): Higgsfield prompts and drop-in file slots for case illustrations, room art, loading/onboarding visuals, and an honest promo-video shot list
 
 ---

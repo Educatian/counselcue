@@ -22,6 +22,8 @@ namespace AdieLab.AffectCounsel
     [Serializable]
     public sealed class CounselingSelfAssessmentRecord
     {
+        public int schemaVersion = ResearchRecord.SchemaVersion;
+        public string sessionId;
         public string timestampUtc;
         public string caseId;
         public string trainingMode;

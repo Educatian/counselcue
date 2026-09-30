@@ -4,6 +4,12 @@ using UnityEngine;
 
 namespace AdieLab.AffectCounsel
 {
+    /// <summary>Version of the local JSONL research records. See Docs/DATA_SCHEMA.md.</summary>
+    public static class ResearchRecord
+    {
+        public const int SchemaVersion = 2;
+    }
+
     /// <summary>
     /// Appends research records to local JSONL files, only after the learner has opted in
     /// on the briefing card. Logging must never interrupt the practice loop: a full disk, a
