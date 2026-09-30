@@ -20,6 +20,12 @@
       "simple": { "limit": 15, "period": 60 },
     },
     {
+      // Ceiling per network address across all sessions (e.g. a classroom NAT).
+      "name": "TURN_IP_LIMITER",
+      "namespace_id": "71019",
+      "simple": { "limit": 240, "period": 60 },
+    },
+    {
       "name": "VOICE_LIMITER",
       "namespace_id": "71018",
       "simple": { "limit": 20, "period": 60 },

@@ -214,6 +214,10 @@ mergeInto(LibraryManager.library, {
     // over (or report on behalf of) the reply that superseded it.
     var token = ++S.v;
     var current = function () { return token === S.v; };
+    // Cancel a superseded request so it is neither billed nor counted against the voice limit.
+    if (S.ac) S.ac.abort();
+    var controller = window.AbortController ? new AbortController() : null;
+    S.ac = controller;
     var notify = function (name) { if (current()) SendMessage(S.o, name, ""); };
     var clean = function () {
       if (S.auUrl) URL.revokeObjectURL(S.auUrl);
@@ -238,6 +242,7 @@ mergeInto(LibraryManager.library, {
     fetch(S.a + "/voice", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller ? controller.signal : undefined,
       body: JSON.stringify({ text: UTF8ToString(textPointer), emotion: UTF8ToString(emotionPointer), caseId: S.c })
     }).then(function (response) {
       if (!response.ok) throw Error("voice " + response.status);

@@ -195,15 +195,17 @@ test("unknown case ids fall back to the default persona", async () => {
   assert.match(outbound.messages[0].content, /Kim Ji-hye/);
 });
 
-test("turn rate limit is keyed on the caller address, not the session id", async () => {
-  const keys = [];
-  const spy = { limit: async ({ key }) => (keys.push(key), { success: false }) };
+test("turn rate limits pace each session and cap each address", async () => {
+  const sessionKeys = [], addressKeys = [];
+  const session = { limit: async ({ key }) => (sessionKeys.push(key), { success: true }) };
+  const address = { limit: async ({ key }) => (addressKeys.push(key), { success: false }) };
   const r = await worker.fetch(
-    post("/turn", { sessionId: "rotating-" + Math.random(), counselorUtterance: "네" }, { "CF-Connecting-IP": "203.0.113.9" }),
-    { ...env, TURN_LIMITER: spy },
+    post("/turn", { sessionId: "s-42", counselorUtterance: "네" }, { "CF-Connecting-IP": "203.0.113.9" }),
+    { ...env, TURN_LIMITER: session, TURN_IP_LIMITER: address },
   );
   assert.equal(r.status, 429);
-  assert.deepEqual(keys, ["203.0.113.9"]);
+  assert.deepEqual(sessionKeys, ["203.0.113.9:s-42"]);
+  assert.deepEqual(addressKeys, ["203.0.113.9"]);
 });
 
 test("voice uses the case-specific voice map and falls back safely", async () => {
@@ -242,7 +244,7 @@ test("missing upstream credentials return 503 without calling out", async () => 
 });
 
 test("oversized and malformed bodies are rejected before any upstream call", async () => {
-  const big = await worker.fetch(post("/turn", JSON.stringify({ sessionId: "s", counselorUtterance: "가".repeat(20000) })), env);
+  const big = await worker.fetch(post("/turn", JSON.stringify({ sessionId: "s", counselorUtterance: "가".repeat(30000) })), env);
   const bad = await worker.fetch(post("/turn", "{not json"), env);
   const nul = await worker.fetch(post("/turn", "null"), env);
   assert.equal(big.status, 413);

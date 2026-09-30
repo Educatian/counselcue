@@ -48,7 +48,7 @@ namespace AdieLab.AffectCounsel
         public void ResetConversation(string clientOpeningLine, IReadOnlyList<CounselingTurnSnapshot> priorTurns = null)
         {
             history.Clear();
-            openingLine = clientOpeningLine ?? string.Empty;
+            openingLine = Clip(clientOpeningLine, 240);
             if (priorTurns == null) return;
             for (int i = 0; i < priorTurns.Count; i++)
             {
@@ -60,7 +60,7 @@ namespace AdieLab.AffectCounsel
         public void RecordExchange(string counselorUtterance, string clientReply)
         {
             if (string.IsNullOrWhiteSpace(counselorUtterance) && string.IsNullOrWhiteSpace(clientReply)) return;
-            history.Add(new HistoryEntry { counselor = counselorUtterance ?? string.Empty, client = clientReply ?? string.Empty });
+            history.Add(new HistoryEntry { counselor = Clip(counselorUtterance, 400), client = Clip(clientReply, 240) });
             int overflow = history.Count - Mathf.Max(0, historyTurns);
             if (overflow > 0) history.RemoveRange(0, overflow);
         }
@@ -69,7 +69,7 @@ namespace AdieLab.AffectCounsel
         {
             if (!IsAvailable) return NpcTurnReply.Failure("웹 NPC 엔진 비활성화");
             TurnRequest payload = new TurnRequest {
-                sessionId=sessionId, caseId=activeCaseId, turn=turn, stage=stage, counselorUtterance=utterance,
+                sessionId=sessionId, caseId=activeCaseId, turn=turn, stage=stage, counselorUtterance=Clip(utterance, 800),
                 safety=state.Safety, guardedness=state.Guardedness, disclosure=state.WillingnessToDisclose,
                 openingLine=openingLine, history=history.ToArray()
             };
@@ -87,6 +87,13 @@ namespace AdieLab.AffectCounsel
             return response == null || string.IsNullOrWhiteSpace(response.reply)
                 ? NpcTurnReply.Failure("NPC 응답이 비어 있습니다.")
                 : NpcTurnReply.Success(response.reply.Trim(), NormalizeEmotion(response.emotion));
+        }
+
+        // Mirrors the worker's per-field limits so the request body stays well under its cap.
+        private static string Clip(string value, int maxLength)
+        {
+            string text = (value ?? string.Empty).Trim();
+            return text.Length <= maxLength ? text : text.Substring(0, maxLength);
         }
 
         private static string NormalizeEmotion(string value)

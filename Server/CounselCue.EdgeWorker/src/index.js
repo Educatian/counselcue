@@ -10,7 +10,7 @@ const ALLOWED_ORIGINS = new Set([
 const DEFAULT_ORIGIN = "https://educatian.github.io";
 const DEFAULT_CASE = "workplace-anxiety-01";
 const DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM";
-const MAX_BODY_BYTES = 16 * 1024;
+const MAX_BODY_BYTES = 64 * 1024;
 const MAX_HISTORY_TURNS = 8;
 const UPSTREAM_TIMEOUT_MS = 20_000;
 const EMOTIONS = new Set(["guarded", "anxious", "relieved", "thoughtful"]);
@@ -140,9 +140,13 @@ async function handleTurn(req, b, env, o) {
     utterance = clean(b.counselorUtterance, 800),
     turn = Math.max(0, Math.min(40, Math.trunc(Number(b.turn) || 0)));
   if (!sid || !utterance) return json({ error: "missing_input" }, 400, o);
-  // Key on the caller's network address: a client-generated session id is
-  // trivially rotated and would let one browser bypass the limit.
-  if (!(await env.TURN_LIMITER.limit({ key: clientKey(req) })).success)
+  // Per-session pacing keyed on address + session, so a classroom behind one
+  // NAT is not throttled as a single user. An optional per-address ceiling
+  // (TURN_IP_LIMITER) stops one caller from rotating session ids to bypass it.
+  const address = clientKey(req);
+  if (!(await env.TURN_LIMITER.limit({ key: address + ":" + sid })).success)
+    return json({ error: "turn_rate_limited" }, 429, o);
+  if (env.TURN_IP_LIMITER && !(await env.TURN_IP_LIMITER.limit({ key: address })).success)
     return json({ error: "turn_rate_limited" }, 429, o);
   const input = {
     turn,

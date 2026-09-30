@@ -37,6 +37,9 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Button returnButton;
 
         private readonly List<CounselingTurnSnapshot> turns = new List<CounselingTurnSnapshot>();
+        // Exchanges that preceded the current session when it is a scene replay, so a
+        // replay of a replay still carries the original earlier conversation.
+        private readonly List<CounselingTurnSnapshot> sessionPrefix = new List<CounselingTurnSnapshot>();
         private TrainingSessionPhase phase = TrainingSessionPhase.Briefing;
         private TrainingMode mode = TrainingMode.Practice;
         private CounselingStage stage = CounselingStage.Rapport;
@@ -188,11 +191,23 @@ namespace AdieLab.AffectCounsel
             {
                 // Keep the exchanges that led up to the replayed scene so the AI client
                 // remembers them; the list is cleared for the new session below.
+                int firstSessionTurn = int.MaxValue;
+                for (int i = 0; i < turns.Count; i++)
+                {
+                    if (turns[i] != null) firstSessionTurn = Mathf.Min(firstSessionTurn, turns[i].turn);
+                }
+                for (int i = 0; i < sessionPrefix.Count; i++)
+                {
+                    CounselingTurnSnapshot earlier = sessionPrefix[i];
+                    if (earlier != null && earlier.turn < source.turn && earlier.turn < firstSessionTurn) priorTurns.Add(earlier);
+                }
                 for (int i = 0; i < turns.Count; i++)
                 {
                     if (turns[i] != null && turns[i].turn < source.turn) priorTurns.Add(turns[i]);
                 }
             }
+            sessionPrefix.Clear();
+            sessionPrefix.AddRange(priorTurns);
             mode = selectedMode;
             selectedFocusIndex = focusIndex;
             replaySource = source;
