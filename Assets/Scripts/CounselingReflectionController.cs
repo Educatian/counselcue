@@ -62,10 +62,12 @@ namespace AdieLab.AffectCounsel
                 bool visible = i < turns.Count;
                 timelineButtons[i].gameObject.SetActive(visible);
                 if (!visible) continue;
+                bool assessed = !string.IsNullOrWhiteSpace(turns[i].selfAssessment);
+                UiTheme.SetChoice(timelineButtons[i], i == selectedIndex, false, assessed);
                 Text label = timelineButtons[i].GetComponentInChildren<Text>();
-                label.text = string.IsNullOrWhiteSpace(turns[i].selfAssessment)
-                    ? $"{turns[i].turn}턴"
-                    : $"{turns[i].turn} · {turns[i].skill}";
+                label.text = assessed
+                    ? $"{turns[i].turn} · {turns[i].skill}"
+                    : $"{turns[i].turn}턴";
             }
         }
 
@@ -73,6 +75,7 @@ namespace AdieLab.AffectCounsel
         {
             if (index < 0 || index >= turns.Count) return;
             selectedIndex = index;
+            RefreshTimeline();
             RefreshSelection();
         }
 
@@ -109,10 +112,15 @@ namespace AdieLab.AffectCounsel
             string evidence = isAssessed
                 ? $"시스템 근거  {turn.coachingFeedback}"
                 : "시스템 근거  자기평가 후 공개됩니다.";
+            // Line prefixes stay plain ("상담자  ") so the English phrasebook can translate
+            // them; only whole lines are wrapped in rich-text colour.
             sceneDetailLabel.text =
-                sceneHeading + "\n" +
-                $"상담자  {turn.counselorUtterance}\n내담자  {turn.clientReply}\n" +
-                evidence;
+                $"<size=14>{UiTheme.Colorize(sceneHeading, UiTheme.CeladonDeepHex)}</size>\n\n" +
+                $"상담자  {turn.counselorUtterance}\n내담자  {turn.clientReply}\n\n" +
+                (isAssessed ? evidence : UiTheme.Colorize(evidence, UiTheme.InkMutedHex));
+            // The chosen judgment reads as "recorded" (tonal), leaving solid green for the next action.
+            UiTheme.SetChoice(effectiveButton, false, false, turn.selfAssessment == "잘된 장면");
+            UiTheme.SetChoice(retryNeededButton, false, false, turn.selfAssessment == "다시 연습 필요");
             assessmentStatusLabel.text = isAssessed
                 ? $"나의 판단 · {turn.selfAssessment}"
                 : "먼저 이 장면에 대한 자신의 판단을 선택하세요.";

@@ -22,6 +22,8 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Text timerLabel;
         [SerializeField] private Text stageLabel;
         [SerializeField] private Text briefingCaseLabel;
+        [SerializeField] private Text briefingMetaLabel;
+        [SerializeField] private RectTransform turnProgressFill;
         [SerializeField] private Text briefingBodyLabel;
         [SerializeField] private Text clientNameLabel;
         [SerializeField] private Image briefingPortrait;
@@ -283,13 +285,21 @@ namespace AdieLab.AffectCounsel
             if (caseDefinition == null) return;
             string name = caseDefinition.LocalizedName(useEnglish);
             string profile = caseDefinition.LocalizedProfile(useEnglish);
-            briefingCaseLabel.text = $"{caseDefinition.LocalizedTitle(useEnglish)} · {name}, {profile}";
+            if (briefingMetaLabel != null)
+            {
+                briefingCaseLabel.text = caseDefinition.LocalizedTitle(useEnglish);
+                briefingMetaLabel.text = $"{name}  ·  {profile}";
+            }
+            else
+            {
+                briefingCaseLabel.text = $"{caseDefinition.LocalizedTitle(useEnglish)} · {name}, {profile}";
+            }
             if (clientNameLabel != null) clientNameLabel.text = useEnglish ? $"CLIENT  ·  {name}, {profile}" : $"내담자  ·  {name}, {profile}";
             StringBuilder body = new StringBuilder();
-            body.AppendLine(useEnglish ? "Situation" : "상황");
+            body.AppendLine(Heading(useEnglish ? "SITUATION" : "상황"));
             body.AppendLine(caseDefinition.LocalizedConcern(useEnglish));
             body.AppendLine();
-            body.AppendLine(useEnglish ? "Session goals" : "이번 세션의 목표");
+            body.AppendLine(Heading(useEnglish ? "SESSION GOALS" : "이번 세션의 목표"));
             string[] objectives = caseDefinition.LocalizedObjectives(useEnglish) ?? Array.Empty<string>();
             for (int i = 0; i < objectives.Length; i++)
             {
@@ -305,6 +315,9 @@ namespace AdieLab.AffectCounsel
                 if (available) focusButtons[i].GetComponentInChildren<Text>().text = FocusButtonLabel(caseDefinition.FocusSkills[i]);
             }
         }
+
+        private static string Heading(string value) =>
+            $"<size=13>{UiTheme.Colorize(value, UiTheme.CeladonDeepHex)}</size>";
 
         private string FocusButtonLabel(CounselingFocusSkill skill)
         {
@@ -347,12 +360,12 @@ namespace AdieLab.AffectCounsel
                 if (caseButtons[i] == null) continue;
                 Text label = caseButtons[i].GetComponentInChildren<Text>();
                 CounselingCaseDefinition item = caseCatalog.GetCase(i);
-                if (label != null && item != null) label.text = item.LocalizedTitle(useEnglish);
-                ColorBlock colors = caseButtons[i].colors;
-                colors.normalColor = i == selectedIndex ? new Color(0.20f, 0.48f, 0.37f, 1f) : Color.white;
-                colors.highlightedColor = i == selectedIndex ? new Color(0.26f, 0.56f, 0.44f, 1f) : new Color(0.90f, 0.94f, 0.91f, 1f);
-                caseButtons[i].colors = colors;
-                if (label != null) label.color = i == selectedIndex ? Color.white : new Color(0.105f, 0.13f, 0.12f, 1f);
+                UiTheme.SetChoice(caseButtons[i], i == selectedIndex, true);
+                if (label == null || item == null) continue;
+                string profile = item.LocalizedProfile(useEnglish) ?? string.Empty;
+                int separator = profile.IndexOf(" · ", StringComparison.Ordinal);
+                string age = separator > 0 ? profile.Substring(0, separator) : profile;
+                label.text = $"{item.LocalizedTitle(useEnglish)}\n<size=13>{item.LocalizedName(useEnglish)} · {age}</size>";
             }
         }
 
@@ -360,6 +373,14 @@ namespace AdieLab.AffectCounsel
         {
             displayedSecond = Mathf.CeilToInt(remainingSeconds);
             timerLabel.text = $"{displayedSecond / 60:00}:{displayedSecond % 60:00}";
+            timerLabel.color = displayedSecond <= 60 ? UiTheme.TimerWarning : UiTheme.Amber;
+            if (turnProgressFill != null)
+            {
+                Vector2 max = turnProgressFill.anchorMax;
+                max.x = targetTurns <= 0 ? 0f : Mathf.Clamp01((float)turns.Count / targetTurns);
+                turnProgressFill.anchorMax = max;
+                turnProgressFill.gameObject.SetActive(turns.Count > 0);
+            }
             string focus = SelectedFocus == null ? string.Empty : $" · {SelectedFocus.label}";
             stageLabel.text = $"{CounselingSessionFlow.ModeLabel(mode)}{focus} · {CurrentStageLabel} · {turns.Count}/{targetTurns}턴";
         }

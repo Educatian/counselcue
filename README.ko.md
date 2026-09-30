@@ -18,7 +18,7 @@
 |---|---|
 | ![한국 1:1 상담실 생성 레퍼런스](Assets/Art/References/KoreanCounselingRoomReference.png) | ![레퍼런스를 반영한 Unity 상담실](Screenshots/progress-35-reference-room.png) |
 
-UI는 CC0 라이선스의 Kenney UI Pack 2.0에서 고해상도 9-slice 패널·버튼·구분선을 선별하고 상담실 팔레트로 틴트했습니다. 상단 언어 버튼은 상담 시나리오의 원문을 바꾸지 않고 고정 UI 문구만 전환합니다.
+UI는 한지·먹빛 유리·청자색·등불 호박색 토큰(`UiTheme`)과 절차적으로 만든 9-slice 스프라이트(`Assets/Art/UI`, 談 낙관 포함)로 구성하고, 작은 한글도 선명하도록 Noto Sans KR 정적 Regular/Bold 서체를 사용합니다. 상단 언어 버튼은 상담 시나리오의 원문을 바꾸지 않고 고정 UI 문구만 전환합니다.
 
 | 한국어 UI | English UI |
 |---|---|

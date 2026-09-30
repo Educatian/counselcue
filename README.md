@@ -116,8 +116,8 @@ The complete construct model, cultural interpretation principles, and validation
 ## License and asset boundaries
 
 - Microsoft Rocketbox assets follow [`Assets/ThirdParty/MicrosoftRocketbox/LICENSE.md`](Assets/ThirdParty/MicrosoftRocketbox/LICENSE.md).
-- UI sprites come from the CC0-licensed [Kenney UI Pack 2.0](https://kenney.nl/assets/ui-pack).
-- Noto Sans KR is distributed under the SIL Open Font License 1.1; the license is included at [`Assets/Fonts/OFL.txt`](Assets/Fonts/OFL.txt).
+- The interface uses procedural sprites in `Assets/Art/UI` (rounded surfaces, soft shadows, scrims and the 談 seal) and the `UiTheme` tokens: hanji paper, ink glass, celadon actions and lamp amber. The CC0 [Kenney UI Pack 2.0](https://kenney.nl/assets/ui-pack) remains in `Assets/ThirdParty` but is no longer referenced.
+- Noto Sans KR (static Regular and Bold cuts subset from Noto Sans CJK KR: Hangul syllables, jamo, Latin and punctuation) is distributed under the SIL Open Font License 1.1; the license is included at [`Assets/Fonts/OFL.txt`](Assets/Fonts/OFL.txt).
 - No root open-source license currently covers the entire repository. Do not assume redistribution rights for project code or generated assets until a project license is declared.
 
 ## Documentation

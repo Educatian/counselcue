@@ -30,22 +30,30 @@ namespace AdieLab.AffectCounsel
         {
             { "SessionEyebrow", "COUNSELING PRACTICE  ·  1:1 INTAKE" },
             { "Privacy", "No video saved · on-device processing" },
-            { "ZoomEyebrow", "OBSERVATION ZOOM" },
+            { "ZoomEyebrow", "ZOOM" },
+            { "CaseListLabel", "CLIENTS" },
+            { "CaseBriefEyebrow", "CASE BRIEF" },
+            { "MeterHeading", "RELATIONAL STATE" },
+            { "MeterLabel0", "Safety" },
+            { "MeterLabel1", "Guarded" },
+            { "MeterLabel2", "Disclosure" },
+            { "FaceDebugTitle", "Expression & gaze diagnostics" },
+            { "CycleGazeState", "Cycle gaze state" },
             { "Placeholder", "Enter your counseling response…" },
             { "PauseSession", "Pause" },
             { "EndSession", "End" },
             { "ZoomReset", "Reset" },
             { "FaceDebugToggle", "Debug" },
             { "SendButton", "Respond" },
-            { "BriefingTitle", "Choose today's practice path" },
-            { "FullSessionLabel", "FULL SESSION · 15 MIN / TARGET 10 TURNS" },
+            { "BriefingTitle", "Choose who\nyou'll meet today" },
+            { "FullSessionLabel", "FULL SESSION  ·  15 MIN · 10 TURNS" },
             { "BriefingPortraitCaption", "AI-generated case illustration" },
-            { "ConsentLabel", "I agree to local research logging (text and derived signals on this device; no video)" },
+            { "ConsentLabel", "I agree to local research logging — only response text and derived signals stay on this device (no video)" },
             { "DeleteLocalData", "Delete local records" },
-            { "StartPractice", "Start coached practice" },
-            { "StartEvaluation", "Start assessment mode" },
-            { "FocusedLabel", "MICRO-SKILL PRACTICE · 3 MIN / TARGET 3 TURNS" },
-            { "PrivacyLine", "Webcam video is not saved · Practice duration is a pilot setting for user research." },
+            { "StartPractice", "Coached practice\n<size=12><color=#F6F1E7B3>Delivery feedback after every turn</color></size>" },
+            { "StartEvaluation", "Assessment mode\n<size=12><color=#6B6F69>Feedback is revealed after the session</color></size>" },
+            { "FocusedLabel", "MICRO-SKILL DRILLS  ·  3 MIN · 3 TURNS" },
+            { "PrivacyLine", "Webcam video is never saved, and facial analysis stays on this device. A research and training prototype." },
             { "PauseTitle", "Session paused" },
             { "PauseBody", "The timer and counseling input are paused.\nContinue from the same scene when you are ready." },
             { "ResumeSession", "Continue" },
@@ -118,7 +126,11 @@ namespace AdieLab.AffectCounsel
         private void RefreshToggleLabel()
         {
             Text label = toggleButton.GetComponentInChildren<Text>();
-            label.text = useEnglish ? "UI: KO" : "UI: EN";
+            // Segmented look: the active language is bright, the other one dimmed.
+            label.supportRichText = true;
+            label.text = useEnglish
+                ? "<color=#FFFFFF66>한국어</color>   EN"
+                : "한국어   <color=#FFFFFF66>EN</color>";
         }
 
         private static string GetKey(Text text)

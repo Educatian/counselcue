@@ -30,6 +30,11 @@ namespace AdieLab.AffectCounsel
             Directory.CreateDirectory(OutputFolder);
             yield return new WaitForSecondsRealtime(2.5f);
             CounselingSessionOrchestrator orchestrator = FindAnyObjectByType<CounselingSessionOrchestrator>();
+            // A clean room plate (no HUD) for the web loading screen and social card.
+            Canvas[] hudCanvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            foreach (Canvas canvas in hudCanvases) canvas.enabled = false;
+            yield return Capture("00-room-clean");
+            foreach (Canvas canvas in hudCanvases) canvas.enabled = true;
             int caseCount = 5;
             for (int i = 0; i < caseCount; i++)
             {
@@ -49,6 +54,11 @@ namespace AdieLab.AffectCounsel
             Click("StartPractice");
             yield return new WaitForSecondsRealtime(1.5f);
             yield return Capture("03-session-start-ko");
+            Click("PauseSession");
+            yield return new WaitForSecondsRealtime(0.5f);
+            yield return Capture("10-pause-ko");
+            Click("ResumeSession");
+            yield return new WaitForSecondsRealtime(0.4f);
             Click("FaceObservation");
             yield return new WaitForSecondsRealtime(1.2f);
             yield return Capture("04-face-observation");
@@ -86,11 +96,63 @@ namespace AdieLab.AffectCounsel
             UnityEditor.EditorApplication.isPlaying = false;
         }
 
+        private const int CaptureWidth = 1920;
+        private const int CaptureHeight = 1080;
+
+        /// <summary>
+        /// Renders the camera and the HUD into a 1920×1080 target so review shots show the
+        /// real 16:9 layout regardless of the editor's Game view size.
+        /// </summary>
         private static IEnumerator Capture(string name)
         {
+            Camera camera = Camera.main;
+            if (camera == null)
+            {
+                yield return new WaitForEndOfFrame();
+                ScreenCapture.CaptureScreenshot(Path.Combine(OutputFolder, name + ".png"));
+                yield return new WaitForSecondsRealtime(0.4f);
+                yield break;
+            }
+
+            RenderTexture target = new RenderTexture(CaptureWidth, CaptureHeight, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
+            target.Create();
+            Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            System.Collections.Generic.List<Canvas> switched = new System.Collections.Generic.List<Canvas>();
+            foreach (Canvas canvas in canvases)
+            {
+                if (!canvas.isRootCanvas || canvas.renderMode != RenderMode.ScreenSpaceOverlay) continue;
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = camera;
+                canvas.planeDistance = camera.nearClipPlane + 0.05f;
+                switched.Add(canvas);
+            }
+            camera.targetTexture = target;
+            // Let CanvasScaler adopt the new pixel size, then re-rasterize text at that scale
+            // (otherwise glyphs baked at the small Game-view scale are stretched and blurry).
+            yield return null;
+            foreach (Graphic graphic in FindObjectsByType<Graphic>(FindObjectsSortMode.None)) graphic.SetAllDirty();
+            yield return null;
+            yield return null;
             yield return new WaitForEndOfFrame();
-            ScreenCapture.CaptureScreenshot(Path.Combine(OutputFolder, name + ".png"));
-            yield return new WaitForSecondsRealtime(0.4f);
+
+            RenderTexture previous = RenderTexture.active;
+            RenderTexture.active = target;
+            Texture2D image = new Texture2D(CaptureWidth, CaptureHeight, TextureFormat.RGB24, false);
+            image.ReadPixels(new Rect(0, 0, CaptureWidth, CaptureHeight), 0, 0);
+            image.Apply();
+            RenderTexture.active = previous;
+            File.WriteAllBytes(Path.Combine(OutputFolder, name + ".png"), image.EncodeToPNG());
+
+            camera.targetTexture = null;
+            foreach (Canvas canvas in switched)
+            {
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            }
+            foreach (Graphic graphic in FindObjectsByType<Graphic>(FindObjectsSortMode.None)) graphic.SetAllDirty();
+            target.Release();
+            Destroy(target);
+            Destroy(image);
+            yield return new WaitForSecondsRealtime(0.2f);
         }
 
         private static void Click(string buttonName)

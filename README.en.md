@@ -33,7 +33,7 @@ The room uses a close, barrier-free counseling composition inspired by a contemp
 |---|---|
 | ![Generated Korean counseling-room reference](Assets/Art/References/KoreanCounselingRoomReference.png) | ![Unity room based on the reference](Screenshots/progress-35-reference-room.png) |
 
-The UGUI panels, buttons, inputs, and dividers use selected high-resolution 9-slice sprites from the CC0-licensed Kenney UI Pack 2.0, tinted to the room's sage and ivory palette.
+The UGUI interface is built from procedural 9-slice sprites (`Assets/Art/UI`) and shared `UiTheme` tokens — hanji paper, ink glass, celadon actions and lamp amber — with static Noto Sans KR Regular/Bold cuts so small Hangul stays crisp.
 
 | Korean interface | English interface |
 |---|---|

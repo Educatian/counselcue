@@ -24,6 +24,7 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Text sessionStatus;
         [SerializeField] private Text feedbackLabel;
         [SerializeField] private Text allianceLabel;
+        [SerializeField] private RelationalMeterHud relationalMeters;
 
         private readonly string[] supportiveReplies =
         {
@@ -224,7 +225,7 @@ namespace AdieLab.AffectCounsel
                 string engineLabel = conversationEngine == "local" ? "로컬 사례" :
                     conversationEngine == "persona-llm" ? "AI 페르소나 + ElevenLabs" : "GPT Realtime";
                 feedbackLabel.text = sessionOrchestrator.ShowLiveCoaching
-                    ? $"{engineLabel} · <color=#F8C77A><b>{AlignmentLabel(relationalResult.Alignment)}</b></color> · <b>{assessment.Skill}</b> · {relationalResult.CoachingFeedback}{sessionOrchestrator.CurrentFocusPrompt}"
+                    ? $"{engineLabel} · <color=#EFBE74>{AlignmentLabel(relationalResult.Alignment)}</color> · <color=#9FD0BA>{assessment.Skill}</color> · {relationalResult.CoachingFeedback}{sessionOrchestrator.CurrentFocusPrompt}"
                     : "평가 모드 · 세션 종료 후 전달 피드백을 확인합니다.";
                 WriteRecord(utterance, reply, assessment, observation, relationalResult);
                 sessionOrchestrator.RecordTurn(new CounselingTurnSnapshot
@@ -288,7 +289,9 @@ namespace AdieLab.AffectCounsel
             string stageLabel = sessionOrchestrator == null ? "초기면담" : sessionOrchestrator.CurrentStageLabel;
             string caseTitle = caseDefinition == null ? "불안 사례" : caseDefinition.CaseTitle;
             sessionStatus.text = $"{caseTitle} · {stageLabel} · {turn + 1}번째 교환";
-            allianceLabel.text = $"안전 {Percent(relationalState.Safety)} · 경계 {Percent(relationalState.Guardedness)} · 공개 {Percent(relationalState.WillingnessToDisclose)}";
+            if (allianceLabel != null)
+                allianceLabel.text = $"안전 {Percent(relationalState.Safety)} · 경계 {Percent(relationalState.Guardedness)} · 공개 {Percent(relationalState.WillingnessToDisclose)}";
+            if (relationalMeters != null) relationalMeters.Show(relationalState.Safety, relationalState.Guardedness, relationalState.WillingnessToDisclose);
         }
 
         private void WriteRecord(
