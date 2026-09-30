@@ -105,6 +105,11 @@ namespace AdieLab.AffectCounsel.Editor
             WireLanguageToggle(languageToggle, orchestrator, ui);
             WireResearchDataControls(dataControls, ui);
             WireLiveVoice(liveVoice, modeSelector, session, orchestrator, webNpc, client, ui);
+            runtime.AddComponent<ClientNonverbalCueLabel>().Configure(client, ui.clientCue);
+            CounselorBodyController counselorBody = BuildCounselorBody(camera, cameraZoom, controller);
+            runtime.AddComponent<CinematicOpening>().Configure(camera, cameraZoom, client, counselorBody,
+                GameObject.Find("CounselingHUD")?.GetComponent<Canvas>(),
+                AssetDatabase.LoadAssetAtPath<Font>(FontPath), AssetDatabase.LoadAssetAtPath<Font>(BoldFontPath));
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -191,7 +196,7 @@ namespace AdieLab.AffectCounsel.Editor
         private static void BuildFurniture(Transform parent)
         {
             CreateChair("ClientChair", new Vector3(0f, 0f, 1.30f), 180f, chairLinen, parent, true);
-            CreateChair("CounselorChair", new Vector3(0.78f, 0f, -1.92f), 14f, curtainLinen, parent, false);
+            CreateChair("CounselorChair", new Vector3(0.05f, 0f, -0.9f), 0f, curtainLinen, parent, false);
             CreateLowConsole(new Vector3(-1.78f, 0f, 3.02f), parent);
             Transform shadows = new GameObject("ContactShadows").transform;
             shadows.SetParent(parent, false);
@@ -357,8 +362,9 @@ namespace AdieLab.AffectCounsel.Editor
             cameraObject.tag = "MainCamera";
             Camera camera = cameraObject.AddComponent<Camera>();
             cameraObject.AddComponent<AudioListener>();
-            camera.transform.position = new Vector3(0.05f, 1.52f, -1.22f);
-            camera.transform.LookAt(new Vector3(0f, 1.37f, 1.04f));
+            // Seated counselor eye height at a usual counseling distance (~2 m, chair to chair).
+            camera.transform.position = new Vector3(0.05f, 1.27f, -0.78f);
+            camera.transform.LookAt(new Vector3(0f, 1.16f, 1.1f));
             camera.fieldOfView = 38.25f;
             camera.nearClipPlane = 0.05f;
             camera.allowHDR = true;
@@ -405,6 +411,33 @@ namespace AdieLab.AffectCounsel.Editor
             probe.center = new Vector3(0f, 0.05f, -0.9f);
             probe.intensity = 0.9f;
             return camera;
+        }
+
+        // The learner's own seated body (arms, crossed legs, notepad), head hidden at the camera.
+        private const string CounselorActorCoreId = "casual-f-0016";
+        private const string CounselorFallbackPath = "Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Female_Adult_05/Export/Female_Adult_05.fbx";
+
+        private static CounselorBodyController BuildCounselorBody(Camera camera, CounselingCameraZoom zoom, RuntimeAnimatorController controller)
+        {
+            GameObject prefab = ActorCoreLibrary.Load(CounselorActorCoreId) ?? AssetDatabase.LoadAssetAtPath<GameObject>(CounselorFallbackPath);
+            if (prefab == null) return null;
+            GameObject chair = GameObject.Find("CounselorChair");
+            GameObject body = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            body.name = "CounselorBody";
+            Vector3 seat = chair != null ? chair.transform.position : new Vector3(0.05f, 0f, -0.9f);
+            body.transform.SetPositionAndRotation(seat + new Vector3(0f, 0.08f, 0.02f), Quaternion.identity);
+            Animator animator = body.GetComponentInChildren<Animator>();
+            if (animator != null)
+            {
+                animator.runtimeAnimatorController = controller;
+                animator.applyRootMotion = false;
+                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            }
+            foreach (Renderer renderer in body.GetComponentsInChildren<Renderer>(true))
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+            CounselorBodyController counselor = body.AddComponent<CounselorBodyController>();
+            counselor.Configure(camera, zoom, chair != null ? chair.transform : null);
+            return counselor;
         }
 
         private static ClientAvatarHost BuildClient(Transform lookTarget, RuntimeAnimatorController controller, CounselingCaseDefinition definition)
@@ -519,8 +552,12 @@ namespace AdieLab.AffectCounsel.Editor
             // The client's line reads like a film subtitle above the counselor's dock.
             RectTransform speech = UiKit.Card("ClientSpeechCard", hud, UiKit.BottomCenter, new Vector2(0f, 160f), new Vector2(940f, 104f), new Color(0.05f, 0.056f, 0.053f, 0.52f), 22f, 0f);
             refs.clientNameLabel = UiKit.Fit(UiKit.Label("ClientName", speech, "내담자  ·  김지혜, 32세", new Vector2(40f, -13f), new Vector2(860f, 20f), 13, UiTheme.Celadon, true, TextAnchor.UpperCenter), 10);
-            refs.clientLine = UiKit.Fit(UiKit.Label("ClientLine", speech, "요즘 회사에 가려고 하면 숨이 막히는 것 같아요.", new Vector2(40f, -38f), new Vector2(860f, 60f), 21, UiTheme.OnDark, false, TextAnchor.UpperCenter, 1.08f), 15);
+            refs.clientLine = UiKit.Fit(UiKit.Label("ClientLine", speech, "요즘 회사에 가려고 하면 숨이 막히는 것 같아요.", new Vector2(40f, -38f), new Vector2(860f, 60f), 20, UiTheme.OnDark, false, TextAnchor.UpperCenter, 1.1f), 14);
             UiKit.SoftShadow(refs.clientLine);
+            // Salient client nonverbal behavior, so trainees can see what there is to reflect.
+            refs.clientCue = UiKit.Label("ClientCue", speech, string.Empty, new Vector2(40f, -14f), new Vector2(860f, 18f), 12, UiTheme.OnDarkMuted, false, TextAnchor.UpperRight);
+            // Longer, multi-sentence statements grow the card upward instead of being cut off.
+            speech.gameObject.AddComponent<SubtitleAutoSize>().Configure(speech, refs.clientLine);
 
             RectTransform dock = UiKit.Card("CounselorInputCard", hud, UiKit.BottomCenter, new Vector2(0f, 18f), new Vector2(1064f, 128f), new Color(0.07f, 0.078f, 0.074f, 0.94f), 22f, 0.45f);
             refs.inputCard = dock;
@@ -553,7 +590,7 @@ namespace AdieLab.AffectCounsel.Editor
         {
             RectTransform overlay = UiKit.Overlay("BriefingOverlay", hud, new Color(0.02f, 0.024f, 0.022f, 0.9f));
             refs.briefingOverlay = overlay.gameObject;
-            RectTransform card = BuildSplitCard("BriefingCard", overlay, new Vector2(1240f, 760f), out RectTransform rail);
+            RectTransform card = BuildSplitCard("BriefingCard", overlay, new Vector2(1240f, 840f), out RectTransform rail);
 
             UiKit.SealMark(rail, new Vector2(36f, -38f), 46f);
             UiKit.Label("Wordmark", rail, "CounselCue", new Vector2(94f, -36f), new Vector2(240f, 32f), 21, UiTheme.Paper, true);
@@ -572,7 +609,7 @@ namespace AdieLab.AffectCounsel.Editor
                 refs.caseButtons[i] = button;
             }
             UiKit.Fit(UiKit.Label("PrivacyLine", rail, "웹캠 영상은 저장되지 않으며, 표정 분석은 이 기기 안에서만 이뤄집니다. 연구·훈련용 프로토타입입니다.",
-                new Vector2(36f, -656f), new Vector2(300f, 70f), 13, UiTheme.OnDarkMuted, false, TextAnchor.UpperLeft, 1.15f), 9);
+                new Vector2(36f, -736f), new Vector2(300f, 70f), 13, UiTheme.OnDarkMuted, false, TextAnchor.UpperLeft, 1.15f), 9);
 
             const float x = 420f;
             const float width = 772f;
@@ -584,35 +621,46 @@ namespace AdieLab.AffectCounsel.Editor
             refs.briefingPortrait.gameObject.SetActive(false);
             refs.briefingPortraitCaption.gameObject.SetActive(false);
             refs.briefingBodyLabel = UiKit.Fit(UiKit.Label("BriefingBody", card, "상황\n\n이번 세션의 목표",
-                new Vector2(x, -160f), new Vector2(width, 196f), 15, UiTheme.Ink, false, TextAnchor.UpperLeft, 1.18f), 11);
+                new Vector2(x, -160f), new Vector2(width, 226f), 15, UiTheme.Ink, false, TextAnchor.UpperLeft, 1.18f), 12);
+
+            // Counseling phase: which point in the course of counseling this session practises.
+            UiKit.Eyebrow("PhaseLabel", card, "회기 단계", new Vector2(x, -402f), 90f, UiTheme.CeladonDeep);
+            refs.phaseButtons = new Button[CounselingPhaseLibrary.All.Length];
+            for (int i = 0; i < refs.phaseButtons.Length; i++)
+            {
+                refs.phaseButtons[i] = UiKit.MakeButton($"Phase{i + 1}", card, new Vector2(x + 92f + i * 170f, -392f), new Vector2(164f, 34f),
+                    CounselingPhaseLibrary.LabelKo(CounselingPhaseLibrary.All[i]), UiKit.Variant.GhostLight, 13, 10f);
+            }
+            refs.phaseNote = UiKit.Fit(UiKit.Label("PhaseNote", card, CounselingPhaseLibrary.DescriptionKo(CounselingPhase.Intake),
+                new Vector2(x + 92f, -430f), new Vector2(width - 92f, 20f), 12, UiTheme.InkMuted, false, TextAnchor.MiddleLeft, 1.05f), 10);
 
             // Conversation mode: typed text (AI voice replies) or a real-time Gemini Live voice session.
-            UiKit.Eyebrow("ModeLabel", card, "대화 방식", new Vector2(x, -374f), 90f, UiTheme.CeladonDeep);
-            refs.modeTextButton = UiKit.MakeButton("ModeText", card, new Vector2(x + 92f, -364f), new Vector2(150f, 34f), "텍스트 대화", UiKit.Variant.GhostLight, 13, 10f);
-            refs.modeLiveButton = UiKit.MakeButton("ModeLive", card, new Vector2(x + 250f, -364f), new Vector2(236f, 34f), "실시간 음성 · Gemini Live", UiKit.Variant.GhostLight, 13, 10f);
+            UiKit.Eyebrow("ModeLabel", card, "대화 방식", new Vector2(x, -470f), 90f, UiTheme.CeladonDeep);
+            refs.modeTextButton = UiKit.MakeButton("ModeText", card, new Vector2(x + 92f, -460f), new Vector2(150f, 34f), "텍스트 대화", UiKit.Variant.GhostLight, 13, 10f);
+            refs.modeLiveButton = UiKit.MakeButton("ModeLive", card, new Vector2(x + 250f, -460f), new Vector2(236f, 34f), "실시간 음성 · Gemini Live", UiKit.Variant.GhostLight, 13, 10f);
             refs.modeNote = UiKit.Fit(UiKit.Label("ConversationModeNote", card, "텍스트로 응답하고, 내담자는 AI 음성으로 답합니다.",
-                new Vector2(x + 500f, -366f), new Vector2(width - 500f, 34f), 12, UiTheme.InkMuted, false, TextAnchor.MiddleLeft, 1.05f), 10);
+                new Vector2(x + 500f, -462f), new Vector2(width - 500f, 34f), 12, UiTheme.InkMuted, false, TextAnchor.MiddleLeft, 1.05f), 10);
 
-            UiKit.Hairline("BriefingDivider", card, new Vector2(x, -412f), width, new Color(0.118f, 0.129f, 0.122f, 0.12f));
-            UiKit.Eyebrow("FullSessionLabel", card, "전체 회기  ·  15분 · 10턴", new Vector2(x, -432f), width, UiTheme.CeladonDeep);
-            refs.practiceStartButton = UiKit.MakeButton("StartPractice", card, new Vector2(x, -454f), new Vector2(380f, 64f),
+            UiKit.Hairline("BriefingDivider", card, new Vector2(x, -504f), width, new Color(0.118f, 0.129f, 0.122f, 0.12f));
+            UiKit.Eyebrow("FullSessionLabel", card, "전체 회기  ·  15분 · 10턴", new Vector2(x, -520f), width, UiTheme.CeladonDeep);
+            refs.practiceStartButton = UiKit.MakeButton("StartPractice", card, new Vector2(x, -542f), new Vector2(380f, 64f),
                 "코칭 연습\n<size=12><color=#F6F1E7B3>턴마다 전달 피드백을 받습니다</color></size>", UiKit.Variant.Primary, 17, 14f);
-            refs.evaluationStartButton = UiKit.MakeButton("StartEvaluation", card, new Vector2(x + 392f, -454f), new Vector2(380f, 64f),
+            refs.evaluationStartButton = UiKit.MakeButton("StartEvaluation", card, new Vector2(x + 392f, -542f), new Vector2(380f, 64f),
                 "평가 모드\n<size=12><color=#6B6F69>피드백은 세션이 끝난 뒤 공개됩니다</color></size>", UiKit.Variant.OutlineLight, 17, 14f);
             NoFit(refs.practiceStartButton);
             NoFit(refs.evaluationStartButton);
-            UiKit.Eyebrow("FocusedLabel", card, "미세기술 집중연습  ·  3분 · 3턴", new Vector2(x, -542f), width, UiTheme.CeladonDeep);
+            UiKit.Eyebrow("FocusedLabel", card, "미세기술 집중연습  ·  3분 · 3턴", new Vector2(x, -628f), width, UiTheme.CeladonDeep);
             float focusWidth = (width - 24f) / 3f;
-            refs.focusOneButton = UiKit.MakeButton("StartFocusOne", card, new Vector2(x, -566f), new Vector2(focusWidth, 48f), "감정 반영 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
-            refs.focusTwoButton = UiKit.MakeButton("StartFocusTwo", card, new Vector2(x + focusWidth + 12f, -566f), new Vector2(focusWidth, 48f), "개방형 질문 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
-            refs.focusThreeButton = UiKit.MakeButton("StartFocusThree", card, new Vector2(x + (focusWidth + 12f) * 2f, -566f), new Vector2(focusWidth, 48f), "전달 정합 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
+            refs.focusOneButton = UiKit.MakeButton("StartFocusOne", card, new Vector2(x, -650f), new Vector2(focusWidth, 48f), "감정 반영 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
+            refs.focusTwoButton = UiKit.MakeButton("StartFocusTwo", card, new Vector2(x + focusWidth + 12f, -650f), new Vector2(focusWidth, 48f), "개방형 질문 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
+            refs.focusThreeButton = UiKit.MakeButton("StartFocusThree", card, new Vector2(x + (focusWidth + 12f) * 2f, -650f), new Vector2(focusWidth, 48f), "전달 정합 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
 
-            UiKit.Hairline("ConsentDivider", card, new Vector2(x, -642f), width, new Color(0.118f, 0.129f, 0.122f, 0.12f));
-            refs.consentToggle = UiKit.Checkbox("ConsentToggle", card, new Vector2(x, -654f), new Vector2(600f, 28f),
+            UiKit.Hairline("ConsentDivider", card, new Vector2(x, -726f), width, new Color(0.118f, 0.129f, 0.122f, 0.12f));
+            refs.consentToggle = UiKit.Checkbox("ConsentToggle", card, new Vector2(x, -738f), new Vector2(600f, 28f),
                 "연구용 로컬 기록에 동의합니다 — 응답 텍스트와 파생 신호만 이 기기에 저장 (영상 제외)", UiTheme.Ink);
-            refs.deleteDataButton = UiKit.MakeButton("DeleteLocalData", card, new Vector2(x + width - 150f, -652f), new Vector2(150f, 32f), "로컬 기록 삭제", UiKit.Variant.GhostLight, 12, 10f);
+            refs.deleteDataButton = UiKit.MakeButton("DeleteLocalData", card, new Vector2(x + width - 150f, -736f), new Vector2(150f, 32f), "로컬 기록 삭제", UiKit.Variant.GhostLight, 12, 10f);
             // Class use: an optional learner code and an export file for the instructor dashboard.
-            refs.learnerCodeInput = UiKit.TextArea("LearnerCode", card, new Vector2(x, -694f), new Vector2(190f, 34f), "학습자 코드 (선택)");
+            refs.learnerCodeInput = UiKit.TextArea("LearnerCode", card, new Vector2(x, -780f), new Vector2(190f, 34f), "학습자 코드 (선택)");
             refs.learnerCodeInput.lineType = InputField.LineType.SingleLine;
             refs.learnerCodeInput.characterLimit = 40;
             refs.learnerCodeInput.textComponent.fontSize = 13;
@@ -624,8 +672,8 @@ namespace AdieLab.AffectCounsel.Editor
             codeHint.rectTransform.anchoredPosition = new Vector2(12f, -7f);
             codeHint.rectTransform.sizeDelta = new Vector2(166f, 22f);
             refs.learnerCodeInput.GetComponent<Image>().color = UiTheme.PaperDeep;
-            refs.exportDataButton = UiKit.MakeButton("ExportLocalData", card, new Vector2(x + 200f, -694f), new Vector2(150f, 34f), "기록 내보내기", UiKit.Variant.Tonal, 12, 10f);
-            refs.dataStatusLabel = UiKit.Fit(UiKit.Label("DataStatus", card, "연구용 로컬 기록 꺼짐", new Vector2(x + 364f, -702f), new Vector2(width - 364f, 20f), 12, UiTheme.InkMuted), 10);
+            refs.exportDataButton = UiKit.MakeButton("ExportLocalData", card, new Vector2(x + 200f, -780f), new Vector2(150f, 34f), "기록 내보내기", UiKit.Variant.Tonal, 12, 10f);
+            refs.dataStatusLabel = UiKit.Fit(UiKit.Label("DataStatus", card, "연구용 로컬 기록 꺼짐", new Vector2(x + 364f, -788f), new Vector2(width - 364f, 20f), 12, UiTheme.InkMuted), 10);
         }
 
         private static void BuildPause(Transform hud, UiReferences refs)
@@ -849,6 +897,10 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.FindProperty("resumeButton").objectReferenceValue = ui.resumeButton;
             serialized.FindProperty("pauseEndButton").objectReferenceValue = ui.pauseEndButton;
             serialized.FindProperty("returnButton").objectReferenceValue = ui.returnButton;
+            SerializedProperty phases = serialized.FindProperty("phaseButtons");
+            phases.arraySize = ui.phaseButtons.Length;
+            for (int i = 0; i < ui.phaseButtons.Length; i++) phases.GetArrayElementAtIndex(i).objectReferenceValue = ui.phaseButtons[i];
+            serialized.FindProperty("phaseNote").objectReferenceValue = ui.phaseNote;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(orchestrator);
         }
@@ -1281,6 +1333,9 @@ namespace AdieLab.AffectCounsel.Editor
             public Button deleteDataButton;
             public Button exportDataButton;
             public InputField learnerCodeInput;
+            public Button[] phaseButtons;
+            public Text clientCue;
+            public Text phaseNote;
             public Text dataStatusLabel;
             public Text briefingPortraitCaption;
             public Text clientNameLabel;

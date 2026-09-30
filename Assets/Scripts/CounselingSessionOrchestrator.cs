@@ -41,6 +41,9 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Button resumeButton;
         [SerializeField] private Button pauseEndButton;
         [SerializeField] private Button returnButton;
+        [Header("Counseling phase (접수·초기 / 목표 설정 / 중반부 / 종결)")]
+        [SerializeField] private Button[] phaseButtons = new Button[0];
+        [SerializeField] private Text phaseNote;
 
         private readonly List<CounselingTurnSnapshot> turns = new List<CounselingTurnSnapshot>();
         // Exchanges that preceded the current session when it is a scene replay, so a
@@ -62,6 +65,31 @@ namespace AdieLab.AffectCounsel
         private bool canceledSubmissionOnPause;
         private bool useEnglish;
         private int selectedCaseIndex;
+        private CounselingPhase counselingPhase = CounselingPhase.Intake;
+        // The full session under review. Replaying one scene must not throw away the other
+        // turns (reviewer: replaying turn 2 erased turns 3–11), so the debrief returns here
+        // after a replay with the new attempt attached to that turn.
+        private readonly List<CounselingTurnSnapshot> reviewTurns = new List<CounselingTurnSnapshot>();
+        private string reviewSummary = string.Empty;
+        private string reviewSessionId = string.Empty;
+        private TrainingMode reviewMode = TrainingMode.Practice;
+        private CounselingTurnSnapshot reviewTarget;
+
+        public CounselingPhase CounselingPhase => counselingPhase;
+
+        /// <summary>Chooses which phase of counseling to practise; applies to every case.</summary>
+        public void SetCounselingPhase(CounselingPhase value)
+        {
+            if (phase != TrainingSessionPhase.Briefing) return;
+            counselingPhase = value;
+            if (caseDefinition != null)
+            {
+                caseDefinition.SetPhase(value);
+                sessionController.SetCaseDefinition(caseDefinition);
+                sessionController.PrepareBriefing();
+            }
+            ConfigureBriefing();
+        }
 
         public bool CanSubmit => phase == TrainingSessionPhase.Active;
         public bool ShowLiveCoaching => mode != TrainingMode.Evaluation;
@@ -115,6 +143,11 @@ namespace AdieLab.AffectCounsel
             resumeButton.onClick.AddListener(ResumeSession);
             pauseEndButton.onClick.AddListener(EndSession);
             returnButton.onClick.AddListener(ReturnToBriefing);
+            for (int i = 0; phaseButtons != null && i < phaseButtons.Length && i < CounselingPhaseLibrary.All.Length; i++)
+            {
+                CounselingPhase option = CounselingPhaseLibrary.All[i];
+                if (phaseButtons[i] != null) phaseButtons[i].onClick.AddListener(() => SetCounselingPhase(option));
+            }
         }
 
         private void Start()
@@ -159,7 +192,11 @@ namespace AdieLab.AffectCounsel
 
         public void BeginFocusedPractice(int focusIndex) => BeginSession(TrainingMode.FocusedPractice, focusIndex, null);
 
-        public void BeginSceneReplay(CounselingTurnSnapshot source) => BeginSession(TrainingMode.SceneReplay, -1, source);
+        public void BeginSceneReplay(CounselingTurnSnapshot source)
+        {
+            reviewTarget = source;
+            BeginSession(TrainingMode.SceneReplay, -1, source);
+        }
 
         public void PauseSession()
         {
@@ -197,6 +234,7 @@ namespace AdieLab.AffectCounsel
             CounselingCaseDefinition selected = caseCatalog.GetCase(index);
             if (selected == null) return;
             caseDefinition = selected;
+            selected.SetPhase(counselingPhase);
             sessionController.SetCaseDefinition(selected);
             clientAvatar?.ApplyCase(selected);
             selectedCaseIndex = index;
@@ -214,19 +252,22 @@ namespace AdieLab.AffectCounsel
             {
                 // Keep the exchanges that led up to the replayed scene so the AI client
                 // remembers them; the list is cleared for the new session below.
+                // A scene picked from the preserved review comes from that full session.
+                bool fromReview = reviewTurns.Contains(source);
+                List<CounselingTurnSnapshot> sourceTurns = fromReview ? reviewTurns : turns;
                 int firstSessionTurn = int.MaxValue;
-                for (int i = 0; i < turns.Count; i++)
+                for (int i = 0; i < sourceTurns.Count; i++)
                 {
-                    if (turns[i] != null) firstSessionTurn = Mathf.Min(firstSessionTurn, turns[i].turn);
+                    if (sourceTurns[i] != null) firstSessionTurn = Mathf.Min(firstSessionTurn, sourceTurns[i].turn);
                 }
-                for (int i = 0; i < sessionPrefix.Count; i++)
+                for (int i = 0; !fromReview && i < sessionPrefix.Count; i++)
                 {
                     CounselingTurnSnapshot earlier = sessionPrefix[i];
                     if (earlier != null && earlier.turn < source.turn && earlier.turn < firstSessionTurn) priorTurns.Add(earlier);
                 }
-                for (int i = 0; i < turns.Count; i++)
+                for (int i = 0; i < sourceTurns.Count; i++)
                 {
-                    if (turns[i] != null && turns[i].turn < source.turn) priorTurns.Add(turns[i]);
+                    if (sourceTurns[i] != null && sourceTurns[i].turn < source.turn) priorTurns.Add(sourceTurns[i]);
                 }
             }
             sessionPrefix.Clear();
@@ -236,7 +277,7 @@ namespace AdieLab.AffectCounsel
             replaySource = source;
             phase = TrainingSessionPhase.Active;
             stage = CounselingStage.Rapport;
-            latestState = source == null ? ClientRelationalState.Initial : source.stateBefore;
+            latestState = source == null ? (caseDefinition != null ? caseDefinition.StartingState : ClientRelationalState.Initial) : source.stateBefore;
             targetTurns = ResolveTargetTurns();
             sessionDurationSeconds = ResolveStartingDuration();
             remainingSeconds = sessionDurationSeconds;
@@ -259,7 +300,7 @@ namespace AdieLab.AffectCounsel
             {
                 string personaKey = string.IsNullOrWhiteSpace(caseDefinition.PersonaPromptKey) ? caseDefinition.CaseId : caseDefinition.PersonaPromptKey;
                 liveVoice.StartSession(sessionController.SessionId, personaKey,
-                    caseDefinition.InitialClientLine, ClientRelationalState.Initial);
+                    caseDefinition.InitialClientLine, caseDefinition.StartingState, caseDefinition.PhaseKey);
             }
             UpdateHud();
         }
@@ -290,8 +331,28 @@ namespace AdieLab.AffectCounsel
                 ? "시간이 종료되었습니다"
                 : mode == TrainingMode.SceneReplay ? "장면 재연습 결과" : "세션 성찰 및 재연습";
             string report = BuildDebriefReport();
-            reflectionController.Present(caseDefinition, mode, turns, report, sessionController.SessionId);
             WriteSummary(timedOut);
+            if (mode == TrainingMode.SceneReplay && reviewTarget != null && reviewTurns.Count > 0)
+            {
+                if (turns.Count > 0)
+                {
+                    CounselingTurnSnapshot attempt = turns[0];
+                    reviewTarget.retryUtterance = attempt.counselorUtterance;
+                    reviewTarget.retryReply = attempt.clientReply;
+                    reviewTarget.retrySkill = attempt.skill;
+                    reviewTarget.retryQuality = attempt.quality;
+                }
+                debriefTitle.text = "장면 재연습 결과";
+                reflectionController.Present(caseDefinition, reviewMode, reviewTurns, reviewSummary, reviewSessionId, reviewTurns.IndexOf(reviewTarget));
+                return;
+            }
+            reviewTurns.Clear();
+            reviewTurns.AddRange(turns);
+            reviewSummary = report;
+            reviewSessionId = sessionController.SessionId;
+            reviewMode = mode;
+            reviewTarget = null;
+            reflectionController.Present(caseDefinition, mode, turns, report, sessionController.SessionId);
         }
 
         private void ConfigureBriefing()
@@ -310,8 +371,8 @@ namespace AdieLab.AffectCounsel
             }
             if (clientNameLabel != null) clientNameLabel.text = useEnglish ? $"CLIENT  ·  {name}, {profile}" : $"내담자  ·  {name}, {profile}";
             StringBuilder body = new StringBuilder();
-            body.AppendLine(Heading(useEnglish ? "SITUATION" : "상황"));
-            body.AppendLine(caseDefinition.LocalizedConcern(useEnglish));
+            body.AppendLine(Heading((useEnglish ? "SITUATION  ·  " : "상황  ·  ") + caseDefinition.LocalizedSessionLabel(useEnglish)));
+            body.AppendLine(caseDefinition.LocalizedSituation(useEnglish));
             body.AppendLine();
             body.AppendLine(Heading(useEnglish ? "SESSION GOALS" : "이번 세션의 목표"));
             string[] objectives = caseDefinition.LocalizedObjectives(useEnglish) ?? Array.Empty<string>();
@@ -321,6 +382,7 @@ namespace AdieLab.AffectCounsel
             }
             briefingBodyLabel.text = body.ToString();
             ApplyBriefingPortrait();
+            RefreshPhaseButtons();
             Button[] focusButtons = { focusOneButton, focusTwoButton, focusThreeButton };
             for (int i = 0; i < focusButtons.Length; i++)
             {
@@ -328,6 +390,21 @@ namespace AdieLab.AffectCounsel
                 focusButtons[i].gameObject.SetActive(available);
                 if (available) focusButtons[i].GetComponentInChildren<Text>().text = FocusButtonLabel(caseDefinition.FocusSkills[i]);
             }
+        }
+
+        private void RefreshPhaseButtons()
+        {
+            if (phaseButtons == null) return;
+            for (int i = 0; i < phaseButtons.Length && i < CounselingPhaseLibrary.All.Length; i++)
+            {
+                if (phaseButtons[i] == null) continue;
+                CounselingPhase option = CounselingPhaseLibrary.All[i];
+                UiTheme.SetChoice(phaseButtons[i], option == counselingPhase, false);
+                Text label = phaseButtons[i].GetComponentInChildren<Text>();
+                if (label != null) label.text = useEnglish ? CounselingPhaseLibrary.LabelEn(option) : CounselingPhaseLibrary.LabelKo(option);
+            }
+            if (phaseNote != null)
+                phaseNote.text = useEnglish ? CounselingPhaseLibrary.DescriptionEn(counselingPhase) : CounselingPhaseLibrary.DescriptionKo(counselingPhase);
         }
 
         private static string Heading(string value) =>
@@ -396,7 +473,10 @@ namespace AdieLab.AffectCounsel
                 turnProgressFill.gameObject.SetActive(turns.Count > 0);
             }
             string focus = SelectedFocus == null ? string.Empty : $" · {SelectedFocus.label}";
-            stageLabel.text = $"{CounselingSessionFlow.ModeLabel(mode)}{focus} · {CurrentStageLabel} · {turns.Count}/{targetTurns}턴";
+            string sessionPhase = caseDefinition == null || caseDefinition.Phase == CounselingPhase.Intake
+                ? string.Empty
+                : $" · {CounselingPhaseLibrary.LabelKo(caseDefinition.Phase)}";
+            stageLabel.text = $"{CounselingSessionFlow.ModeLabel(mode)}{focus}{sessionPhase} · {CurrentStageLabel} · {turns.Count}/{targetTurns}턴";
         }
 
         private string BuildDebriefReport()
@@ -410,7 +490,22 @@ namespace AdieLab.AffectCounsel
                 $"{CounselingSessionFlow.ModeLabel(mode)}{focus} · {FormatElapsed()} · {turns.Count}턴{replay}\n" +
                 $"관계 궤적  안전 {Percent(latestState.Safety)} · 경계 {Percent(latestState.Guardedness)} · 공개 {Percent(latestState.WillingnessToDisclose)}\n" +
                 $"전달 정합 {alignedCount}회 · 불일치 가능성 {mismatchCount}회 · 언어기술 평균 {averageQuality:0.0}/3\n" +
+                PatternSummary() +
                 "장면을 선택하고 먼저 자신의 판단을 남긴 뒤, 시스템 근거와 비교해 보세요.";
+        }
+
+        private string PatternSummary()
+        {
+            List<string> codes = new List<string>();
+            List<int> qualities = new List<int>();
+            foreach (CounselingTurnSnapshot turn in turns)
+            {
+                if (turn == null) continue;
+                codes.Add(turn.skillCode);
+                qualities.Add(turn.quality);
+            }
+            string summary = ResponsePatternProfile.Build(codes, qualities).ToKoreanSummary();
+            return summary.Length == 0 ? string.Empty : $"<color=#9FD0BA>{summary}</color>\n";
         }
 
         private string FormatElapsed()
@@ -449,6 +544,7 @@ namespace AdieLab.AffectCounsel
                 caseId = caseDefinition == null ? "unknown" : caseDefinition.CaseId,
                 trainingMode = mode.ToString(),
                 focusSkill = SelectedFocus == null ? string.Empty : SelectedFocus.id,
+                sessionPhase = caseDefinition == null ? "intake" : caseDefinition.PhaseKey,
                 replaySourceTurn = replaySource == null ? 0 : replaySource.turn,
                 timedOut = timedOut,
                 elapsedSeconds = ElapsedSeconds,
@@ -473,6 +569,7 @@ namespace AdieLab.AffectCounsel
             public string sessionId;
             public string timestampUtc;
             public string caseId;
+            public string sessionPhase;
             public string trainingMode;
             public string focusSkill;
             public int replaySourceTurn;

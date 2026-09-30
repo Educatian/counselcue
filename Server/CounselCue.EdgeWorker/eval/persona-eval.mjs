@@ -14,6 +14,8 @@ const cases = JSON.parse(readFileSync(new URL("./cases.json", import.meta.url), 
 const EMOTIONS = ["guarded", "anxious", "relieved", "thoughtful"];
 const ROLE_LEAKS = [/as an ai/i, /AI(로서| 모델| 어시스턴트)/, /언어 모델/, /상담자로서/, /내담자로서 말씀드리면/];
 const STAGE_DIRECTIONS = [/^\s*[(\[*]/, /\*[^*]+\*/, /（/];
+// Opening-up replies may run 3-4 spoken sentences (~320 characters); allow a small margin.
+const MAX_REPLY_CHARS = 340;
 const repeats = Number(process.env.EVAL_REPEATS || 1);
 
 let failures = 0;
@@ -30,6 +32,7 @@ for (const c of cases) {
         body: JSON.stringify({
           sessionId: "eval-" + c.id + "-" + r + "-" + Date.now(),
           caseId: c.caseId,
+          phase: c.phase,
           turn: c.history.length + 1,
           stage: "관계 형성",
           openingLine: c.openingLine,
@@ -50,7 +53,7 @@ for (const c of cases) {
     if (body) {
       const reply = String(body.reply || "");
       if (!reply) problems.push("empty reply");
-      if ([...reply].length > 180) problems.push(`reply too long (${[...reply].length} chars)`);
+      if ([...reply].length > MAX_REPLY_CHARS) problems.push(`reply too long (${[...reply].length} chars)`);
       if (!EMOTIONS.includes(body.emotion)) problems.push("invalid emotion " + body.emotion);
       if (c.expect.emotionIn && !c.expect.emotionIn.includes(body.emotion)) problems.push(`emotion ${body.emotion} not in ${c.expect.emotionIn}`);
       for (const re of ROLE_LEAKS) if (re.test(reply)) problems.push("role leak " + re);

@@ -4,8 +4,8 @@ Server-side proxy for the hosted WebGL demo. API keys and persona prompts stay o
 
 | Route | Purpose |
 |---|---|
-| `POST /turn` | Case-specific Korean client persona through OpenRouter (`OPENROUTER_MODEL`). Receives the counselor utterance, the bounded relational state, the case's opening line, and up to 8 recent exchanges so the client stays consistent and discloses gradually. |
-| `POST /voice` | ElevenLabs v3 client speech with bounded emotion tags. The voice is chosen per case from `ELEVENLABS_VOICE_IDS`, falling back to `ELEVENLABS_VOICE_ID`. |
+| `POST /turn` | Case-specific Korean client persona through OpenRouter (`OPENROUTER_MODEL`). Receives the counselor utterance, the bounded relational state, the case's opening line, up to 8 recent exchanges, and an optional counseling `phase` (see below) so the client stays consistent and discloses gradually. |
+| `POST /voice` | ElevenLabs v3 client speech with bounded emotion tags. The voice is chosen per case (see *Client voices*). |
 | `POST /code` | LLM skill coder (see below). |
 | `POST /live-token` | Mints a short-lived **Gemini Live** token for a real-time voice session (see below). |
 | `GET /health` | Reports which services are configured, never the secrets themselves. |
@@ -14,7 +14,34 @@ Server-side proxy for the hosted WebGL demo. API keys and persona prompts stay o
 
 Secrets (`wrangler secret put …`): `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`, and `GEMINI_API_KEY` for live voice.
 
-Vars (`wrangler.jsonc`): `OPENROUTER_MODEL`, `ELEVENLABS_VOICE_ID`, and `ELEVENLABS_VOICE_IDS`, a `caseId → voiceId` map. The five pilot clients differ in age and gender (16-year-old student, 24-, 39- and 68-year-old men, 32-year-old woman), so assign a matching voice to each case before a pilot.
+Vars (`wrangler.jsonc`): `OPENROUTER_MODEL`, `ELEVENLABS_VOICE_ID`, and `ELEVENLABS_VOICE_IDS`, a `caseId → voiceId` map.
+
+### Client voices
+
+The five pilot clients differ in age and gender (16-year-old student, 24-, 39- and 68-year-old men, 32-year-old woman). `voiceFor` picks the ElevenLabs voice in this order:
+
+1. `ELEVENLABS_VOICE_IDS[caseId]` (env override, when it is a valid id);
+2. the built-in case default (`DEFAULT_VOICES`, ElevenLabs premade voices);
+3. `ELEVENLABS_VOICE_ID`;
+4. Rachel (`21m00Tcm4TlvDq8ikWAM`).
+
+| Case | Client | Built-in voice |
+|---|---|---|
+| `workplace-anxiety-01` | 김지혜, 32, woman | Bella `EXAVITQu4vr4xnSDxMaL` |
+| `adolescent-pressure-01` | 박서윤, 16, girl | Elli `MF3mGyEYCl7XYWbV9V6O` |
+| `career-transition-01` | 최민준, 39, man | George `JBFqnCBsd6RMkjVDRZzb` |
+| `older-bereavement-01` | 이정호, 68, man | Bill `pqHfZKP75CvOlQylNhV4` |
+| `international-belonging-01` | 왕하오, 24, man | Charlie `IKne3meq5aSn9XLyUdCD` |
+
+Because every request resolves to one of these cases, steps 3–4 apply only if a case is added without a built-in voice.
+
+## Counseling phase
+
+`/turn`, `/live-token` and `/code` accept an optional `phase`: `intake` (default), `goal_setting`, `middle` or `termination`. Anything else is treated as `intake`. For a non-intake phase the worker appends `phaseBlock(caseId, phase)` from `src/phases.js` (phase guide plus case-specific session context) after the CASE block of the persona prompt and of the live instruction; intake prompts are unchanged. `/turn` also sends `session_phase` in its input JSON, and `/code` sends `session_phase` to the coder so quality is judged for that phase (e.g. concretizing goals in goal setting, immediacy and containing feeling in the middle phase, reviewing progress and feelings about ending in termination).
+
+## Client statements
+
+Guarded replies stay 1–2 sentences, ordinary replies 2–3. When the client is opening up (the last counselor response landed or `willingness_to_disclose ≥ 0.45`), and at least every other turn, the reply is 3–4 spoken sentences (about 320 Korean characters) weaving together a feeling, thought, behavior or relationship situation, so the learner must choose what to respond to. The client reveals one new fact per turn but may say how it felt, what they thought and what they did, and must not circle back to a theme already used. The worker keeps replies up to 400 characters (`max_tokens` 480); conversation history keeps client lines up to the same length.
 
 ## Safeguards
 
@@ -33,17 +60,24 @@ npm test
 ## Skill coder (`POST /code`)
 
 Codes one counselor utterance with codebook **ko-codebook-1** and returns
-`{code, skill, quality, rationale, evidence, confidence, codebook, model}`. Input:
-`{sessionId, caseId, stage, clientLine, counselorUtterance}`. It runs at temperature 0 with a
+`{code, skill, quality, rationale, evidence, confidence, focus_options, alternative, codebook, model}`. Input:
+`{sessionId, caseId, phase, stage, clientLine, counselorUtterance}`. It runs at temperature 0 with a
 Korean coding manual (`CODER_SYSTEM`), clamps quality to each code's range, and keeps
-`evidence` only when it is a literal substring of the utterance. Model:
+`evidence` only when it is a literal substring of the utterance. Greetings, introductions and
+courtesy formulas (안녕하세요, 반갑습니다, 감사합니다, 저는 상담사 ○○입니다) are coded `neutral`, never advice.
+
+- `focus_options`: up to 3 short Korean labels (≤ 40 characters each) for cues in the client's
+  last line the counselor could respond to, prefixed by type, e.g. `"감정: 억울함"`,
+  `"사고: 준비 부족으로 탓받음"`, `"관계: 팀장과의 긴장"`. Non-strings are dropped.
+- `alternative`: one short exemplary counselor response for the phase (≤ 120 characters after
+  sanitizing; the coder is asked for ≤ 90), or `""` when the response was already quality 3. Model:
 `OPENROUTER_CODER_MODEL`, else `OPENROUTER_MODEL`. Rate limit: optional `CODE_LIMITER`
 binding (falls back to `TURN_LIMITER` with a `:code` key suffix) plus `TURN_IP_LIMITER`.
 The Unity client uses the result when confidence ≥ 0.5 and falls back to the lexicon otherwise.
 
 ## Live voice (`POST /live-token`, Gemini 3.8 Live)
 
-Input: `{sessionId, caseId, openingLine, safety, guardedness, disclosure}`. The worker calls
+Input: `{sessionId, caseId, phase, openingLine, safety, guardedness, disclosure}`. The worker calls
 `POST https://generativelanguage.googleapis.com/v1beta/auth_tokens` with `GEMINI_API_KEY` and
 returns `{token, model, voice, wsUrl, expiresAt}`. The token is **constrained**: model,
 response modality (audio), the client persona and live rules (`liveInstruction`), the voice and

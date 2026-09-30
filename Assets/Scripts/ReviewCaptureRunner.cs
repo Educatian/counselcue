@@ -23,15 +23,40 @@ namespace AdieLab.AffectCounsel
         {
             if (!File.Exists(FlagPath)) return;
             File.Delete(FlagPath);
+            CinematicOpening.SuppressAutoPlay = true;
             GameObject runner = new GameObject("ReviewCaptureRunner");
             runner.AddComponent<ReviewCaptureRunner>();
         }
 
         private IEnumerator Start()
         {
+            // Keep errors from the capture run next to the screenshots for remote review.
+            string logPath = Path.Combine(OutputFolder, "capture-log.txt");
+            Directory.CreateDirectory(OutputFolder);
+            File.WriteAllText(logPath, string.Empty);
+            Application.logMessageReceived += (message, stack, type) =>
+            {
+                if (type == LogType.Log) return;
+                File.AppendAllText(logPath, $"[{type}] {message}\n{stack}\n");
+            };
             Directory.CreateDirectory(OutputFolder);
             yield return new WaitForSecondsRealtime(2.5f);
             CounselingSessionOrchestrator orchestrator = FindAnyObjectByType<CounselingSessionOrchestrator>();
+            // Cinematic opening: three frames across its shots.
+            CinematicOpening opening = FindAnyObjectByType<CinematicOpening>();
+            if (opening != null)
+            {
+                opening.StartCoroutine(opening.Play());
+                float[] marks = { 2.2f, 3.6f, 3.9f };
+                for (int i = 0; i < marks.Length; i++)
+                {
+                    yield return new WaitForSecondsRealtime(marks[i]);
+                    yield return Capture($"00-cinematic-{i + 1}");
+                }
+                float waitUntil = Time.realtimeSinceStartup + 20f;
+                while (opening.IsPlaying && Time.realtimeSinceStartup < waitUntil) yield return null;
+                yield return new WaitForSecondsRealtime(0.8f);
+            }
             // A clean room plate (no HUD) for the web loading screen and social card.
             Canvas[] hudCanvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
             foreach (Canvas canvas in hudCanvases) canvas.enabled = false;
@@ -118,12 +143,35 @@ namespace AdieLab.AffectCounsel
             yield return new WaitForSecondsRealtime(0.6f);
             yield return Capture("02-briefing-case2-en");
             Click("LanguageToggle");
+            // Counseling phases: the middle-phase variant of case 2, then back to intake.
+            Click("Phase3");
+            yield return new WaitForSecondsRealtime(0.8f);
+            yield return Capture("01b-briefing-case2-middle-phase");
+            Click("Phase4");
+            orchestrator?.SelectCase(3);
+            yield return new WaitForSecondsRealtime(1.2f);
+            yield return Capture("01c-briefing-case4-termination");
+            Click("Phase1");
             orchestrator?.SelectCase(0);
             yield return new WaitForSecondsRealtime(0.5f);
 
             Click("StartPractice");
             yield return new WaitForSecondsRealtime(1.5f);
             yield return Capture("03-session-start-ko");
+            // First-person note glance: typing makes the counselor look down at the notepad.
+            CounselingSessionController typingSession = FindAnyObjectByType<CounselingSessionController>();
+            if (typingSession != null)
+            {
+                for (int k = 0; k < 8; k++)
+                {
+                    typingSession.SetCounselorInput("회사 앞에서 한참 서 계셨다는 게".Substring(0, 3 + k * 2));
+                    yield return new WaitForSecondsRealtime(0.18f);
+                }
+                yield return Capture("03b-counselor-notes-glance");
+                typingSession.SetCounselorInput(string.Empty);
+                CounselorBodyController.NotifySubmitted();
+                yield return new WaitForSecondsRealtime(1.2f);
+            }
             Click("PauseSession");
             yield return new WaitForSecondsRealtime(0.5f);
             yield return Capture("10-pause-ko");

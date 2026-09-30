@@ -58,7 +58,36 @@ namespace AdieLab.AffectCounsel
         public string ClientName => clientName;
         public string ClientProfile => clientProfile;
         public string PresentingConcern => presentingConcern;
-        public string InitialClientLine => initialClientLine;
+        public string InitialClientLine => phaseVariant != null ? phaseVariant.OpeningLine : initialClientLine;
+
+        // Runtime-only counseling phase (접수·초기 / 목표 설정 / 중반부 / 종결). Intake uses the
+        // authored case; later phases come from CounselingPhaseLibrary and are never saved.
+        [NonSerialized] private CounselingPhase phase = CounselingPhase.Intake;
+        [NonSerialized] private CounselingPhaseVariant phaseVariant;
+
+        public CounselingPhase Phase => phase;
+        public CounselingPhaseVariant PhaseVariant => phaseVariant;
+        public string PhaseKey => CounselingPhaseLibrary.Key(phase);
+
+        public void SetPhase(CounselingPhase value)
+        {
+            phase = value;
+            phaseVariant = CounselingPhaseLibrary.TryGet(caseId, value, out CounselingPhaseVariant variant) ? variant : null;
+            if (phaseVariant == null) phase = CounselingPhase.Intake;
+        }
+
+        /// <summary>Starting relationship state: the phase's when set, otherwise the intake default.</summary>
+        public ClientRelationalState StartingState => phaseVariant != null
+            ? new ClientRelationalState(phaseVariant.Safety, phaseVariant.Guardedness, phaseVariant.Disclosure)
+            : ClientRelationalState.Initial;
+
+        public string LocalizedSessionLabel(bool useEnglish) => phaseVariant == null
+            ? (useEnglish ? "Session 1 · Intake" : "1회기 · 접수면접")
+            : $"{(useEnglish ? phaseVariant.SessionLabelEn : phaseVariant.SessionLabelKo)} · {(useEnglish ? CounselingPhaseLibrary.LabelEn(phase) : CounselingPhaseLibrary.LabelKo(phase))}";
+
+        public string LocalizedSituation(bool useEnglish) => phaseVariant == null
+            ? LocalizedConcern(useEnglish)
+            : $"{LocalizedConcern(useEnglish)} {(useEnglish ? phaseVariant.SituationEn : phaseVariant.SituationKo)}";
         public float FullSessionSeconds => fullSessionSeconds;
         public float FocusedPracticeSeconds => focusedPracticeSeconds;
         public int FocusedTargetTurns => focusedTargetTurns;
@@ -77,15 +106,22 @@ namespace AdieLab.AffectCounsel
         public string LocalizedProfile(bool useEnglish) => Pick(useEnglish, english?.clientProfile, clientProfile);
         public string LocalizedConcern(bool useEnglish) => Pick(useEnglish, english?.presentingConcern, presentingConcern);
         public string[] LocalizedObjectives(bool useEnglish) =>
-            useEnglish && english?.learningObjectives != null && english.learningObjectives.Length > 0
-                ? english.learningObjectives
-                : learningObjectives;
+            phaseVariant != null
+                ? (useEnglish ? phaseVariant.ObjectivesEn : phaseVariant.ObjectivesKo)
+                : useEnglish && english?.learningObjectives != null && english.learningObjectives.Length > 0
+                    ? english.learningObjectives
+                    : learningObjectives;
 
         private static string Pick(bool useEnglish, string translated, string source) =>
             useEnglish && !string.IsNullOrWhiteSpace(translated) ? translated : source;
 
         public string GetReply(int turnIndex, bool supportive)
         {
+            if (phaseVariant != null && phaseVariant.SupportiveReplies != null && phaseVariant.SupportiveReplies.Length > 0)
+            {
+                string[] ladder = supportive ? phaseVariant.SupportiveReplies : phaseVariant.GuardedReplies;
+                return ladder[Mathf.Clamp(turnIndex, 0, ladder.Length - 1)];
+            }
             if (disclosureLadder == null || disclosureLadder.Length == 0) return initialClientLine;
             CounselingDisclosureStep step = disclosureLadder[Mathf.Clamp(turnIndex, 0, disclosureLadder.Length - 1)];
             return supportive ? step.supportiveReply : step.guardedReply;

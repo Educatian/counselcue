@@ -11,6 +11,7 @@ mcs -langversion:latest -nowarn:0414 -out:"$out/checks.exe" \
   Assets/Scripts/RelationalDeliveryModel.cs \
   Assets/Scripts/RelationalModelWeights.cs \
   Assets/Scripts/CounselingCodebook.cs \
+  Assets/Scripts/ResponsePatternProfile.cs \
   Assets/Scripts/ResearchExportBundle.cs \
   Assets/Scripts/UiPhrasebook.cs \
   Assets/Editor/RelationalDeliveryModelChecks.cs \

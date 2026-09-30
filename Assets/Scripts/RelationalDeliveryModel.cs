@@ -119,7 +119,7 @@ namespace AdieLab.AffectCounsel
             {
                 alignment = DeliveryAlignment.EvidenceUnavailable;
                 modifier = 0f;
-                coaching = "비언어 근거가 없어 언어 기술만 반영했습니다.";
+                coaching = "웹캠 표정 분석을 쓰지 않아 상담자의 표정·시선 전달은 평가하지 않았고, 말의 기술만 반영했습니다.";
             }
             else if (IsDeliverySensitive(response.Move) && delivery.BrowTension >= profile.BrowTensionThreshold)
             {

@@ -99,6 +99,8 @@ namespace AdieLab.AffectCounsel
         // Question and reported-speech forms that contain advice stems but are not advice.
         private static readonly string[] DefaultNonDirectiveForms =
         {
+            // Greetings and courtesy formulas ("안녕하세요" contains "하세요").
+            "안녕하세요", "안녕하십니까", "어서 오세요", "어서오세요", "앉으세요", "수고하세요",
             "생각하세요", "생각하시", "느끼세요", "하세요?", "하세요 ?", "하시나요", "하셨어요", "하셨나요",
             "해야 한다고", "해야 한다는", "해야 된다고", "해야 된다는", "해야 하나", "해야 할지"
         };

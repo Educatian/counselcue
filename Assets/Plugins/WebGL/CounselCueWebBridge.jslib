@@ -127,10 +127,18 @@ mergeInto(LibraryManager.library, {
       var recognition = new Recognition();
       recognition.lang = "ko-KR";
       recognition.interimResults = true;
+      // Continuous dictation: counselors pause mid-response, so recognition keeps listening
+      // until the mic is pressed again (or 90 s pass), instead of stopping at the first pause.
+      recognition.continuous = true;
       var dictationBase = "";
+      var listening = false;
+      var dictationTimer = 0;
       recognition.onstart = function () {
+        listening = true;
         mic.classList.add("on");
         dictationBase = S.x.value.replace(/\s+$/, "");
+        clearTimeout(dictationTimer);
+        dictationTimer = setTimeout(function () { try { recognition.stop(); } catch (e) {} }, 90000);
       };
       recognition.onresult = function (event) {
         // Rebuild from every result so typed text before dictation is kept and
@@ -140,9 +148,12 @@ mergeInto(LibraryManager.library, {
         S.x.value = dictationBase ? dictationBase + " " + text.trim() : text.trim();
         changed();
       };
-      recognition.onend = function () { mic.classList.remove("on"); S.x.focus(); };
-      recognition.onerror = function () { mic.classList.remove("on"); };
-      mic.onclick = function () { try { recognition.start(); } catch (error) { recognition.stop(); } };
+      recognition.onend = function () { listening = false; clearTimeout(dictationTimer); mic.classList.remove("on"); S.x.focus(); };
+      recognition.onerror = function () { listening = false; clearTimeout(dictationTimer); mic.classList.remove("on"); };
+      mic.onclick = function () {
+        if (listening) { try { recognition.stop(); } catch (e) {} return; }
+        try { recognition.start(); } catch (error) { try { recognition.stop(); } catch (e) {} }
+      };
     } else {
       mic.disabled = true;
       S.micUnsupported = true;
@@ -326,7 +337,7 @@ mergeInto(LibraryManager.library, {
       setState("connecting");
       var mediaPromise = navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       var tokenPromise = fetch(S.a + "/live-token", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: cfg.sessionId, caseId: cfg.caseId, openingLine: cfg.openingLine, safety: cfg.safety, guardedness: cfg.guardedness, disclosure: cfg.disclosure }) })
+        body: JSON.stringify({ sessionId: cfg.sessionId, caseId: cfg.caseId, phase: cfg.phase, openingLine: cfg.openingLine, safety: cfg.safety, guardedness: cfg.guardedness, disclosure: cfg.disclosure }) })
         .then(function (r) { if (!r.ok) throw Error("token " + r.status); return r.json(); });
       Promise.all([mediaPromise, tokenPromise]).then(function (res) {
         if (!L.active) { res[0].getTracks().forEach(function (t) { t.stop(); }); return; }

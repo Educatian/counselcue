@@ -65,5 +65,7 @@ namespace AdieLab.AffectCounsel
         public float disclosureBefore;
         /// <summary>Gemini Live only: the counselor spoke over the client's reply (barge-in).</summary>
         public bool liveInterrupted;
+        /// <summary>Counseling phase practised: intake, goal_setting, middle, termination.</summary>
+        public string sessionPhase = "intake";
     }
 }

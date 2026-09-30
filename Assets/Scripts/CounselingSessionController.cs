@@ -80,12 +80,15 @@ namespace AdieLab.AffectCounsel
 
         public void SetCounselorInput(string value)
         {
+            CounselorBodyController.NotifyTyping();
             if (counselorInput != null) counselorInput.text = value ?? string.Empty;
         }
 
         private void Awake()
         {
             sendButton.onClick.AddListener(Submit);
+            // Editor/desktop typing (the WebGL dock reports through SetCounselorInput).
+            counselorInput.onValueChanged.AddListener(value => { if (!string.IsNullOrEmpty(value)) CounselorBodyController.NotifyTyping(); });
             counselorInput.onEndEdit.AddListener(value =>
             {
                 if (Input.GetKeyDown(KeyCode.Return) && !string.IsNullOrWhiteSpace(value)) Submit();
@@ -106,7 +109,9 @@ namespace AdieLab.AffectCounsel
         {
             InvalidateSession();
             sessionId = Guid.NewGuid().ToString("N");
-            relationalState = ClientRelationalState.Initial;
+            relationalState = caseDefinition != null ? caseDefinition.StartingState : ClientRelationalState.Initial;
+            if (webNpcEngine != null) webNpcEngine.PhaseKey = caseDefinition != null ? caseDefinition.PhaseKey : "intake";
+            client.SetRelationalState(relationalState);
             turn = 0;
             isSubmitting = false;
             conversationEngine = "local";
@@ -126,6 +131,7 @@ namespace AdieLab.AffectCounsel
             InvalidateSession();
             sessionId = Guid.NewGuid().ToString("N");
             relationalState = source.stateBefore;
+            if (webNpcEngine != null) webNpcEngine.PhaseKey = caseDefinition != null ? caseDefinition.PhaseKey : "intake";
             turn = Mathf.Max(0, source.turn - 1);
             isSubmitting = false;
             conversationEngine = "local";
@@ -161,6 +167,7 @@ namespace AdieLab.AffectCounsel
 
         public void Submit()
         {
+            CounselorBodyController.NotifySubmitted();
             if (sessionOrchestrator == null || !sessionOrchestrator.CanSubmit) return;
             string utterance = counselorInput.text.Trim();
             if (utterance.Length == 0) return;
@@ -348,7 +355,9 @@ namespace AdieLab.AffectCounsel
                     alignment = AlignmentLabel(relationalResult.Alignment),
                     coachingFeedback = relationalResult.CoachingFeedback,
                     stateBefore = previousState,
-                    stateAfter = relationalResult.State
+                    stateAfter = relationalResult.State,
+                    focusOptions = coding.Succeeded ? coding.FocusOptions : Array.Empty<string>(),
+                    alternativeResponse = coding.Succeeded && codingSource == "llm" ? coding.Alternative : string.Empty
                 }, assessment, relationalResult);
                 if (!isLive)
                 {
@@ -482,6 +491,7 @@ namespace AdieLab.AffectCounsel
                 au45 = actionUnits.Au45,
                 deliveryModifier = relationalResult.DeliveryModifier,
                 conversationEngine = conversationEngine,
+                sessionPhase = caseDefinition != null ? caseDefinition.PhaseKey : "intake",
                 skillCode = CounselingCodebook.CodeOf(assessment),
                 codebookVersion = CounselingCodebook.Version,
                 codingSource = codingSource,
@@ -513,7 +523,7 @@ namespace AdieLab.AffectCounsel
                 case DeliveryAlignment.RelationalOrderMismatch:
                     return "관계 순서 불일치";
                 default:
-                    return "비언어 근거 없음";
+                    return "표정 분석 없음";
             }
         }
     }

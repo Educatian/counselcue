@@ -54,7 +54,7 @@ namespace AdieLab.AffectCounsel
             PlayerPrefs.Save();
         }
 
-        public void StartSession(string sessionId, string caseId, string openingLine, ClientRelationalState state)
+        public void StartSession(string sessionId, string caseId, string openingLine, ClientRelationalState state, string phase = "intake")
         {
             if (!Requested || !IsSupported) return;
             LastError = string.Empty;
@@ -63,6 +63,7 @@ namespace AdieLab.AffectCounsel
                 sessionId = sessionId,
                 caseId = caseId,
                 openingLine = openingLine,
+                phase = phase,
                 safety = state.Safety,
                 guardedness = state.Guardedness,
                 disclosure = state.WillingnessToDisclose,
@@ -177,7 +178,7 @@ namespace AdieLab.AffectCounsel
 
         [Serializable] private sealed class StartConfig
         {
-            public string sessionId; public string caseId; public string openingLine;
+            public string sessionId; public string caseId; public string openingLine; public string phase;
             public float safety; public float guardedness; public float disclosure; public bool hints;
         }
         [Serializable] private sealed class LivePartial { public string role; public string text; }

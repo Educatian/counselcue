@@ -16,7 +16,7 @@ namespace AdieLab.AffectCounsel
             // Coaching feedback (RelationalDeliveryModel)
             { "관계가 아직 경계된 상태입니다. 해결책보다 감정 반영과 탐색을 먼저 시도해 보세요.", "The relationship is still guarded. Try reflecting feelings and exploring before offering solutions." },
             { "안심시키기 전에 내담자가 이해받았다고 느끼도록 감정을 먼저 반영해 보세요.", "Before reassuring, reflect the feeling so the client feels understood." },
-            { "비언어 근거가 없어 언어 기술만 반영했습니다.", "No nonverbal evidence was available, so only the verbal skill was used." },
+            { "웹캠 표정 분석을 쓰지 않아 상담자의 표정·시선 전달은 평가하지 않았고, 말의 기술만 반영했습니다.", "Webcam expression analysis was off, so the counselor's facial and gaze delivery was not assessed; only the verbal skill was used." },
             { "공감 문장은 적절했지만 이마 긴장 단서가 함께 관찰됐습니다. 표정에 힘을 빼고 한 박자 쉬어 보세요.", "The empathic wording fit, but brow tension was observed at the same time. Relax your face and pause for a beat." },
             { "고통을 다루는 순간 미소 단서가 함께 관찰됐습니다. 맥락에 맞는 따뜻한 중립 표정을 점검해 보세요.", "A smile cue appeared while addressing distress. Check for a warm, neutral expression that fits the moment." },
             { "언어 기술과 현재 관찰된 얼굴 전달 단서가 조화를 이룹니다.", "Your verbal skill and the observed facial delivery cues fit together." },
@@ -35,7 +35,7 @@ namespace AdieLab.AffectCounsel
             { "중립 반응", "Neutral response" },
             { "전달 불일치 가능성", "Possible delivery mismatch" },
             { "관계 순서 불일치", "Relational order mismatch" },
-            { "비언어 근거 없음", "No nonverbal evidence" },
+            { "표정 분석 없음", "No expression analysis" },
             { "전달 정합", "Delivery aligned" },
             { "로컬 사례", "Local case" },
             { "AI 페르소나 + ElevenLabs", "AI persona + ElevenLabs" },
@@ -122,6 +122,11 @@ namespace AdieLab.AffectCounsel
             {
                 string line = lines[i];
                 if (line.StartsWith("상담자  ")) line = "Counselor  " + line.Substring("상담자  ".Length);
+                else if (line.StartsWith("내담자(앞)  ")) line = "Client (before)  " + line.Substring("내담자(앞)  ".Length);
+                else if (line.StartsWith("내담자(반응)  ")) line = "Client (reply)  " + line.Substring("내담자(반응)  ".Length);
+                else if (line.StartsWith("주목할 단서  ")) line = "Cues to follow  " + line.Substring("주목할 단서  ".Length);
+                else if (line.StartsWith("다른 반응 예  ")) line = "Another response  " + line.Substring("다른 반응 예  ".Length);
+                else if (line.StartsWith("다시 연습 힌트  ")) line = "Retry hint  " + line.Substring("다시 연습 힌트  ".Length);
                 else if (line.StartsWith("내담자  ")) line = "Client  " + line.Substring("내담자  ".Length);
                 else if (line.StartsWith("코딩 근거  "))
                 {

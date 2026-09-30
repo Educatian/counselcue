@@ -66,16 +66,18 @@ namespace AdieLab.AffectCounsel
             if (stateRemaining <= 0f) Enter(ChooseNextState());
 
             Vector3 desired = ResolveTargetPosition();
-            smoothedTarget = Vector3.SmoothDamp(smoothedTarget, desired, ref targetVelocity, 0.22f);
+            smoothedTarget = Vector3.SmoothDamp(smoothedTarget, desired, ref targetVelocity, 0.32f);
             currentWeight = Mathf.MoveTowards(currentWeight, ResolveLookWeight(), Time.deltaTime * 1.8f);
         }
 
         private void OnAnimatorIK(int layerIndex)
         {
             if (animator == null || counselorEyeAnchor == null) return;
-            animator.SetLookAtWeight(currentWeight, 0.04f, 0.62f, 0.86f, 0.58f);
+            animator.SetLookAtWeight(currentWeight, 0.03f, 0.42f, 0.9f, 0.55f);
             animator.SetLookAtPosition(smoothedTarget);
         }
+
+        private float avertSide = 1f;
 
         private ClientGazeState ChooseNextState()
         {
@@ -87,7 +89,7 @@ namespace AdieLab.AffectCounsel
             }
 
             if (state == ClientGazeState.Reengage) return ClientGazeState.CounselorContact;
-            if (affect == ClientAffect.Thoughtful || (speaking && Random.value < 0.34f))
+            if (affect == ClientAffect.Thoughtful || (speaking && Random.value < 0.18f))
             {
                 return Random.value < 0.68f ? ClientGazeState.DownwardReflection : ClientGazeState.RecallSearch;
             }
@@ -99,9 +101,11 @@ namespace AdieLab.AffectCounsel
         private void Enter(ClientGazeState next)
         {
             state = next;
+            // Keep one side per aversion instead of swinging left and right.
+            if (next == ClientGazeState.BriefAvert) avertSide = Random.value < 0.5f ? -1f : 1f;
             stateRemaining = next switch
             {
-                ClientGazeState.CounselorContact => Random.Range(1.4f, 3.2f),
+                ClientGazeState.CounselorContact => speaking ? Random.Range(3.2f, 6f) : Random.Range(2.4f, 4.8f),
                 ClientGazeState.BriefAvert => Random.Range(0.55f, 1.25f),
                 ClientGazeState.DownwardReflection => Random.Range(0.8f, 1.7f),
                 ClientGazeState.RecallSearch => Random.Range(0.65f, 1.35f),
@@ -116,7 +120,7 @@ namespace AdieLab.AffectCounsel
             Vector3 up = counselorEyeAnchor.up;
             return state switch
             {
-                ClientGazeState.BriefAvert => basePosition + right * (Mathf.Sin(Time.time * 0.73f) >= 0f ? 0.42f : -0.42f) - up * 0.10f,
+                ClientGazeState.BriefAvert => basePosition + right * (0.3f * avertSide) - up * 0.12f,
                 ClientGazeState.DownwardReflection => basePosition - up * 0.46f + right * 0.10f,
                 ClientGazeState.RecallSearch => basePosition + up * 0.28f - right * 0.28f,
                 ClientGazeState.Reengage => basePosition - up * 0.06f,

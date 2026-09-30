@@ -154,6 +154,7 @@ tbody tr.learner[aria-selected="true"] { background: var(--accent-soft); }
 .status { font-size: 13px; color: var(--ink-2); min-height: 1.4em; }
 @media (prefers-reduced-motion: no-preference) { .tile, .card { transition: opacity .2s ease; } }
 .busy .tile, .busy .card { opacity: .55; }
+  .pattern { margin: 4px 0 14px; padding: 10px 14px; border-radius: 12px; background: var(--paper-deep, #efe8da); font-size: 14px; line-height: 1.5; }
 </style>
 
 <div class="wrap" id="app">
@@ -604,6 +605,30 @@ tbody tr.learner[aria-selected="true"] { background: var(--accent-soft); }
     return svg;
   }
 
+  // Which responses a learner keeps choosing across sessions: most used, core skills never
+  // used, and the longest run of one response type (reviewer feedback).
+  function patternOf(turns) {
+    const counts = {};
+    let run = 0, prev = null, best = 0, bestCode = "";
+    for (const t of turns) {
+      counts[t.code] = (counts[t.code] || 0) + 1;
+      run = t.code === prev ? run + 1 : 1;
+      prev = t.code;
+      if (run > best) { best = run; bestCode = t.code; }
+    }
+    const core = ["reflection", "reflection_exploration", "validation", "open_question"];
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    return { n: turns.length, top, under: core.filter((c) => !counts[c]), best, bestCode };
+  }
+  function patternLine(turns) {
+    const p = patternOf(turns);
+    if (!p.n) return null;
+    const parts = [`주로 쓴 반응: ${p.top.map(([c, k]) => `${CODE_LABEL[c] || c} ${Math.round((k / p.n) * 100)}%`).join(" · ")}`];
+    parts.push(p.under.length ? `쓰지 않은 핵심 기술: ${p.under.map((c) => CODE_LABEL[c]).join(" · ")}` : "핵심 탐색 기술을 모두 사용");
+    if (p.best >= 3) parts.push(`반복: ${CODE_LABEL[p.bestCode] || p.bestCode} ${p.best}회 연속`);
+    return el("p", { class: "pattern", text: "반응 패턴  " + parts.join("  |  ") });
+  }
+
   function renderDetail(rows) {
     const box = $("detail");
     const row = rows.find((r) => r.l.id === state.selected) || rows.find((r) => r.m.turns);
@@ -633,11 +658,11 @@ tbody tr.learner[aria-selected="true"] { background: var(--accent-soft); }
         el("td", {}, el("span", { class: "code" }, el("i", { style: `background:${familyOf(t.code).color}` }), CODE_LABEL[t.code]),
           el("div", { class: "src", text: (t.source === "llm" ? "AI 코딩" : "규칙 코딩") + (t.source === "llm" && t.lexiconCode && t.lexiconCode !== t.code ? ` · 규칙: ${CODE_LABEL[t.lexiconCode] || t.lexiconCode}` : "") })),
         el("td", { class: "num" }, el("span", { class: "q", "aria-label": `${t.quality} / 3`, text: "●".repeat(t.quality) + "○".repeat(3 - t.quality) })),
-        el("td", { text: { Aligned: "정합", PossibleMismatch: "불일치 가능", RelationalOrderMismatch: "순서 불일치", EvidenceUnavailable: "근거 없음" }[t.alignment] || "–" }),
+        el("td", { text: { Aligned: "정합", PossibleMismatch: "불일치 가능", RelationalOrderMismatch: "순서 불일치", EvidenceUnavailable: "표정 분석 없음" }[t.alignment] || "–" }),
         el("td", { text: judg.get(t.turn) || "–" })))));
     const left = el("div", { style: "display:grid;gap:12px;min-width:0" }, list,
       el("div", { class: "card-head" }, el("h3", { style: "font-size:15px", text: "관계 궤적" }), legend), trajectory(session));
-    box.replaceChildren(head, el("div", { class: "detail-grid" }, left, el("div", { class: "table-wrap" }, table)));
+    box.replaceChildren(head, patternLine(sessions.flatMap((x) => x.turns)) || "", el("div", { class: "detail-grid" }, left, el("div", { class: "table-wrap" }, table)));
   }
 
   // ---- Rendering: field agreement -----------------------------------------------------

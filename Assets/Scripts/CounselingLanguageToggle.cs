@@ -33,6 +33,7 @@ namespace AdieLab.AffectCounsel
             { "ZoomEyebrow", "ZOOM" },
             { "CaseListLabel", "CLIENTS" },
             { "ModeLabel", "CONVERSATION" },
+            { "PhaseLabel", "SESSION PHASE" },
             { "ModeText", "Text" },
             { "ModeLive", "Live voice · Gemini Live" },
             { "CaseBriefEyebrow", "CASE BRIEF" },

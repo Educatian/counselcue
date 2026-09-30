@@ -15,6 +15,8 @@ namespace AdieLab.AffectCounsel.Editor
         private static readonly (string utterance, CounselingMove[] accepted)[] Fixtures =
         {
             ("많이 힘드셨겠어요.", Moves(CounselingMove.Reflection)),
+            // Reviewer report: "안녕하세요" was coded as advice because it contains "하세요".
+            ("지혜씨 안녕하세요. 저는 상담사 최현진입니다. 만나뵙게 되어 반갑습니다.", Moves(CounselingMove.Neutral)),
             ("회사에 가는 게 정말 힘들었겠네요.", Moves(CounselingMove.Reflection)),
             ("혼자 버티느라 외로우셨겠어요.", Moves(CounselingMove.Reflection)),
             ("또 실수할까 봐 두려우셨군요.", Moves(CounselingMove.Reflection)),

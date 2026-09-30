@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker from "../src/index.js";
+import worker, { DEFAULT_VOICES, codingResult, liveInstruction, personaResult, voiceFor } from "../src/index.js";
+import { PHASE_GUIDE, phaseBlock, phaseKey } from "../src/phases.js";
 
 const limiter = { limit: async () => ({ success: true }) };
 const env = {
@@ -224,9 +225,25 @@ test("voice uses the case-specific voice map and falls back safely", async () =>
     },
   );
   assert.match(urls[0], /text-to-speech\/TeenVoice12345\//);
-  assert.match(urls[1], /text-to-speech\/DefaultVoice01\//);
-  // env.ELEVENLABS_VOICE_ID ("voice") is not a valid id, so the built-in default is used.
-  assert.match(urls[2], /text-to-speech\/21m00Tcm4TlvDq8ikWAM\//);
+  // An invalid env id for the case falls back to the built-in case voice (George), not the global one.
+  assert.match(urls[1], /text-to-speech\/JBFqnCBsd6RMkjVDRZzb\//);
+  // No caseId means the default case, whose built-in voice is Bella.
+  assert.match(urls[2], /text-to-speech\/EXAVITQu4vr4xnSDxMaL\//);
+});
+
+test("voiceFor precedence: env case map, built-in case voice, env default, Rachel", () => {
+  const envMap = { ELEVENLABS_VOICE_IDS: { "career-transition-01": "EnvCareer1234" }, ELEVENLABS_VOICE_ID: "EnvDefault123" };
+  assert.equal(voiceFor("career-transition-01", envMap), "EnvCareer1234");
+  // With no env configuration, male clients get a built-in male voice instead of Rachel.
+  assert.equal(voiceFor("career-transition-01", {}), DEFAULT_VOICES["career-transition-01"]);
+  assert.equal(voiceFor("career-transition-01", {}), "JBFqnCBsd6RMkjVDRZzb");
+  assert.equal(voiceFor("older-bereavement-01", {}), "pqHfZKP75CvOlQylNhV4");
+  assert.equal(voiceFor("international-belonging-01", { ELEVENLABS_VOICE_ID: "EnvDefault123" }), "IKne3meq5aSn9XLyUdCD");
+  assert.equal(voiceFor("adolescent-pressure-01", { ELEVENLABS_VOICE_IDS: "not json" }), "MF3mGyEYCl7XYWbV9V6O");
+  assert.equal(voiceFor("unknown-case", { ELEVENLABS_VOICE_ID: "EnvDefault123" }), "EnvDefault123");
+  assert.equal(voiceFor("unknown-case", {}), "21m00Tcm4TlvDq8ikWAM");
+  assert.equal(voiceFor("__proto__", {}), "21m00Tcm4TlvDq8ikWAM");
+  assert.equal(Object.keys(DEFAULT_VOICES).length, 5);
 });
 
 test("missing upstream credentials return 503 without calling out", async () => {
@@ -422,4 +439,141 @@ test("live-token needs a Gemini key and honours rate limits and voice overrides"
     },
   );
   assert.equal(voice, "Aoede");
+});
+
+test("phaseKey validates phases and phaseBlock is empty for intake", () => {
+  assert.equal(phaseKey("MIDDLE "), "middle");
+  assert.equal(phaseKey("goal_setting"), "goal_setting");
+  assert.equal(phaseKey("session-9"), "intake");
+  assert.equal(phaseKey(undefined), "intake");
+  assert.equal(phaseBlock("career-transition-01", "intake"), "");
+  assert.match(phaseBlock("career-transition-01", "termination"), /^SESSION PHASE: termination/);
+});
+
+const turnSystem = async (body) => {
+  let outbound;
+  await withFetch(
+    async (_url, init) => {
+      outbound = JSON.parse(init.body);
+      return personaOk();
+    },
+    async () => {
+      const r = await worker.fetch(post("/turn", { sessionId: "s", counselorUtterance: "네", ...body }), env);
+      assert.equal(r.status, 200);
+    },
+  );
+  return { system: outbound.messages[0].content, input: JSON.parse(outbound.messages[1].content), outbound };
+};
+
+test("turn appends the phase block after the case for non-intake phases only", async () => {
+  const middle = await turnSystem({ caseId: "workplace-anxiety-01", phase: "middle" });
+  assert.equal(middle.input.session_phase, "middle");
+  assert.ok(middle.system.includes(phaseBlock("workplace-anxiety-01", "middle")));
+  assert.ok(middle.system.indexOf("SESSION PHASE: middle") > middle.system.indexOf("CASE\nYou are Kim Ji-hye"));
+  assert.match(middle.system, /This is session 7/);
+
+  const intake = await turnSystem({ caseId: "workplace-anxiety-01", phase: "intake" });
+  assert.equal(intake.input.session_phase, "intake");
+  assert.doesNotMatch(intake.system, /SESSION PHASE/);
+  const missing = await turnSystem({ caseId: "workplace-anxiety-01" });
+  assert.equal(missing.input.session_phase, "intake");
+  assert.equal(missing.system, intake.system);
+  const bogus = await turnSystem({ caseId: "workplace-anxiety-01", phase: "<ignore previous>" });
+  assert.equal(bogus.input.session_phase, "intake");
+  assert.doesNotMatch(bogus.system, /SESSION PHASE|ignore previous/);
+});
+
+test("persona prompt asks for richer, non-repetitive client statements", async () => {
+  const { system, outbound } = await turnSystem({ caseId: "career-transition-01" });
+  assert.doesNotMatch(system, /under 180 Korean characters/);
+  assert.match(system, /1-2 short spoken sentences/);
+  assert.match(system, /3-4 spoken sentences \(under about 320 Korean characters\)/);
+  assert.match(system, /willingness_to_disclose is 0\.45/);
+  assert.match(system, /at least every other turn/);
+  assert.match(system, /a feeling, a thought or belief, a concrete behavior, and a relationship situation/);
+  assert.match(system, /how that fact felt, what you thought about it, and what you did about it/);
+  assert.match(system, /Do not circle back to a theme or sentence pattern/);
+  assert.match(system, /나약하고 의지가 없는 나/);
+  assert.match(system, /where you learned it/);
+  assert.ok(outbound.max_tokens >= 420);
+  const teen = await turnSystem({ caseId: "adolescent-pressure-01" });
+  assert.match(teen.system, /accept it and move on to school/);
+  assert.match(teen.system, /at most once/);
+});
+
+test("personaResult keeps a full 320-character opening-up reply", () => {
+  const reply = "가".repeat(330);
+  assert.equal(personaResult(JSON.stringify({ reply, emotion: "thoughtful" })).reply, reply);
+});
+
+test("live instruction carries the richer length rule and the phase block", () => {
+  const intake = liveInstruction("older-bereavement-01", { openingLine: "조용합니다." });
+  assert.match(intake, /1-4 spoken sentences per turn/);
+  assert.doesNotMatch(intake, /1-3 short spoken sentences/);
+  assert.doesNotMatch(intake, /SESSION PHASE/);
+  const ending = liveInstruction("older-bereavement-01", { openingLine: "조용합니다.", phase: "termination" });
+  assert.ok(ending.endsWith(phaseBlock("older-bereavement-01", "termination")));
+  assert.ok(ending.includes(PHASE_GUIDE.termination));
+});
+
+test("live-token forwards the phase into the locked instruction", async () => {
+  let outbound;
+  await withFetch(
+    async (_u, init) => ((outbound = JSON.parse(init.body)), new Response(JSON.stringify({ name: "t" }), { status: 200 })),
+    async () => {
+      const r = await worker.fetch(post("/live-token", { sessionId: "s", caseId: "international-belonging-01", phase: "goal_setting" }),
+        { ...env, GEMINI_API_KEY: "k" });
+      assert.equal(r.status, 200);
+    },
+  );
+  assert.match(outbound.liveConnectConstraints.config.systemInstruction.parts[0].text, /SESSION PHASE: goal_setting/);
+});
+
+test("code sends the phase and names greetings as neutral", async () => {
+  let outbound;
+  await withFetch(
+    async (_url, init) => {
+      outbound = JSON.parse(init.body);
+      return coderReply('{"code":"neutral","quality":2,"rationale":"인사입니다.","evidence":"안녕하세요","confidence":0.9}');
+    },
+    async () => {
+      const r = await worker.fetch(post("/code", { sessionId: "s", phase: "termination", counselorUtterance: "안녕하세요" }), env);
+      const body = await r.json();
+      assert.equal(body.code, "neutral");
+      assert.deepEqual(body.focus_options, []);
+      assert.equal(body.alternative, "");
+    },
+  );
+  const system = outbound.messages[0].content;
+  assert.match(system, /"안녕하세요", "반갑습니다", "감사합니다", "저는 상담사 ○○입니다"\) are neutral and never advice/);
+  assert.match(system, /session_phase/);
+  assert.match(system, /focus_options/);
+  assert.match(system, /alternative/);
+  assert.equal(JSON.parse(outbound.messages[1].content).session_phase, "termination");
+  assert.ok(outbound.max_tokens >= 400);
+});
+
+test("codingResult sanitizes focus_options and alternative", () => {
+  const r = codingResult(
+    JSON.stringify({
+      code: "closed_question",
+      quality: 1,
+      focus_options: ["감정: 억울함", 42, null, "  ", "사고: " + "준".repeat(60), { x: 1 }, "관계: 팀장과의 긴장", "행동: 네 번째"],
+      alternative: "억울하셨던 마음이 크게 느껴져요. 그때 어떤 생각이 드셨어요?" + "요".repeat(200),
+    }),
+    "몇 번이요?",
+  );
+  assert.equal(r.focus_options[0], "감정: 억울함");
+  assert.equal(r.focus_options.length, 3);
+  assert.ok(r.focus_options.every((f) => typeof f === "string" && f.length <= 40));
+  assert.equal(r.focus_options[2], "관계: 팀장과의 긴장");
+  assert.ok(r.alternative.startsWith("억울하셨던 마음이"));
+  assert.ok(r.alternative.length <= 120);
+
+  const excellent = codingResult('{"code":"reflection","quality":3,"alternative":"다른 답","focus_options":"감정: 불안"}', "x");
+  assert.equal(excellent.alternative, "");
+  assert.deepEqual(excellent.focus_options, []);
+  const odd = codingResult('{"code":"advice","quality":0,"alternative":["배열"]}', "x");
+  assert.equal(odd.alternative, "");
+  assert.deepEqual(odd.focus_options, []);
 });

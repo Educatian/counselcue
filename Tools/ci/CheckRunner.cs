@@ -9,6 +9,14 @@ public static class CheckRunner
         AdieLab.AffectCounsel.Editor.CounselingResponseEvaluatorChecks.RunFromCommandLine();
         if (UnityEditor.EditorApplication.ExitCode != 0) { Console.WriteLine("RESPONSE_EVALUATOR_CHECKS_FAILED"); failures++; }
         else Console.WriteLine("RESPONSE_EVALUATOR_CHECKS_PASS");
+        // Response pattern profile: counts, underused core skills and repeated runs.
+        var profile = AdieLab.AffectCounsel.ResponsePatternProfile.Build(
+            new[] { "closed_question", "closed_question", "closed_question", "advice", "reflection" }, new[] { 1, 1, 0, 0, 2 });
+        string pattern = profile.ToKoreanSummary();
+        if (profile.LongestStreak != 3 || profile.LongestStreakCode != "closed_question" || profile.Underused.Count != 3 ||
+            !pattern.Contains("닫힌 질문 3") || !pattern.Contains("덜 쓴 기술") || !pattern.Contains("3회 연속"))
+        { Console.WriteLine("RESPONSE_PATTERN_CHECK_FAIL " + pattern.Replace("\n", " | ")); failures++; }
+        else Console.WriteLine("RESPONSE_PATTERN_CHECK_PASS");
         // Export bundle: tricky learner codes must still yield valid JSON (validated by node in run-csharp-checks.sh).
         string bundle = AdieLab.AffectCounsel.ResearchExportBundle.Compose(
             "{\"turn\":1,\"counselorUtterance\":\"\uc548\ub155\"}", "", "{\"sourceTurn\":1}",

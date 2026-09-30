@@ -76,3 +76,4 @@ Screenshots/*
 # Tools/art/import_actorcore.py (the builder falls back to Rocketbox without them).
 Assets/ThirdParty/ActorCore/
 Assets/ThirdParty/ActorCore.meta
+.claude/worktrees/
