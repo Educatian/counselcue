@@ -35,6 +35,15 @@ namespace AdieLab.AffectCounsel.Editor
         private static Material paper;
         private static Material artwork;
         private static Material windowView;
+        private static Material oakFloor;
+        private static Material plasterBack;
+        private static Material plasterSide;
+        private static Material chairLinen;
+        private static Material curtainLinen;
+        private static Material walnut;
+        private static Material paintedTrim;
+        private static Material contactShadow;
+        private const string RoomTextureRoot = "Assets/Art/Textures/Room/";
 
         [MenuItem("Tools/CounselCue/Build Korean Counseling Room")]
         public static void Build()
@@ -147,28 +156,48 @@ namespace AdieLab.AffectCounsel.Editor
 
         private static void BuildArchitecture(Transform parent)
         {
-            CreateCube("OakFloor", new Vector3(0f, -0.08f, 0f), new Vector3(6.4f, 0.16f, 7.4f), oak, parent);
-            CreateCube("BackWall", new Vector3(0f, 1.6f, 3.58f), new Vector3(6.4f, 3.2f, 0.16f), cream, parent);
-            CreateCube("LeftWall", new Vector3(-3.12f, 1.6f, 0f), new Vector3(0.16f, 3.2f, 7.4f), warmWhite, parent);
-            CreateCube("RightWall", new Vector3(3.12f, 1.6f, 0f), new Vector3(0.16f, 3.2f, 7.4f), warmWhite, parent);
+            CreateCube("OakFloor", new Vector3(0f, -0.08f, 0f), new Vector3(6.4f, 0.16f, 7.4f), oakFloor, parent);
+            CreateCube("BackWall", new Vector3(0f, 1.6f, 3.58f), new Vector3(6.4f, 3.2f, 0.16f), plasterBack, parent);
+            CreateCube("LeftWall", new Vector3(-3.12f, 1.6f, 0f), new Vector3(0.16f, 3.2f, 7.4f), plasterSide, parent);
+            CreateCube("RightWall", new Vector3(3.12f, 1.6f, 0f), new Vector3(0.16f, 3.2f, 7.4f), plasterSide, parent);
             CreateCube("Ceiling", new Vector3(0f, 3.18f, 0f), new Vector3(6.4f, 0.12f, 7.4f), warmWhite, parent);
-            CreateCube("BackBaseboard", new Vector3(0f, 0.09f, 3.45f), new Vector3(6.1f, 0.18f, 0.06f), darkOak, parent);
-            CreateCube("LeftBaseboard", new Vector3(-2.99f, 0.09f, 0f), new Vector3(0.06f, 0.18f, 7.1f), darkOak, parent);
-            CreateCube("RightBaseboard", new Vector3(2.99f, 0.09f, 0f), new Vector3(0.06f, 0.18f, 7.1f), darkOak, parent);
+            // Painted skirting with a rounded cap, as in Korean apartments and clinics.
+            RoundedPart("BackBaseboard", parent, new Vector3(0f, 0.07f, 3.475f), new Vector3(6.2f, 0.14f, 0.05f), 0.012f, paintedTrim);
+            RoundedPart("LeftBaseboard", parent, new Vector3(-3.015f, 0.07f, 0f), new Vector3(0.05f, 0.14f, 7.2f), 0.012f, paintedTrim);
+            RoundedPart("RightBaseboard", parent, new Vector3(3.015f, 0.07f, 0f), new Vector3(0.05f, 0.14f, 7.2f), 0.012f, paintedTrim);
 
             CreateCube("Window", new Vector3(-3.01f, 1.82f, 0.78f), new Vector3(0.045f, 1.82f, 2.28f), windowGlow, parent);
             CreateCube("SheerWindow", new Vector3(-2.96f, 1.82f, 0.78f), new Vector3(0.035f, 1.74f, 2.16f), warmWhite, parent);
 
             CreateCube("BackWindowGlow", new Vector3(-2.14f, 1.76f, 3.46f), new Vector3(1.18f, 2.28f, 0.05f), windowView != null ? windowView : windowGlow, parent);
+            // Window frame, mullion and sill so the opening reads as a window, not a light panel.
+            Transform frame = new GameObject("BackWindowFrame").transform;
+            frame.SetParent(parent, false);
+            frame.position = new Vector3(-2.14f, 1.76f, 3.43f);
+            RoundedPart("FrameTop", frame, new Vector3(0f, 1.17f, 0f), new Vector3(1.30f, 0.07f, 0.08f), 0.015f, paintedTrim);
+            RoundedPart("FrameBottom", frame, new Vector3(0f, -1.17f, 0f), new Vector3(1.30f, 0.07f, 0.08f), 0.015f, paintedTrim);
+            RoundedPart("FrameLeft", frame, new Vector3(-0.62f, 0f, 0f), new Vector3(0.07f, 2.40f, 0.08f), 0.015f, paintedTrim);
+            RoundedPart("FrameRight", frame, new Vector3(0.62f, 0f, 0f), new Vector3(0.07f, 2.40f, 0.08f), 0.015f, paintedTrim);
+            RoundedPart("Mullion", frame, new Vector3(0f, 0f, 0.01f), new Vector3(0.035f, 2.30f, 0.05f), 0.01f, paintedTrim);
+            RoundedPart("Transom", frame, new Vector3(0f, 0.42f, 0.01f), new Vector3(1.20f, 0.035f, 0.05f), 0.01f, paintedTrim);
+            RoundedPart("Sill", frame, new Vector3(0f, -1.23f, -0.06f), new Vector3(1.42f, 0.04f, 0.20f), 0.012f, walnut);
             CreateCurtain("LeftCurtain", -2.64f, 1.62f, 3.38f, 0.78f, parent);
             CreateCurtain("RightCurtain", 2.34f, 1.62f, 3.38f, 0.92f, parent);
         }
 
         private static void BuildFurniture(Transform parent)
         {
-            CreateChair("ClientChair", new Vector3(0f, 0f, 1.30f), 180f, warmWhite, parent, true);
-            CreateChair("CounselorChair", new Vector3(0.78f, 0f, -1.92f), 14f, sage, parent, false);
+            CreateChair("ClientChair", new Vector3(0f, 0f, 1.30f), 180f, chairLinen, parent, true);
+            CreateChair("CounselorChair", new Vector3(0.78f, 0f, -1.92f), 14f, curtainLinen, parent, false);
             CreateLowConsole(new Vector3(-1.78f, 0f, 3.02f), parent);
+            Transform shadows = new GameObject("ContactShadows").transform;
+            shadows.SetParent(parent, false);
+            ContactShadow("Shadow_ClientChair", new Vector3(0f, 0.006f, 1.34f), new Vector2(1.35f, 1.15f), 1f, shadows);
+            ContactShadow("Shadow_SideTable", new Vector3(1.20f, 0.006f, 1.22f), new Vector2(0.95f, 0.95f), 1f, shadows);
+            ContactShadow("Shadow_Console", new Vector3(-1.78f, 0.006f, 3.00f), new Vector2(2.3f, 0.85f), 1f, shadows);
+            ContactShadow("Shadow_FloorLamp", new Vector3(-1.34f, 0.006f, 2.65f), new Vector2(0.62f, 0.62f), 1f, shadows);
+            ContactShadow("Shadow_PlantLeft", new Vector3(-2.35f, 0.006f, 2.42f), new Vector2(0.75f, 0.75f), 1f, shadows);
+            ContactShadow("Shadow_PlantRight", new Vector3(2.30f, 0.006f, 2.62f), new Vector2(0.68f, 0.68f), 1f, shadows);
         }
 
         private static void BuildPremiumAssetSet(Transform parent)
@@ -358,6 +387,20 @@ namespace AdieLab.AffectCounsel.Editor
             face.shadows = LightShadows.Soft;
             softbox.transform.position = new Vector3(-1.8f, 2.35f, -1.5f);
             softbox.transform.LookAt(new Vector3(0f, 1.25f, 1.05f));
+
+            // Box-projected reflections for the glossy walnut, trim and floor; rendered once at
+            // start (6 small faces), which WebGL handles comfortably.
+            GameObject probeObject = new GameObject("RoomReflectionProbe");
+            probeObject.transform.position = new Vector3(0f, 1.5f, 0.9f);
+            ReflectionProbe probe = probeObject.AddComponent<ReflectionProbe>();
+            probe.mode = UnityEngine.Rendering.ReflectionProbeMode.Realtime;
+            probe.refreshMode = UnityEngine.Rendering.ReflectionProbeRefreshMode.OnAwake;
+            probe.timeSlicingMode = UnityEngine.Rendering.ReflectionProbeTimeSlicingMode.NoTimeSlicing;
+            probe.resolution = 128;
+            probe.boxProjection = true;
+            probe.size = new Vector3(6.2f, 3.1f, 7.2f);
+            probe.center = new Vector3(0f, 0.05f, -0.9f);
+            probe.intensity = 0.9f;
             return camera;
         }
 
@@ -860,37 +903,48 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
+        /// <summary>
+        /// Upholstered armchair from rounded parts: plinth, loose seat and back cushions, rolled
+        /// arms and tapered walnut legs. Keeps the old envelope (seat top ≈ 0.58 m) so the
+        /// seated avatar still fits.
+        /// </summary>
         private static void CreateChair(string name, Vector3 position, float yaw, Material fabric, Transform parent, bool full)
         {
             GameObject root = new GameObject(name);
             root.transform.SetParent(parent);
             root.transform.position = position;
             root.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
-            CreateCube("Seat", new Vector3(0f, 0.48f, 0f), new Vector3(0.84f, 0.20f, 0.74f), fabric, root.transform);
-            CreateCube("Back", new Vector3(0f, 0.79f, -0.30f), new Vector3(0.84f, 0.58f, 0.18f), fabric, root.transform);
-            CreateCube("LeftArm", new Vector3(-0.49f, 0.72f, 0f), new Vector3(0.14f, 0.22f, 0.70f), fabric, root.transform);
-            CreateCube("RightArm", new Vector3(0.49f, 0.72f, 0f), new Vector3(0.14f, 0.22f, 0.70f), fabric, root.transform);
+            RoundedPart("Plinth", root.transform, new Vector3(0f, 0.33f, 0f), new Vector3(1.04f, 0.26f, 0.78f), 0.05f, fabric);
+            RoundedPart("SeatCushion", root.transform, new Vector3(0f, 0.51f, 0.04f), new Vector3(0.80f, 0.14f, 0.66f), 0.06f, fabric);
+            RoundedPart("Back", root.transform, new Vector3(0f, 0.80f, -0.31f), new Vector3(1.04f, 0.66f, 0.16f), 0.07f, fabric, new Vector3(-7f, 0f, 0f));
+            RoundedPart("BackCushion", root.transform, new Vector3(0f, 0.78f, -0.21f), new Vector3(0.78f, 0.44f, 0.12f), 0.06f, fabric, new Vector3(-9f, 0f, 0f));
+            RoundedPart("LeftArm", root.transform, new Vector3(-0.47f, 0.60f, 0.01f), new Vector3(0.12f, 0.30f, 0.76f), 0.055f, fabric);
+            RoundedPart("RightArm", root.transform, new Vector3(0.47f, 0.60f, 0.01f), new Vector3(0.12f, 0.30f, 0.76f), 0.055f, fabric);
             if (!full) return;
-            CreateCube("LeftLeg", new Vector3(-0.30f, 0.22f, -0.22f), new Vector3(0.07f, 0.44f, 0.07f), darkOak, root.transform);
-            CreateCube("RightLeg", new Vector3(0.30f, 0.22f, -0.22f), new Vector3(0.07f, 0.44f, 0.07f), darkOak, root.transform);
+            for (int x = -1; x <= 1; x += 2)
+            {
+                for (int z = -1; z <= 1; z += 2)
+                {
+                    GameObject leg = CreateCylinder($"Leg_{(x < 0 ? "L" : "R")}{(z < 0 ? "B" : "F")}", new Vector3(x * 0.44f, 0.10f, z * 0.30f),
+                        new Vector3(0.042f, 0.10f, 0.042f), walnut, root.transform);
+                    leg.transform.localRotation = Quaternion.Euler(z * 4f, 0f, -x * 4f);
+                }
+            }
         }
 
+        /// <summary>Folded linen curtain hanging from a walnut rod.</summary>
         private static void CreateCurtain(string name, float centerX, float centerY, float z, float width, Transform parent)
         {
             GameObject root = new GameObject(name);
             root.transform.SetParent(parent);
-            for (int i = 0; i < 7; i++)
-            {
-                float normalized = i / 6f - 0.5f;
-                float foldZ = z - Mathf.Abs(normalized) * 0.035f + (i % 2 == 0 ? -0.025f : 0.02f);
-                CreateCube(
-                    $"Fold_{i:00}",
-                    new Vector3(centerX + normalized * width, centerY, foldZ),
-                    new Vector3(width / 6.4f, 2.82f, 0.075f),
-                    sage,
-                    root.transform);
-            }
-            CreateCylinder("CurtainRail", new Vector3(centerX, 3.03f, z + 0.02f), new Vector3(0.025f, width * 0.58f, 0.025f), darkOak, root.transform)
+            float height = 2.90f;
+            Mesh mesh = ProceduralRoomMeshes.Curtain($"Curtain_{Mathf.RoundToInt(width * 100)}", width, height, 0.16f, 0.07f, Mathf.RoundToInt(centerX * 100));
+            GameObject cloth = new GameObject("Cloth", typeof(MeshFilter), typeof(MeshRenderer));
+            cloth.transform.SetParent(root.transform, false);
+            cloth.transform.position = new Vector3(centerX, 3.00f, z);
+            cloth.GetComponent<MeshFilter>().sharedMesh = mesh;
+            cloth.GetComponent<MeshRenderer>().sharedMaterial = curtainLinen;
+            CreateCylinder("CurtainRail", new Vector3(centerX, 3.03f, z + 0.02f), new Vector3(0.022f, width * 0.58f, 0.022f), walnut, root.transform)
                 .transform.rotation = Quaternion.Euler(0f, 0f, 90f);
         }
 
@@ -899,19 +953,22 @@ namespace AdieLab.AffectCounsel.Editor
             GameObject root = new GameObject("LowWalnutConsole");
             root.transform.SetParent(parent);
             root.transform.position = position;
-            CreateCube("Body", new Vector3(0f, 0.44f, 0f), new Vector3(1.72f, 0.70f, 0.42f), oak, root.transform);
-            CreateCube("Top", new Vector3(0f, 0.82f, 0f), new Vector3(1.82f, 0.07f, 0.46f), darkOak, root.transform);
-            CreateCube("LeftDoor", new Vector3(-0.43f, 0.44f, -0.225f), new Vector3(0.78f, 0.58f, 0.025f), darkOak, root.transform);
-            CreateCube("RightDoor", new Vector3(0.43f, 0.44f, -0.225f), new Vector3(0.78f, 0.58f, 0.025f), darkOak, root.transform);
+            RoundedPart("Body", root.transform, new Vector3(0f, 0.45f, 0f), new Vector3(1.72f, 0.66f, 0.42f), 0.02f, walnut);
+            RoundedPart("Top", root.transform, new Vector3(0f, 0.805f, 0f), new Vector3(1.84f, 0.05f, 0.47f), 0.018f, walnut);
+            RoundedPart("LeftDoor", root.transform, new Vector3(-0.43f, 0.45f, -0.215f), new Vector3(0.83f, 0.58f, 0.022f), 0.008f, walnut);
+            RoundedPart("RightDoor", root.transform, new Vector3(0.43f, 0.45f, -0.215f), new Vector3(0.83f, 0.58f, 0.022f), 0.008f, walnut);
             for (int i = -1; i <= 1; i += 2)
             {
-                CreateCube($"Leg_{i}", new Vector3(i * 0.68f, 0.10f, 0f), new Vector3(0.07f, 0.20f, 0.07f), darkOak, root.transform);
+                RoundedPart($"Pull_{i}", root.transform, new Vector3(i * 0.05f, 0.52f, -0.232f), new Vector3(0.018f, 0.16f, 0.018f), 0.008f, brass);
+                GameObject leg = CreateCylinder($"Leg_{i}", new Vector3(i * 0.74f, 0.07f, 0f), new Vector3(0.05f, 0.07f, 0.05f), walnut, root.transform);
+                leg.name = $"Leg_{i}";
             }
-            CreateCylinder("CeramicVase", new Vector3(-0.48f, 0.98f, 0f), new Vector3(0.12f, 0.16f, 0.12f), paper, root.transform);
+            CreateCylinder("CeramicVase", new Vector3(-0.48f, 0.94f, 0f), new Vector3(0.12f, 0.12f, 0.12f), paper, root.transform);
             Material[] colors = { sage, paper, brass, cream };
             for (int i = 0; i < 4; i++)
             {
-                CreateCube($"CounselingBook_{i:00}", new Vector3(0.25f + i * 0.13f, 0.94f, 0f), new Vector3(0.09f, 0.24f + i % 2 * 0.04f, 0.18f), colors[i], root.transform);
+                float h = 0.24f + i % 2 * 0.04f;
+                RoundedPart($"CounselingBook_{i:00}", root.transform, new Vector3(0.25f + i * 0.13f, 0.83f + h * 0.5f, 0f), new Vector3(0.09f, h, 0.18f), 0.01f, colors[i]);
             }
         }
 
@@ -964,6 +1021,17 @@ namespace AdieLab.AffectCounsel.Editor
             windowGlow.EnableKeyword("_EMISSION");
             windowGlow.SetColor("_EmissionColor", new Color(0.30f, 0.34f, 0.30f));
 
+            // Textured surfaces (Tools/art/generate_room_textures.py). Cube faces map 0–1, so
+            // their tiling is per face; generated meshes use metre UVs, so tiling is per metre.
+            oakFloor = Textured(MaterialAsset("OakPlankFloor", new Color(0.96f, 0.94f, 0.92f), 0.34f), "oak_floor", new Vector2(5.8f, 6.7f), 0.7f);
+            plasterBack = Textured(MaterialAsset("PlasterBack", new Color(0.99f, 0.97f, 0.94f), 0.05f), "plaster", new Vector2(4.2f, 2.1f), 0.35f);
+            plasterSide = Textured(MaterialAsset("PlasterSide", new Color(0.97f, 0.95f, 0.92f), 0.05f), "plaster", new Vector2(4.9f, 2.1f), 0.35f);
+            chairLinen = Textured(MaterialAsset("ChairLinen", new Color(0.94f, 0.91f, 0.85f), 0.08f), "linen", new Vector2(2.6f, 2.6f), 0.55f);
+            curtainLinen = Textured(MaterialAsset("CurtainLinen", new Color(0.56f, 0.64f, 0.54f), 0.05f), "linen", new Vector2(3.2f, 3.2f), 0.6f);
+            walnut = Textured(MaterialAsset("Walnut", Color.white, 0.46f), "walnut", new Vector2(1.6f, 1.6f), 0.45f);
+            paintedTrim = MaterialAsset("PaintedTrim", new Color(0.95f, 0.93f, 0.89f), 0.36f);
+            contactShadow = ContactShadowMaterial();
+
             artwork = MaterialAsset("HanjiArtwork", Color.white, 0.02f);
             Texture2D artworkTexture = HiggsfieldAssetSlots.LoadWallArtwork();
             if (artworkTexture == null) artworkTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(ArtworkTexturePath);
@@ -984,6 +1052,104 @@ namespace AdieLab.AffectCounsel.Editor
                 windowView.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
                 EditorUtility.SetDirty(windowView);
             }
+        }
+
+        private static Material Textured(Material material, string textureName, Vector2 tiling, float normalScale)
+        {
+            Texture2D albedo = RoomTexture(textureName + "_albedo.png", false);
+            Texture2D normal = RoomTexture(textureName + "_normal.png", true);
+            if (albedo != null)
+            {
+                material.mainTexture = albedo;
+                material.mainTextureScale = tiling;
+            }
+            if (normal != null)
+            {
+                material.SetTexture("_BumpMap", normal);
+                material.SetFloat("_BumpScale", normalScale);
+                material.EnableKeyword("_NORMALMAP");
+            }
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        private static Texture2D RoomTexture(string file, bool normalMap)
+        {
+            string path = RoomTextureRoot + file;
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null)
+            {
+                Debug.LogWarning($"CounselCue room texture missing: {path}");
+                return null;
+            }
+            TextureImporterType type = normalMap ? TextureImporterType.NormalMap : TextureImporterType.Default;
+            if (importer.textureType != type || importer.maxTextureSize != 1024 || importer.wrapMode != TextureWrapMode.Repeat || importer.anisoLevel != 4)
+            {
+                importer.textureType = type;
+                importer.sRGBTexture = !normalMap;
+                importer.maxTextureSize = 1024;
+                importer.wrapMode = TextureWrapMode.Repeat;
+                importer.mipmapEnabled = true;
+                importer.anisoLevel = 4;
+                importer.textureCompression = TextureImporterCompression.Compressed;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        /// <summary>Soft occlusion decal under furniture; cheap stand-in for baked contact shadows.</summary>
+        private static Material ContactShadowMaterial()
+        {
+            string path = $"{MaterialRoot}/M_ContactShadow.mat";
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(Shader.Find("Unlit/Transparent"));
+                AssetDatabase.CreateAsset(material, path);
+            }
+            material.shader = Shader.Find("Unlit/Transparent");
+            string texturePath = RoomTextureRoot + "contact_shadow.png";
+            TextureImporter importer = AssetImporter.GetAtPath(texturePath) as TextureImporter;
+            if (importer != null && (!importer.alphaIsTransparency || importer.wrapMode != TextureWrapMode.Clamp))
+            {
+                importer.alphaIsTransparency = true;
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.maxTextureSize = 256;
+                importer.SaveAndReimport();
+            }
+            material.mainTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+            material.renderQueue = 2990;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        private static void ContactShadow(string name, Vector3 center, Vector2 size, float alphaScale, Transform parent)
+        {
+            if (contactShadow == null) return;
+            GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            quad.name = name;
+            quad.transform.SetParent(parent, false);
+            quad.transform.position = center;
+            quad.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            quad.transform.localScale = new Vector3(size.x, size.y, 1f) * Mathf.Max(0.2f, alphaScale);
+            MeshRenderer renderer = quad.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = contactShadow;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            Object.DestroyImmediate(quad.GetComponent<Collider>());
+        }
+
+        private static GameObject RoundedPart(string name, Transform parent, Vector3 localPosition, Vector3 size, float radius, Material material, Vector3 localEuler = default)
+        {
+            string meshName = $"RB_{Mathf.RoundToInt(size.x * 1000)}x{Mathf.RoundToInt(size.y * 1000)}x{Mathf.RoundToInt(size.z * 1000)}_r{Mathf.RoundToInt(radius * 1000)}";
+            Mesh mesh = ProceduralRoomMeshes.RoundedBox(meshName, size, radius);
+            GameObject part = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = localPosition;
+            part.transform.localRotation = Quaternion.Euler(localEuler);
+            part.GetComponent<MeshFilter>().sharedMesh = mesh;
+            part.GetComponent<MeshRenderer>().sharedMaterial = material;
+            return part;
         }
 
         private static Material MaterialAsset(string name, Color color, float smoothness, float metallic = 0f)
