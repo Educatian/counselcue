@@ -47,9 +47,9 @@ System evidence remains hidden until the learner records a self-assessment. A se
 
 | Status | Scope |
 |---|---|
-| **Implemented** | Five selectable counseling cases with distinct Rocketbox avatars, FACS/viseme facial layers, five-state gaze behavior, Korean viseme planning, micro-blinks/breath/head motion, face-observation zoom and diagnostics, full and focused sessions, replay, relational trajectory, local JSONL logging, Korean/English UI, browser-native Korean input, microphone dictation, spotlight onboarding, and ElevenLabs v3 client speech through a server proxy |
+| **Implemented** | Five selectable counseling cases with distinct Rocketbox avatars, FACS/viseme facial layers, five-state gaze behavior, Korean viseme planning, micro-blinks/breath/head motion, face-observation zoom and diagnostics, full and focused sessions, replay, relational trajectory, local JSONL logging, Korean/English UI, browser-native Korean input, microphone dictation, spotlight onboarding, ElevenLabs v3 client speech through a server proxy, and opt-in local research logging with one-click deletion |
 | **Experimental** | Case-specific Korean client personas through OpenRouter, bounded relational-state prompting, four-state emotional voice direction, thirteen MediaPipe-derived counselor AU proxies, personal baseline calibration, and deterministic local fallback |
-| **Planned** | Audio-aligned phoneme timing, expert case-authoring tools, consent and deletion flows, an educator dashboard, and multi-site user research |
+| **Planned** | Audio-aligned phoneme timing, expert case-authoring tools, server-side retention and pseudonymization policies, an educator dashboard, and multi-site user research |
 | **Requires validation** | Agreement between AU proxies and human FACS coding, expert inter-rater reliability for feedback rules, culture-specific cue interpretation, learning transfer, and change in counseling competence |
 
 ## Interface
@@ -99,7 +99,7 @@ The local case-based counseling flow works without a webcam. AU input requires t
 
 - Raw webcam video is not saved; only derived signals are processed and logged locally.
 - AU values are proxies derived from MediaPipe blendshapes, not certified FACS coding or emotion labels.
-- Counselor input and derived signals are written to local JSONL, so educational deployment requires explicit consent, retention limits, deletion, and pseudonymization policies.
+- Local JSONL logging of counselor input and derived signals is off until the learner opts in on the briefing card, and "Delete local records" removes every record file on the device. Institutional deployment still needs retention limits and pseudonymization policies.
 - Feedback is candidate evidence for reflection. It must not be used for diagnosis, clinical evaluation, counselor selection, or automated competency assessment.
 - The LLM client cannot replace real counseling and requires safety controls, latency handling, deterministic fallback, and expert supervision.
 

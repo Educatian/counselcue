@@ -9,6 +9,7 @@ namespace AdieLab.AffectCounsel
     public sealed class CounselingLanguageToggle : MonoBehaviour
     {
         [SerializeField] private Button toggleButton;
+        [SerializeField] private CounselingSessionOrchestrator orchestrator;
 
         private readonly Dictionary<Text, string> koreanByText = new Dictionary<Text, string>();
         private readonly Dictionary<Text, string> koreanByDynamicText = new Dictionary<Text, string>();
@@ -17,7 +18,7 @@ namespace AdieLab.AffectCounsel
 
         private static readonly HashSet<string> DynamicKeys = new HashSet<string>
         {
-            "WebcamStatus", "AuStatus", "SessionStatus", "StageLabel", "Alliance", "Feedback"
+            "WebcamStatus", "AuStatus", "SessionStatus", "StageLabel", "Alliance", "Feedback", "DataStatus"
         };
 
         private static readonly Dictionary<string, string> EnglishByKey = new Dictionary<string, string>
@@ -25,23 +26,19 @@ namespace AdieLab.AffectCounsel
             { "SessionEyebrow", "COUNSELING PRACTICE  ·  1:1 INTAKE" },
             { "Privacy", "No video saved · on-device processing" },
             { "ZoomEyebrow", "OBSERVATION ZOOM" },
-            { "ClientName", "CLIENT  ·  JIHYE KIM, 32" },
             { "Placeholder", "Enter your counseling response…" },
             { "PauseSession", "Pause" },
             { "EndSession", "End" },
             { "ZoomReset", "Reset" },
             { "SendButton", "Respond" },
             { "BriefingTitle", "Choose today's practice path" },
-            { "BriefingCase", "Workplace anxiety · Jihye Kim, 32 · Intake" },
-            { "BriefingBody", "Situation\nShe feels short of breath before work and worries that she may be weak.\n\nSession goals\n1. Build relational safety and explain the counseling structure.\n2. Explore experience with reflections and open questions.\n3. Protect response space without rushing to solutions.\n\n15 min · target 10 turns · webcam video not saved" },
             { "FullSessionLabel", "FULL SESSION · 15 MIN / TARGET 10 TURNS" },
             { "BriefingPortraitCaption", "AI-generated case illustration" },
+            { "ConsentLabel", "I agree to local research logging (text and derived signals on this device; no video)" },
+            { "DeleteLocalData", "Delete local records" },
             { "StartPractice", "Start coached practice" },
             { "StartEvaluation", "Start assessment mode" },
             { "FocusedLabel", "MICRO-SKILL PRACTICE · 3 MIN / TARGET 3 TURNS" },
-            { "StartFocusOne", "Emotion reflection · 3 min" },
-            { "StartFocusTwo", "Open questions · 3 min" },
-            { "StartFocusThree", "Delivery alignment · 3 min" },
             { "PrivacyLine", "Webcam video is not saved · Practice duration is a pilot setting for user research." },
             { "PauseTitle", "Session paused" },
             { "PauseBody", "The timer and counseling input are paused.\nContinue from the same scene when you are ready." },
@@ -101,6 +98,9 @@ namespace AdieLab.AffectCounsel
             {
                 foreach (KeyValuePair<Text, string> entry in koreanByDynamicText) entry.Key.text = entry.Value;
             }
+            // Case title, client name, briefing body, case and focus buttons depend on the
+            // selected case, so the orchestrator renders them instead of a fixed string table.
+            if (orchestrator != null) orchestrator.SetEnglish(useEnglish);
             RefreshToggleLabel();
         }
 
@@ -122,9 +122,12 @@ namespace AdieLab.AffectCounsel
             return !string.IsNullOrEmpty(value) && Regex.IsMatch(value, "[가-힣]");
         }
 
-        private static string TranslateDynamic(string key, string source)
+        private string TranslateDynamic(string key, string source)
         {
             if (string.IsNullOrEmpty(source)) return source;
+            CounselingCaseDefinition activeCase = orchestrator == null ? null : orchestrator.ActiveCase;
+            if (activeCase != null && !string.IsNullOrEmpty(activeCase.CaseTitle))
+                source = source.Replace(activeCase.CaseTitle, activeCase.LocalizedTitle(true));
             if (key == "WebcamStatus")
             {
                 if (source == "웹캠 준비 중") return "Webcam starting";
@@ -136,6 +139,18 @@ namespace AdieLab.AffectCounsel
                 if (source == "AU 분석 대기 · 선택 기능") return "AU analysis idle · Optional";
                 if (source == "얼굴을 찾는 중 · 정면을 봐주세요") return "Finding face · Look toward the camera";
                 return source.Replace("중립 보정", "Neutral calibration").Replace("표정을 편안하게", "Relax your expression");
+            }
+            if (key == "DataStatus")
+            {
+                string data = source
+                    .Replace("연구용 로컬 기록 사용", "Local research logging on")
+                    .Replace("연구용 로컬 기록 꺼짐", "Local research logging off")
+                    .Replace("응답 텍스트와 파생 신호만 이 기기에 저장됩니다.", "only response text and derived signals are stored on this device.")
+                    .Replace("새 기록을 남기지 않습니다.", "no new records are written.")
+                    .Replace("일부 로컬 기록을 삭제하지 못했습니다. 다시 시도해 주세요.", "Some local records could not be deleted. Please try again.")
+                    .Replace("삭제할 로컬 기록이 없습니다.", "There are no local records to delete.");
+                data = Regex.Replace(data, "이 기기에 기록 파일 (\\d+)개", "$1 record file(s) on this device");
+                return Regex.Replace(data, "로컬 기록 파일 (\\d+)개를 삭제했습니다\\.", "Deleted $1 local record file(s).");
             }
             if (key == "Alliance")
             {

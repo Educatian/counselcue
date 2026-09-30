@@ -148,7 +148,7 @@ UI는 CC0 라이선스의 Kenney UI Pack 2.0에서 고해상도 9-slice 패널·
 - 웹캠 원본 영상은 저장하지 않습니다.
 - 현재 웹캠 기능은 얼굴 감정 분류기가 아니라 조명 품질과 움직임 안정성을 계산하는 입력 어댑터입니다.
 - 움직임 신호는 상담 능력이나 감정을 판정하지 않으며, 훈련자에게 자기 점검 단서로만 제시해야 합니다.
-- 세션 기록에는 상담자 입력 문장과 파생 신호가 포함됩니다. 실제 교육 배포 전 명시적 동의, 보존 기간, 삭제 기능, 가명화 정책이 필요합니다.
+- 세션 기록에는 상담자 입력 문장과 파생 신호가 포함됩니다. 로컬 기록은 브리핑 카드에서 학습자가 동의해야만 남고, "로컬 기록 삭제"로 이 기기의 기록 파일을 모두 지울 수 있습니다. 실제 교육 배포 전 보존 기간과 가명화 정책이 추가로 필요합니다.
 - 턴 기록: Unity `Application.persistentDataPath/counseling-sessions.jsonl`
 - 회기 요약: Unity `Application.persistentDataPath/counseling-session-summaries.jsonl`
 - 자기평가: Unity `Application.persistentDataPath/counseling-self-assessments.jsonl`
@@ -158,7 +158,7 @@ UI는 CC0 라이선스의 Kenney UI Pack 2.0에서 고해상도 9-slice 패널·
 1. GPT Realtime 대화 어댑터와 로컬 데모 어댑터를 공통 인터페이스로 분리
 2. 백엔드에서 Realtime 임시 토큰을 발급하고 Unity는 WebRTC로 연결
 3. 전문가 저작용 ScriptableObject 사례 편집기와 루브릭 버전 관리 추가
-4. 웹캠 처리의 온디바이스 보장, 동의 화면, 즉시 삭제 기능 구현
+4. 웹캠 처리의 온디바이스 보장(동의 화면·즉시 삭제는 로컬 기록 기준으로 구현됨)
 5. 교육자 대시보드와 세션 리플레이에는 원본 영상 대신 이벤트·점수 타임라인만 사용
 6. 상담 전문가/학습자 대상 사용성 연구와 채점자 간 신뢰도 검증
 

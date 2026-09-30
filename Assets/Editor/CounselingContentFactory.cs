@@ -52,11 +52,44 @@ namespace AdieLab.AffectCounsel.Editor
                 900f, 180f, 3, spec.Objectives, BuildLadder(spec.Supportive, spec.Guarded), DefaultFocusSkills());
             definition.ConfigurePresentation(profile, presentation, spec.Domain, spec.Difficulty, spec.Id);
             definition.ConfigurePortrait(HiggsfieldAssetSlots.LoadPortrait(spec.Id));
+            definition.ConfigureEnglish(EnglishFor(spec.Id));
             EditorUtility.SetDirty(profile);
             EditorUtility.SetDirty(presentation);
             EditorUtility.SetDirty(definition);
             return definition;
         }
+
+        private static CaseEnglishText EnglishFor(string caseId)
+        {
+            switch (caseId)
+            {
+                case "workplace-anxiety-01":
+                    return English("Workplace anxiety", "Jihye Kim", "32 · Career & adult counseling",
+                        "Lately she feels short of breath before going to work and doubts her own competence.",
+                        "Build relational safety.", "Explore the situations, meanings and effects of her anxiety.", "Put the client's choices ahead of solutions.");
+                case "adolescent-pressure-01":
+                    return English("Academic pressure · multicultural teen", "Seoyoon Park", "16 · Youth & school counseling",
+                        "A Korean-born Muslim teenager from a multicultural family, worn down between falling grades, her parents' expectations and classmates' questions about her religious dress. She has started keeping to herself at school.",
+                        "Explain confidentiality and the client's choices in counseling.", "Explore academic pressure and belonging in the client's own words.", "Avoid cultural assumptions and respect silence.");
+                case "career-transition-01":
+                    return English("Career transition and burnout", "Minjun Choi", "39 · Career counseling",
+                        "Torn between wanting to leave a stable job and his responsibility to support his family.",
+                        "Reflect both sides of the ambivalence together.", "Explore values separately from role responsibilities.", "Avoid prescribing a career decision too early.");
+                case "older-bereavement-01":
+                    return English("Late-life bereavement and isolation", "Jeongho Lee", "68 · Older-adult counseling",
+                        "Since his spouse died his meals and sleep have become irregular, and he avoids help so as not to burden his children.",
+                        "Respect the pace of grief and silence.", "Explore loneliness separately from daily functioning.", "Avoid assumptions about his relationship with his children.");
+                case "international-belonging-01":
+                    return English("International student belonging", "Wang Hao", "24 · University counseling",
+                        "In graduate school in Korea he carries the weight of the language and a sense of exclusion, but hesitates to say so for fear of seeming oversensitive.",
+                        "Check cultural explanations with the client.", "Do not confuse language fluency with emotional depth.", "Keep both possible discrimination and personal interpretation open.");
+                default:
+                    return new CaseEnglishText();
+            }
+        }
+
+        private static CaseEnglishText English(string title, string name, string profile, string concern, params string[] objectives) =>
+            new CaseEnglishText { title = title, clientName = name, clientProfile = profile, presentingConcern = concern, learningObjectives = objectives };
 
         private static CounselingDisclosureStep[] BuildLadder(string[] supportive, string[] guarded)
         {

@@ -19,6 +19,16 @@ namespace AdieLab.AffectCounsel
         [TextArea] public string coachingPrompt;
     }
 
+    [Serializable]
+    public sealed class CaseEnglishText
+    {
+        public string title;
+        public string clientName;
+        public string clientProfile;
+        [TextArea] public string presentingConcern;
+        public string[] learningObjectives = Array.Empty<string>();
+    }
+
     [CreateAssetMenu(fileName = "CounselingCase", menuName = "CounselCue/Counseling Case")]
     public sealed class CounselingCaseDefinition : ScriptableObject
     {
@@ -41,6 +51,7 @@ namespace AdieLab.AffectCounsel
         [SerializeField, TextArea] private string personaPromptKey = "workplace-anxiety-01";
         [Tooltip("Optional AI-generated case illustration shown on the briefing card (Assets/Art/Higgsfield/Portraits/{caseId}).")]
         [SerializeField] private Sprite briefingPortrait;
+        [SerializeField] private CaseEnglishText english = new CaseEnglishText();
 
         public string CaseId => caseId;
         public string CaseTitle => caseTitle;
@@ -59,6 +70,19 @@ namespace AdieLab.AffectCounsel
         public string DifficultyLabel => difficultyLabel;
         public string PersonaPromptKey => personaPromptKey;
         public Sprite BriefingPortrait => briefingPortrait;
+
+        // English UI text; each falls back to the Korean source when a translation is missing.
+        public string LocalizedTitle(bool useEnglish) => Pick(useEnglish, english?.title, caseTitle);
+        public string LocalizedName(bool useEnglish) => Pick(useEnglish, english?.clientName, clientName);
+        public string LocalizedProfile(bool useEnglish) => Pick(useEnglish, english?.clientProfile, clientProfile);
+        public string LocalizedConcern(bool useEnglish) => Pick(useEnglish, english?.presentingConcern, presentingConcern);
+        public string[] LocalizedObjectives(bool useEnglish) =>
+            useEnglish && english?.learningObjectives != null && english.learningObjectives.Length > 0
+                ? english.learningObjectives
+                : learningObjectives;
+
+        private static string Pick(bool useEnglish, string translated, string source) =>
+            useEnglish && !string.IsNullOrWhiteSpace(translated) ? translated : source;
 
         public string GetReply(int turnIndex, bool supportive)
         {
@@ -93,6 +117,11 @@ namespace AdieLab.AffectCounsel
             learningObjectives = configuredObjectives;
             disclosureLadder = configuredLadder;
             focusSkills = configuredFocusSkills;
+        }
+
+        public void ConfigureEnglish(CaseEnglishText text)
+        {
+            english = text ?? new CaseEnglishText();
         }
 
         public void ConfigurePortrait(Sprite portrait)

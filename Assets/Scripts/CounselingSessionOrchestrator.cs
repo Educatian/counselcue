@@ -57,6 +57,8 @@ namespace AdieLab.AffectCounsel
         private int mismatchCount;
         private int qualityTotal;
         private bool canceledSubmissionOnPause;
+        private bool useEnglish;
+        private int selectedCaseIndex;
 
         public bool CanSubmit => phase == TrainingSessionPhase.Active;
         public bool ShowLiveCoaching => mode != TrainingMode.Evaluation;
@@ -64,6 +66,15 @@ namespace AdieLab.AffectCounsel
         public TrainingSessionPhase Phase => phase;
         public float ElapsedSeconds => sessionDurationSeconds - remainingSeconds;
         public string CurrentStageLabel => CounselingSessionFlow.StageLabel(stage);
+        public CounselingCaseDefinition ActiveCase => caseDefinition;
+
+        /// <summary>Re-renders case-dependent briefing text in the chosen UI language.</summary>
+        public void SetEnglish(bool value)
+        {
+            useEnglish = value;
+            ConfigureBriefing();
+            if (caseCatalog != null) UpdateCaseButtons(selectedCaseIndex);
+        }
         public string CurrentFocusPrompt
         {
             get
@@ -183,6 +194,7 @@ namespace AdieLab.AffectCounsel
             caseDefinition = selected;
             sessionController.SetCaseDefinition(selected);
             clientAvatar?.ApplyCase(selected);
+            selectedCaseIndex = index;
             ConfigureBriefing();
             UpdateCaseButtons(index);
         }
@@ -266,16 +278,19 @@ namespace AdieLab.AffectCounsel
         private void ConfigureBriefing()
         {
             if (caseDefinition == null) return;
-            briefingCaseLabel.text = $"{caseDefinition.CaseTitle} · {caseDefinition.ClientName}, {caseDefinition.ClientProfile}";
-            if (clientNameLabel != null) clientNameLabel.text = $"내담자  ·  {caseDefinition.ClientName}, {caseDefinition.ClientProfile}";
+            string name = caseDefinition.LocalizedName(useEnglish);
+            string profile = caseDefinition.LocalizedProfile(useEnglish);
+            briefingCaseLabel.text = $"{caseDefinition.LocalizedTitle(useEnglish)} · {name}, {profile}";
+            if (clientNameLabel != null) clientNameLabel.text = useEnglish ? $"CLIENT  ·  {name}, {profile}" : $"내담자  ·  {name}, {profile}";
             StringBuilder body = new StringBuilder();
-            body.AppendLine("상황");
-            body.AppendLine(caseDefinition.PresentingConcern);
+            body.AppendLine(useEnglish ? "Situation" : "상황");
+            body.AppendLine(caseDefinition.LocalizedConcern(useEnglish));
             body.AppendLine();
-            body.AppendLine("이번 세션의 목표");
-            for (int i = 0; i < caseDefinition.LearningObjectives.Length; i++)
+            body.AppendLine(useEnglish ? "Session goals" : "이번 세션의 목표");
+            string[] objectives = caseDefinition.LocalizedObjectives(useEnglish) ?? Array.Empty<string>();
+            for (int i = 0; i < objectives.Length; i++)
             {
-                body.AppendLine($"{i + 1}. {caseDefinition.LearningObjectives[i]}");
+                body.AppendLine($"{i + 1}. {objectives[i]}");
             }
             briefingBodyLabel.text = body.ToString();
             ApplyBriefingPortrait();
@@ -284,8 +299,23 @@ namespace AdieLab.AffectCounsel
             {
                 bool available = caseDefinition.FocusSkills != null && i < caseDefinition.FocusSkills.Length;
                 focusButtons[i].gameObject.SetActive(available);
-                if (available) focusButtons[i].GetComponentInChildren<Text>().text = $"{caseDefinition.FocusSkills[i].label} 연습 · 3분";
+                if (available) focusButtons[i].GetComponentInChildren<Text>().text = FocusButtonLabel(caseDefinition.FocusSkills[i]);
             }
+        }
+
+        private string FocusButtonLabel(CounselingFocusSkill skill)
+        {
+            int minutes = Mathf.Max(1, Mathf.RoundToInt(caseDefinition.FocusedPracticeSeconds / 60f));
+            if (!useEnglish) return $"{skill.label} 연습 · {minutes}분";
+            string label;
+            switch (skill.id)
+            {
+                case "emotion-reflection": label = "Emotion reflection"; break;
+                case "open-question": label = "Open questions"; break;
+                case "delivery-alignment": label = "Delivery alignment"; break;
+                default: label = skill.label; break;
+            }
+            return $"{label} · {minutes} min";
         }
 
         private float briefingBodyFullWidth = -1f;
@@ -314,7 +344,7 @@ namespace AdieLab.AffectCounsel
                 if (caseButtons[i] == null) continue;
                 Text label = caseButtons[i].GetComponentInChildren<Text>();
                 CounselingCaseDefinition item = caseCatalog.GetCase(i);
-                if (label != null && item != null) label.text = item.CaseTitle;
+                if (label != null && item != null) label.text = item.LocalizedTitle(useEnglish);
                 ColorBlock colors = caseButtons[i].colors;
                 colors.normalColor = i == selectedIndex ? new Color(0.20f, 0.48f, 0.37f, 1f) : Color.white;
                 colors.highlightedColor = i == selectedIndex ? new Color(0.26f, 0.56f, 0.44f, 1f) : new Color(0.90f, 0.94f, 0.91f, 1f);

@@ -96,6 +96,7 @@ namespace AdieLab.AffectCounsel.Editor
             CounselingCameraZoom cameraZoom = runtime.AddComponent<CounselingCameraZoom>();
             CounselingLanguageToggle languageToggle = runtime.AddComponent<CounselingLanguageToggle>();
             ClientObservationDebugHud debugHud = runtime.AddComponent<ClientObservationDebugHud>();
+            ResearchDataControls dataControls = runtime.AddComponent<ResearchDataControls>();
             runtime.AddComponent<DemoCaptureController>();
             WireWebcam(webcam, ui);
             WireActionUnits(actionUnits, ui);
@@ -105,7 +106,8 @@ namespace AdieLab.AffectCounsel.Editor
             WireReflection(reflection, orchestrator, ui);
             WireCameraZoom(cameraZoom, camera, client, ui);
             WireClientDebug(debugHud, client, ui);
-            WireLanguageToggle(languageToggle, ui);
+            WireLanguageToggle(languageToggle, orchestrator, ui);
+            WireResearchDataControls(dataControls, ui);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -436,6 +438,7 @@ namespace AdieLab.AffectCounsel.Editor
             RectTransform speechCard = CreatePanel("ClientSpeechCard", canvas.transform, new Vector2(26f, 200f), new Vector2(540f, 112f), new Vector2(0f, 0f), panelSprite, PaperCard);
             CreateAccentBar("ClientAccent", speechCard, 112f, TealAction);
             refs.clientNameLabel = CreateText("ClientName", "내담자  ·  김지혜, 32세", speechCard, new Vector2(24f, -12f), new Vector2(492f, 22f), font, 14, new Color(0.27f, 0.39f, 0.34f), FontStyle.Bold);
+            FitText(refs.clientNameLabel, 11);
             refs.clientLine = CreateText("ClientLine", "요즘 회사에 가려고 하면 숨이 막히는 것 같아요.", speechCard, new Vector2(24f, -40f), new Vector2(492f, 58f), font, 18, Ink, FontStyle.Normal);
 
             RectTransform inputCard = CreatePanel("CounselorInputCard", canvas.transform, new Vector2(0f, 16f), new Vector2(1040f, 116f), new Vector2(0.5f, 0f), panelSprite, HudGlassStrong);
@@ -466,6 +469,8 @@ namespace AdieLab.AffectCounsel.Editor
                 "3. 해결책을 서두르지 않고 내담자의 응답 공간을 지킵니다.\n\n" +
                 "15분 · 목표 10턴 · 웹캠 원본 미저장";
             refs.briefingBodyLabel = CreateText("BriefingBody", briefingBody, briefingCard, new Vector2(42f, -204f), new Vector2(890f, 190f), font, 15, Ink, FontStyle.Normal);
+            FitText(refs.briefingBodyLabel, 12);
+            FitText(refs.briefingCaseLabel, 13);
             refs.briefingPortrait = CreateBriefingPortrait(briefingCard, new Vector2(762f, -200f), new Vector2(170f, 170f));
             refs.briefingPortraitCaption = CreateText("BriefingPortraitCaption", "AI 생성 사례 일러스트", briefingCard, new Vector2(762f, -374f), new Vector2(170f, 18f), font, 11, new Color(0.38f, 0.43f, 0.40f), FontStyle.Normal);
             refs.briefingPortraitCaption.alignment = TextAnchor.UpperCenter;
@@ -488,6 +493,10 @@ namespace AdieLab.AffectCounsel.Editor
             refs.focusTwoButton = CreateButton("StartFocusTwo", briefingCard, new Vector2(347f, -548f), new Vector2(280f, 54f), "개방형 질문 연습 · 3분", font, panelSprite, 15);
             refs.focusThreeButton = CreateButton("StartFocusThree", briefingCard, new Vector2(652f, -548f), new Vector2(280f, 54f), "전달 정합 연습 · 3분", font, panelSprite, 15);
             CreateText("PrivacyLine", "웹캠 원본 미저장 · 집중연습 시간은 사용자 연구로 조정할 시작값입니다.", briefingCard, new Vector2(42f, -628f), new Vector2(890f, 30f), font, 13, new Color(0.38f, 0.43f, 0.40f), FontStyle.Normal);
+            refs.consentToggle = CreateConsentToggle(briefingCard, new Vector2(42f, -658f), new Vector2(690f, 28f), font,
+                "연구용 로컬 기록에 동의합니다 (응답 텍스트·파생 신호만 이 기기에 저장, 원본 영상 제외)");
+            refs.deleteDataButton = CreateButton("DeleteLocalData", briefingCard, new Vector2(760f, -656f), new Vector2(172f, 32f), "로컬 기록 삭제", font, panelSprite, 12);
+            refs.dataStatusLabel = CreateText("DataStatus", "연구용 로컬 기록 꺼짐", briefingCard, new Vector2(42f, -690f), new Vector2(890f, 20f), font, 12, new Color(0.27f, 0.39f, 0.34f), FontStyle.Normal);
 
             RectTransform pauseRoot = CreateOverlayRoot("PauseOverlay", canvas.transform, 0.56f);
             refs.pauseOverlay = pauseRoot.gameObject;
@@ -731,10 +740,21 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void WireLanguageToggle(CounselingLanguageToggle languageToggle, UiReferences ui)
+        private static void WireResearchDataControls(ResearchDataControls controls, UiReferences ui)
+        {
+            SerializedObject serialized = new SerializedObject(controls);
+            serialized.FindProperty("consentToggle").objectReferenceValue = ui.consentToggle;
+            serialized.FindProperty("deleteButton").objectReferenceValue = ui.deleteDataButton;
+            serialized.FindProperty("statusLabel").objectReferenceValue = ui.dataStatusLabel;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(controls);
+        }
+
+        private static void WireLanguageToggle(CounselingLanguageToggle languageToggle, CounselingSessionOrchestrator orchestrator, UiReferences ui)
         {
             SerializedObject serialized = new SerializedObject(languageToggle);
             serialized.FindProperty("toggleButton").objectReferenceValue = ui.languageToggleButton;
+            serialized.FindProperty("orchestrator").objectReferenceValue = orchestrator;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -973,6 +993,63 @@ namespace AdieLab.AffectCounsel.Editor
             image.raycastTarget = false;
         }
 
+        /// <summary>Shrinks long (e.g. English) text to fit its box instead of truncating it.</summary>
+        private static void FitText(Text text, int minSize)
+        {
+            if (text == null) return;
+            text.resizeTextForBestFit = true;
+            text.resizeTextMaxSize = text.fontSize;
+            text.resizeTextMinSize = Mathf.Min(minSize, text.fontSize);
+        }
+
+        private static Toggle CreateConsentToggle(Transform parent, Vector2 position, Vector2 size, Font font, string label)
+        {
+            GameObject root = new GameObject("ConsentToggle", typeof(RectTransform), typeof(Toggle));
+            RectTransform rect = root.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+
+            GameObject box = new GameObject("Box", typeof(RectTransform), typeof(Image));
+            RectTransform boxRect = box.GetComponent<RectTransform>();
+            boxRect.SetParent(rect, false);
+            boxRect.anchorMin = new Vector2(0f, 0.5f);
+            boxRect.anchorMax = new Vector2(0f, 0.5f);
+            boxRect.pivot = new Vector2(0f, 0.5f);
+            boxRect.anchoredPosition = Vector2.zero;
+            boxRect.sizeDelta = new Vector2(22f, 22f);
+            Image boxImage = box.GetComponent<Image>();
+            boxImage.sprite = uiInputSprite;
+            boxImage.type = Image.Type.Sliced;
+            boxImage.color = new Color(0.98f, 0.97f, 0.94f, 1f);
+
+            GameObject check = new GameObject("Check", typeof(RectTransform), typeof(Image));
+            RectTransform checkRect = check.GetComponent<RectTransform>();
+            checkRect.SetParent(boxRect, false);
+            checkRect.anchorMin = new Vector2(0.5f, 0.5f);
+            checkRect.anchorMax = new Vector2(0.5f, 0.5f);
+            checkRect.pivot = new Vector2(0.5f, 0.5f);
+            checkRect.anchoredPosition = Vector2.zero;
+            checkRect.sizeDelta = new Vector2(12f, 12f);
+            Image checkImage = check.GetComponent<Image>();
+            checkImage.color = TealAction;
+            checkImage.raycastTarget = false;
+
+            Text text = CreateText("ConsentLabel", label, rect, new Vector2(32f, 0f), new Vector2(size.x - 32f, size.y), font, 13, Ink, FontStyle.Normal);
+            text.alignment = TextAnchor.MiddleLeft;
+            text.raycastTarget = true;
+            FitText(text, 10);
+
+            Toggle toggle = root.GetComponent<Toggle>();
+            toggle.targetGraphic = boxImage;
+            toggle.graphic = checkImage;
+            toggle.isOn = false;
+            return toggle;
+        }
+
         private static Image CreateBriefingPortrait(Transform parent, Vector2 position, Vector2 size)
         {
             GameObject gameObject = new GameObject("BriefingPortrait", typeof(RectTransform), typeof(Image), typeof(Outline));
@@ -1124,6 +1201,9 @@ namespace AdieLab.AffectCounsel.Editor
             public Text briefingCaseLabel;
             public Text briefingBodyLabel;
             public Image briefingPortrait;
+            public Toggle consentToggle;
+            public Button deleteDataButton;
+            public Text dataStatusLabel;
             public Text briefingPortraitCaption;
             public Text clientNameLabel;
             public Text faceDebugLabel;
