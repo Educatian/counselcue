@@ -100,6 +100,8 @@ namespace AdieLab.AffectCounsel
         /// <summary>Speech whose audio arrives as a live stream (Gemini Live): mouth follows the level.</summary>
         public void BeginExternalSpeech(string emotion) => activeClient?.BeginExternalSpeech(emotion);
         public void SetSpeechLevel(float level) => activeClient?.SetSpeechLevel(level);
+        public void Acknowledge() => activeClient?.Acknowledge();
+        public ClientGestureController Gestures => activeClient == null ? null : activeClient.Gestures;
         public void CycleDebugGaze() => activeClient?.CycleDebugGaze();
     }
 }

@@ -14,6 +14,8 @@ namespace AdieLab.AffectCounsel
     public sealed class ReviewCaptureRunner : MonoBehaviour
     {
         public const string FlagPath = "Temp/counselcue-review-capture.flag";
+        /// <summary>Create this file to add the (long) gesture sheet to the next review capture.</summary>
+        public const string GestureFlagPath = "Temp/counselcue-gesture-sheet.flag";
         private const string OutputFolder = "Screenshots/review";
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -54,6 +56,53 @@ namespace AdieLab.AffectCounsel
                 main.transform.SetPositionAndRotation(position, rotation);
                 main.fieldOfView = fov;
                 if (zoom != null) zoom.enabled = true;
+            }
+            // Gesture sheet: every rest posture, adaptor and illustrator on selected clients.
+            if (orchestrator != null && host != null && File.Exists(GestureFlagPath))
+            {
+                File.Delete(GestureFlagPath);
+                foreach (int caseIndex in new[] { 0, 1, 3 })
+                {
+                    orchestrator.SelectCase(caseIndex);
+                    yield return new WaitForSecondsRealtime(1.6f);
+                    ClientGestureController gestures = host.Gestures;
+                    if (gestures == null) continue;
+                    foreach (RestPose pose in System.Enum.GetValues(typeof(RestPose)))
+                    {
+                        gestures.DebugRest(pose);
+                        yield return new WaitForSecondsRealtime(1.7f);
+                        yield return Capture($"14-c{caseIndex + 1}-rest-{pose}");
+                    }
+                    if (caseIndex != 0) continue;
+                    gestures.DebugRest(RestPose.HandsOnThighs);
+                    yield return new WaitForSecondsRealtime(1.2f);
+                    foreach (AdaptorKind kind in System.Enum.GetValues(typeof(AdaptorKind)))
+                    {
+                        gestures.DebugAdaptor(kind, 2.5f);
+                        yield return new WaitForSecondsRealtime(kind == AdaptorKind.HairTuck ? 1.0f : 1.4f);
+                        yield return Capture($"15-c1-adaptor-{kind}");
+                        yield return new WaitForSecondsRealtime(2.4f);
+                    }
+                    for (int k = 0; k < 3; k++)
+                    {
+                        gestures.DebugIllustrator(k);
+                        yield return new WaitForSecondsRealtime(0.9f);
+                        yield return Capture($"16-c1-illustrator-{k}");
+                        yield return new WaitForSecondsRealtime(2.2f);
+                    }
+                    gestures.ResumeScheduler();
+                }
+
+                // Motion strip: the scheduler running freely while the client speaks two lines.
+                orchestrator.SelectCase(2);
+                yield return new WaitForSecondsRealtime(1.5f);
+                host.Gestures?.ResumeScheduler();
+                host.Speak("솔직히 잘 모르겠어요. 한편으로는 그만두고 싶은데, 또 가족을 생각하면 그럴 수가 없고요.", "anxious");
+                for (int frame = 0; frame < 16; frame++)
+                {
+                    yield return new WaitForSecondsRealtime(0.35f);
+                    yield return Capture($"17-motion-{frame:00}");
+                }
             }
             foreach (Canvas canvas in hudCanvases) canvas.enabled = true;
             int caseCount = 5;

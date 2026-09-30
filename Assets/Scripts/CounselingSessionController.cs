@@ -229,6 +229,7 @@ namespace AdieLab.AffectCounsel
             int expectedSubmission = ++submissionGeneration;
             isSubmitting = true;
             sendButton.interactable = false;
+            client?.Acknowledge();
             try
             {
                 string clientPrompt = committedClientLine;
