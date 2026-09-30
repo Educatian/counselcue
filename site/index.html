@@ -95,13 +95,6 @@
   .client b { display: block; font-size: 15px; }
   .client span { color: var(--ink-muted); }
 
-  table { width: 100%; border-collapse: collapse; margin-top: 26px; font-size: 15px; background: #fffdf8; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
-  th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { background: var(--paper-deep); font-size: 13px; letter-spacing: .04em; color: var(--ink-muted); }
-  tr:last-child td { border-bottom: 0; }
-  .ok { color: var(--celadon-deep); font-weight: 700; white-space: nowrap; }
-  .wip { color: #9a6a1d; font-weight: 700; white-space: nowrap; }
-  .table-wrap { overflow-x: auto; }
 
   .steps { counter-reset: s; display: grid; gap: 12px; margin-top: 24px; padding: 0; list-style: none; }
   .steps li { counter-increment: s; display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; background: #1f2421; border-radius: 16px; padding: 16px; }
@@ -121,7 +114,7 @@
   <div class="wrap">
     <a class="brand" href="#top"><span class="seal">談</span>CounselCue</a>
     <div class="links">
-      <a href="#practice">연습 구성</a><a href="#phases">상담 단계</a><a href="#nonverbal">비언어</a><a href="#feedback">피드백·연구</a><a href="#updates">반영 현황</a><a href="#demo">데모</a>
+      <a href="#practice">연습 구성</a><a href="#phases">상담 단계</a><a href="#nonverbal">비언어</a><a href="#feedback">피드백·연구</a><a href="#demo">데모</a>
     </div>
     <a class="btn primary" style="padding:9px 16px;font-size:14px" href="https://counselcue-play.jewoong-moon.workers.dev" target="_blank" rel="noopener">데모 열기</a>
   </div>
@@ -224,36 +217,6 @@
       <div class="card"><span class="k">패턴</span><h3>반응 패턴 프로필</h3><p>예: "닫힌 질문 3회 연속 · 덜 쓴 기술: 감정 반영, 공감". 주로 쓰는 기술과 취약한 영역을 함께 보여 줍니다.</p></div>
       <div class="card"><span class="k">힌트</span><h3>내용 측면의 재연습 힌트</h3><p>내담자 진술에서 반응할 수 있었던 단서(감정·사고·행동·관계)와 다른 반응 예를 제시해, 같은 장면을 다시 연습할 때 방향을 잡게 합니다.</p></div>
       <div class="card"><span class="k">신뢰도</span><h3>코딩 신뢰도 점검</h3><p>전문가 코딩과의 일치도(Cohen's κ, F1)를 지속적으로 확인하고 기준치 아래로 떨어지면 빌드에서 알립니다. 연구 기록은 스키마 버전으로 관리합니다.</p></div>
-    </div>
-  </div>
-</section>
-
-<section class="alt" id="updates">
-  <div class="wrap">
-    <div class="eyebrow">Reviewer feedback</div>
-    <h2>현장 전문가 피드백 반영 현황</h2>
-    <p class="lead">상담 전공 박사 과정 연구자의 체험 피드백을 항목별로 반영했습니다.</p>
-    <div class="table-wrap">
-    <table>
-      <thead><tr><th>피드백</th><th>반영 내용</th><th>상태</th></tr></thead>
-      <tbody>
-        <tr><td>초기 단계 외에 상담의 다른 단계도 연습하고 싶다</td><td>회기 단계 선택(접수·초기 / 목표 설정 / 중반부 작업 / 종결)과 사례별 단계 시나리오 15종</td><td class="ok">반영</td></tr>
-        <tr><td>내담자 진술이 1–2문장으로 짧다</td><td>마음이 열릴 때 감정·사고·행동·관계 단서가 섞인 3–4문장 진술, 자막이 잘리지 않도록 자동 확장</td><td class="ok">반영</td></tr>
-        <tr><td>반복되는 반응 유형을 분석해 취약 영역을 보고 싶다</td><td>세션 반응 패턴 프로필과 대시보드 반응 패턴 요약</td><td class="ok">반영</td></tr>
-        <tr><td>다시 연습할 때 내용 측면의 힌트가 필요하다</td><td>주목할 단서, 다른 반응 예, 코드별 재연습 힌트</td><td class="ok">반영</td></tr>
-        <tr><td>한 장면만 다시 연습했는데 이후 기록이 사라졌다</td><td>재연습 결과를 원래 장면에 붙이고 전체 세션 기록 유지</td><td class="ok">반영</td></tr>
-        <tr><td>피드백이 상담자2–내담자3처럼 어긋나 보인다</td><td>성찰 화면을 내담자(앞) → 상담자 → 내담자(반응) 순서로 표시</td><td class="ok">반영</td></tr>
-        <tr><td>"안녕하세요"가 성급한 조언으로 코딩됨</td><td>인사말 예외 처리(규칙 코더·AI 코더), 회귀 테스트 추가</td><td class="ok">반영</td></tr>
-        <tr><td>'비언어 근거가 없어…' 문구가 모호하다</td><td>"웹캠 표정 분석을 쓰지 않아 상담자의 표정·시선 전달은 평가하지 않았다"로 명확화, 내담자 비언어 단서 표시</td><td class="ok">반영</td></tr>
-        <tr><td>남성 내담자인데 여성 목소리가 나온다</td><td>사례별 성별·연령에 맞는 기본 음성 지정</td><td class="ok">반영</td></tr>
-        <tr><td>마이크로 말할 수 있는 시간이 짧다</td><td>연속 받아쓰기(다시 누를 때까지, 최대 90초)</td><td class="ok">반영</td></tr>
-        <tr><td>박서윤이 비밀보장을 과도하게 반복해서 묻는다</td><td>설명을 들으면 받아들이고 학업·부모·친구 이야기로 넘어가도록 페르소나 조정</td><td class="ok">반영</td></tr>
-        <tr><td>최민준의 호소가 겉돈다</td><td>'나약하고 의지 없는 나', 가족 부담, 책임감을 핵심 주제로 명시하고 반복 대신 심화</td><td class="ok">반영</td></tr>
-        <tr><td>16세 내담자가 아동처럼 보인다 / 손이 허벅지를 관통한다</td><td>청소년 체형의 새 캐릭터, 몸에 맞춘 팔 IK로 손이 허벅지 위에 놓이도록 수정</td><td class="ok">반영</td></tr>
-        <tr><td>고개를 좌우로 자주 움직인다 / 강조어마다 손동작이 커진다</td><td>시선은 눈이 먼저, 고개는 적게. 몸짓은 단어가 아니라 정서·관계 맥락에 따라 조절</td><td class="ok">반영</td></tr>
-        <tr><td>한글 입력·띄어쓰기·문장부호가 안 된다</td><td>브라우저 입력창(한글 IME 지원) 사용, Unity 키 캡처 해제 — 최신 빌드에서 재확인 예정</td><td class="wip">재확인</td></tr>
-      </tbody>
-    </table>
     </div>
   </div>
 </section>
