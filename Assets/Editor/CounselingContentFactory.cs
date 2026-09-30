@@ -8,6 +8,17 @@ namespace AdieLab.AffectCounsel.Editor
     {
         public const string CatalogPath = "Assets/Data/CaseCatalog.asset";
 
+        // Per case: a licensed Reallusion ActorCore actor when it is installed locally
+        // (Tools/art/import_actorcore.py; not redistributed), otherwise the Rocketbox avatar.
+        private static readonly string[] ActorCoreIds =
+        {
+            "business-f-0017",  // 김지혜 32 · workplace
+            "casual-f-0192",    // 박서윤 16 · adolescent
+            "business-m-0079",  // 최민준 39 · career transition
+            "casual-m-0192",    // 이정호 68 · late-life bereavement
+            "casual-m-0119"     // 왕하오 24 · international student
+        };
+
         private static readonly string[] AvatarPaths =
         {
             "Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Female_Adult_05/Export/Female_Adult_05_facial.fbx",
@@ -16,6 +27,9 @@ namespace AdieLab.AffectCounsel.Editor
             "Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Male_Adult_14/Export/Male_Adult_14_facial.fbx",
             "Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Male_Adult_09/Export/Male_Adult_09_facial.fbx"
         };
+
+        /// <summary>True when every case resolved to an installed ActorCore actor on the last build.</summary>
+        public static bool UsingActorCore { get; private set; }
 
         [MenuItem("Tools/CounselCue/Create Sprint Case Catalog")]
         public static CaseCatalog CreateOrUpdate()
@@ -27,6 +41,7 @@ namespace AdieLab.AffectCounsel.Editor
 
             CaseSpec[] specs = BuildSpecs();
             CounselingCaseDefinition[] cases = new CounselingCaseDefinition[specs.Length];
+            UsingActorCore = true;
             for (int i = 0; i < specs.Length; i++) cases[i] = CreateCase(specs[i], i);
 
             CaseCatalog catalog = LoadOrCreate<CaseCatalog>(CatalogPath);
@@ -41,10 +56,17 @@ namespace AdieLab.AffectCounsel.Editor
             ClientProfileDefinition profile = LoadOrCreate<ClientProfileDefinition>($"Assets/Data/Profiles/{spec.Id}.asset");
             profile.Configure(spec.Id, spec.Name, spec.Age, spec.Domain, spec.CulturalContext, spec.NonverbalStyle, spec.GazeComfort, spec.DisclosurePace);
 
-            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AvatarPaths[avatarIndex]);
+            string source = "actorcore";
+            GameObject prefab = ActorCoreLibrary.Load(ActorCoreIds[avatarIndex]);
+            if (prefab == null)
+            {
+                source = "rocketbox";
+                UsingActorCore = false;
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AvatarPaths[avatarIndex]);
+            }
             if (prefab == null) throw new InvalidOperationException($"Rocketbox facial avatar is missing: {AvatarPaths[avatarIndex]}");
             AvatarPresentationDefinition presentation = LoadOrCreate<AvatarPresentationDefinition>($"Assets/Data/Presentations/{spec.Id}.asset");
-            presentation.Configure($"rocketbox-{spec.Id}", prefab, new Vector3(0f, 0.08f, 1.02f), new Vector3(0f, 180f, 0f), Vector3.one,
+            presentation.Configure($"{source}-{spec.Id}", prefab, new Vector3(0f, 0.08f, 1.02f), new Vector3(0f, 180f, 0f), Vector3.one,
                 spec.VoiceStyle, spec.ExpressionIntensity, spec.GazeIntensity);
 
             CounselingCaseDefinition definition = LoadOrCreate<CounselingCaseDefinition>($"Assets/Data/Cases/{spec.Id}.asset");

@@ -53,9 +53,8 @@ namespace AdieLab.AffectCounsel
                 if (mesh == null) continue;
                 for (int index = 0; index < mesh.blendShapeCount; index++)
                 {
-                    string key = FacialRigSemanticAdapter.Normalize(mesh.GetBlendShapeName(index));
-                    if (!key.StartsWith("AU_", StringComparison.OrdinalIgnoreCase) &&
-                        !key.StartsWith("AA_VI_", StringComparison.OrdinalIgnoreCase)) continue;
+                    string key = FacialRigSemanticAdapter.ToSemantic(mesh.GetBlendShapeName(index));
+                    if (key.Length == 0) continue;
                     Binding binding = new Binding { renderer = renderer, index = index, key = key };
                     bindings.Add(binding);
                     if (!byKey.TryGetValue(key, out List<Binding> list))

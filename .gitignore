@@ -71,3 +71,8 @@ Screenshots/*
 
 # Local build output of eval scripts
 /.ci-build/
+
+# Reallusion ActorCore actors are licensed per purchaser; unpack locally with
+# Tools/art/import_actorcore.py (the builder falls back to Rocketbox without them).
+Assets/ThirdParty/ActorCore/
+Assets/ThirdParty/ActorCore.meta

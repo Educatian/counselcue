@@ -41,14 +41,33 @@ namespace AdieLab.AffectCounsel.Editor
                     blendShapeCount += renderer.sharedMesh.blendShapeCount;
                     for (int i = 0; i < renderer.sharedMesh.blendShapeCount; i++) names.Add(renderer.sharedMesh.GetBlendShapeName(i));
                 }
-                Require(blendShapeCount >= 150, $"Rocketbox face expected >=150 blendshapes, found {blendShapeCount}.");
-                Require(names.Any(n => n.Contains("AU_45_Blink")), "Blink AU missing.");
-                Require(names.Any(n => n.Contains("AU_04_BrowLowerer")), "Brow lowerer AU missing.");
-                Require(names.Count(n => n.Contains("AA_VI_")) >= 15, "Fifteen visemes required.");
+                HashSet<string> semanticNames = new HashSet<string>(
+                    names.Select(FacialRigSemanticAdapter.ToSemantic).Where(n => n.Length > 0), StringComparer.OrdinalIgnoreCase);
+                bool actorCore = CounselingContentFactory.UsingActorCore;
+                Require(blendShapeCount >= (actorCore ? 50 : 150),
+                    $"{(actorCore ? "ActorCore" : "Rocketbox")} face expected >={(actorCore ? 50 : 150)} blendshapes, found {blendShapeCount}.");
+                Require(semanticNames.Contains("AU_45_Blink") ||
+                        (semanticNames.Contains("AU_43_L_EyeClosed") && semanticNames.Contains("AU_43_R_EyeClosed")), "Blink AU missing.");
+                Require(semanticNames.Any(n => n.StartsWith("AU_04_")), "Brow lowerer AU missing.");
+                Require(semanticNames.Count(n => n.StartsWith("AA_VI_")) >= (actorCore ? 6 : 15),
+                    $"Too few visemes mapped ({semanticNames.Count(n => n.StartsWith("AA_VI_"))}).");
+                foreach (CounselingCaseDefinition item in catalog.Cases)
+                {
+                    int channels = 0;
+                    foreach (SkinnedMeshRenderer renderer in item.AvatarPresentation.AvatarPrefab.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                    {
+                        if (renderer.sharedMesh == null) continue;
+                        for (int i = 0; i < renderer.sharedMesh.blendShapeCount; i++)
+                            if (FacialRigSemanticAdapter.ToSemantic(renderer.sharedMesh.GetBlendShapeName(i)).Length > 0) channels++;
+                    }
+                    Require(channels >= 20, $"{item.CaseId}: only {channels} facial channels map to AU/viseme semantics.");
+                }
                 Require(KoreanVisemePlanner.Build("상담을 시작해요").Any(v => v != "AA_VI_00_Sil"), "Korean viseme plan is silent.");
-                HashSet<string> semanticNames = new HashSet<string>(names.Select(FacialRigSemanticAdapter.Normalize), StringComparer.OrdinalIgnoreCase);
-                HashSet<string> shadowed = FacialRigSemanticAdapter.FindCombinedShapesShadowedByLaterals(semanticNames);
+                HashSet<string> shadowed = FacialRigSemanticAdapter.FindCombinedShapesShadowedByLaterals(
+                    new[] { "AU_12_LipCornerPuller", "AU_12_L_LipCornerPuller", "AU_12_R_LipCornerPuller" });
                 Require(shadowed.Contains("AU_12_LipCornerPuller"), "Combined/lateral AU duplicate detection failed.");
+                Require(FacialRigSemanticAdapter.ToSemantic("Brow_Drop_L") == "AU_04_L_BrowLowerer", "ActorCore brow mapping failed.");
+                Require(FacialRigSemanticAdapter.ToSemantic("A14_Eye_Blink_Left").Length == 0, "ARKit duplicates must stay unmapped.");
                 Require(FacialMorphDynamics.BlinkWeight(0.065f) > 0.95f, "Blink must contain a short natural hold.");
                 float morphVelocity = 0f;
                 float morphStep = FacialMorphDynamics.Step(0f, 100f, ref morphVelocity, 0.16f, 170f, 1f / 60f);
@@ -64,7 +83,7 @@ namespace AdieLab.AffectCounsel.Editor
                 Require(UnityEngine.Object.FindObjectsByType<ClientMicroMotionController>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length >= 1, "Micro motion controller missing.");
                 Require(GameObject.Find("SelectCase5") != null, "Five-case selection UI missing.");
                 EditorSceneManager.SaveOpenScenes();
-                Debug.Log("COUNSELCUE_SPRINT_1_3_CHECKS_PASS cases=5 gazeStates=5 blendshapes=" + blendShapeCount);
+                Debug.Log($"COUNSELCUE_SPRINT_1_3_CHECKS_PASS cases=5 gazeStates=5 rig={(actorCore ? "actorcore" : "rocketbox")} blendshapes={blendShapeCount}");
                 if (exit) EditorApplication.Exit(0);
             }
             catch (Exception exception)

@@ -34,6 +34,27 @@ namespace AdieLab.AffectCounsel
             Canvas[] hudCanvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
             foreach (Canvas canvas in hudCanvases) canvas.enabled = false;
             yield return Capture("00-room-clean");
+            // Client line-up: every case's avatar in the chair, plus a face close-up.
+            Camera main = Camera.main;
+            ClientAvatarHost host = FindAnyObjectByType<ClientAvatarHost>();
+            CounselingCameraZoom zoom = FindAnyObjectByType<CounselingCameraZoom>();
+            for (int i = 0; i < 5 && orchestrator != null && main != null && host != null; i++)
+            {
+                orchestrator.SelectCase(i);
+                yield return new WaitForSecondsRealtime(1.4f);
+                yield return Capture($"12-client-case{i + 1}");
+                if (!host.TryGetObservationAnchors(out _, out Vector3 face)) continue;
+                Vector3 position = main.transform.position;
+                Quaternion rotation = main.transform.rotation;
+                float fov = main.fieldOfView;
+                if (zoom != null) zoom.enabled = false;
+                main.transform.rotation = Quaternion.LookRotation(face - position);
+                main.fieldOfView = CounselingCameraZoom.CloseFieldOfView * 0.6f;
+                yield return Capture($"13-face-case{i + 1}");
+                main.transform.SetPositionAndRotation(position, rotation);
+                main.fieldOfView = fov;
+                if (zoom != null) zoom.enabled = true;
+            }
             foreach (Canvas canvas in hudCanvases) canvas.enabled = true;
             int caseCount = 5;
             for (int i = 0; i < caseCount; i++)
