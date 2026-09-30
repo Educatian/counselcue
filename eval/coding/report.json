@@ -1,0 +1,408 @@
+{
+  "gold": "eval/coding/gold-ko.csv",
+  "labelStatus": "draft",
+  "generatedUtc": "2026-09-30T15:59:08.778Z",
+  "pairs": {
+    "lexicon_vs_A": {
+      "n": 87,
+      "accuracy": 0.6206896551724138,
+      "kappa": 0.5725134008338296,
+      "macroF1": 0.6406177156177156,
+      "qualityKappa": 0.7849633641287034,
+      "perCode": [
+        {
+          "code": "reflection_exploration",
+          "support": 10,
+          "precision": 0.75,
+          "recall": 0.9,
+          "f1": 0.8181818181818182
+        },
+        {
+          "code": "reflection",
+          "support": 11,
+          "precision": 0.6,
+          "recall": 0.8181818181818182,
+          "f1": 0.6923076923076923
+        },
+        {
+          "code": "validation",
+          "support": 7,
+          "precision": 0.625,
+          "recall": 0.7142857142857143,
+          "f1": 0.6666666666666666
+        },
+        {
+          "code": "open_question",
+          "support": 15,
+          "precision": 0.7272727272727273,
+          "recall": 0.5333333333333333,
+          "f1": 0.6153846153846153
+        },
+        {
+          "code": "closed_question",
+          "support": 8,
+          "precision": 0,
+          "recall": 0,
+          "f1": 0
+        },
+        {
+          "code": "why_question",
+          "support": 7,
+          "precision": 1,
+          "recall": 0.7142857142857143,
+          "f1": 0.8333333333333333
+        },
+        {
+          "code": "advice",
+          "support": 10,
+          "precision": 1,
+          "recall": 0.6,
+          "f1": 0.7499999999999999
+        },
+        {
+          "code": "premature_reassurance",
+          "support": 8,
+          "precision": 1,
+          "recall": 0.5,
+          "f1": 0.6666666666666666
+        },
+        {
+          "code": "neutral",
+          "support": 9,
+          "precision": 0.25,
+          "recall": 0.6666666666666666,
+          "f1": 0.36363636363636365
+        },
+        {
+          "code": "silence",
+          "support": 2,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
+        }
+      ],
+      "confusion": {
+        "reflection_exploration": {
+          "reflection_exploration": 9,
+          "reflection": 0,
+          "validation": 0,
+          "open_question": 1,
+          "closed_question": 0,
+          "why_question": 0,
+          "advice": 0,
+          "premature_reassurance": 0,
+          "neutral": 0,
+          "silence": 0
+        },
+        "reflection": {
+          "reflection_exploration": 0,
+          "reflection": 9,
+          "validation": 1,
+          "open_question": 0,
+          "closed_question": 0,
+          "why_question": 0,
+          "advice": 0,
+          "premature_reassurance": 0,
+          "neutral": 1,
+          "silence": 0
+        },
+        "validation": {
+          "reflection_exploration": 0,
+          "reflection": 2,
+          "validation": 5,
+          "open_question": 0,
+          "closed_question": 0,
+          "why_question": 0,
+          "advice": 0,
+          "premature_reassurance": 0,
+          "neutral": 0,
+          "silence": 0
+        },
+        "open_question": {
+          "reflection_exploration": 3,
+          "reflection": 0,
+          "validation": 0,
+          "open_question": 8,
+          "closed_question": 0,
+          "why_question": 0,
+          "advice": 0,
+          "premature_reassurance": 0,
+          "neutral": 4,
+          "silence": 0
+        },
+        "closed_question": {
+          "reflection_exploration": 0,
+          "reflection": 1,
+          "validation": 0,
+          "open_question": 0,
+          "closed_question": 0,
+          "why_question": 0,
+          "advice": 0,
+          "premature_reassurance": 0,
+          "neutral": 7,
+          "silence": 0
+        },
+        "why_question": {
+          "reflection_exploration": 0,
+          "reflection": 2,
+          "validation": 0,
+          "open_question": 0,
+          "closed_question": 0,
+          "why_question": 5,
+          "advice": 0,
+          "premature_reassurance": 0,
+          "neutral": 0,
+          "silence": 0
+        },
+        "advice": {
+          "reflection_exploration": 0,
+          "reflection": 0,
+          "validation": 0,
+          "open_question": 0,
+          "closed_question": 0,
+          "why_question": 0,
+          "advice": 6,
+          "premature_reassurance": 0,
+          "neutral": 4,
+          "silence": 0
+        },
+        "premature_reassurance": {
+          "reflection_exploration": 0,
+          "reflection": 0,
+          "validation": 1,
+          "open_question": 1,
+          "closed_question": 0,
+          "why_question": 0,
+          "advice": 0,
+          "premature_reassurance": 4,
+          "neutral": 2,
+          "silence": 0
+        },
+        "neutral": {
+          "reflection_exploration": 0,
+          "reflection": 1,
+          "validation": 1,
+          "open_question": 1,
+          "closed_question": 0,
+          "why_question": 0,
+          "advice": 0,
+          "premature_reassurance": 0,
+          "neutral": 6,
+          "silence": 0
+        },
+        "silence": {
+          "reflection_exploration": 0,
+          "reflection": 0,
+          "validation": 0,
+          "open_question": 0,
+          "closed_question": 0,
+          "why_question": 0,
+          "advice": 0,
+          "premature_reassurance": 0,
+          "neutral": 0,
+          "silence": 2
+        }
+      }
+    }
+  },
+  "disagreements": [
+    {
+      "id": "ko005",
+      "utterance": "집이 조용할 때 그리움이 더 크게 밀려오시나 봐요. 그 시간을 어떻게 보내고 계신지 여쭤봐도 될까요?",
+      "reference": "reflection_exploration",
+      "lexicon": "open_question"
+    },
+    {
+      "id": "ko011",
+      "utterance": "자신이 약한 건 아닌지 스스로를 탓하게 되시는군요.",
+      "reference": "reflection",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko020",
+      "utterance": "예민한 게 아니라, 그 상황에서 충분히 느낄 수 있는 감정이에요.",
+      "reference": "validation",
+      "lexicon": "reflection"
+    },
+    {
+      "id": "ko025",
+      "utterance": "그런 마음이 드는 게 무리가 아니에요.",
+      "reference": "validation",
+      "lexicon": "reflection"
+    },
+    {
+      "id": "ko028",
+      "utterance": "학교생활은 요즘 어때?",
+      "reference": "open_question",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko031",
+      "utterance": "회의에서 어떤 순간이 가장 불편하게 느껴지나요?",
+      "reference": "open_question",
+      "lexicon": "reflection_exploration"
+    },
+    {
+      "id": "ko032",
+      "utterance": "편하게 이야기해 볼래?",
+      "reference": "open_question",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko035",
+      "utterance": "회사 다닌 지는 몇 년 되셨어요?",
+      "reference": "closed_question",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko036",
+      "utterance": "요즘 잠은 잘 주무세요?",
+      "reference": "closed_question",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko037",
+      "utterance": "성적표 부모님께 보여드렸어?",
+      "reference": "closed_question",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko038",
+      "utterance": "이직 제안을 받으신 적 있으세요?",
+      "reference": "closed_question",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko039",
+      "utterance": "식사는 하셨어요?",
+      "reference": "closed_question",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko040",
+      "utterance": "한국에 온 지 1년 넘으셨죠?",
+      "reference": "closed_question",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko041",
+      "utterance": "불안하셨어요?",
+      "reference": "closed_question",
+      "lexicon": "reflection"
+    },
+    {
+      "id": "ko042",
+      "utterance": "친구는 있어?",
+      "reference": "closed_question",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko047",
+      "utterance": "왜 예민하다고 느끼세요?",
+      "reference": "why_question",
+      "lexicon": "reflection"
+    },
+    {
+      "id": "ko051",
+      "utterance": "공부 계획표를 짜서 하루에 조금씩 해 봐.",
+      "reference": "advice",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko054",
+      "utterance": "회의 전에 미리 자료를 읽어 가시면 도움이 될 거예요.",
+      "reference": "advice",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko056",
+      "utterance": "일단 이직 준비부터 하시면 어떨까요?",
+      "reference": "advice",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko061",
+      "utterance": "어떤 선택을 하셔도 잘 해내실 거예요.",
+      "reference": "premature_reassurance",
+      "lexicon": "open_question"
+    },
+    {
+      "id": "ko062",
+      "utterance": "곧 적응되실 거예요.",
+      "reference": "premature_reassurance",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko064",
+      "utterance": "그 정도는 다들 겪는 일이야.",
+      "reference": "premature_reassurance",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko069",
+      "utterance": "그렇군요. 계속 말씀하세요.",
+      "reference": "neutral",
+      "lexicon": "open_question"
+    },
+    {
+      "id": "ko072",
+      "utterance": "주변에서 '괜찮아질 거야'라고 말해서 오히려 더 답답하셨군요.",
+      "reference": "reflection",
+      "lexicon": "validation"
+    },
+    {
+      "id": "ko073",
+      "utterance": "엄마가 공부 좀 하라고 하셨을 때 어떤 기분이었어?",
+      "reference": "open_question",
+      "lexicon": "reflection_exploration"
+    },
+    {
+      "id": "ko074",
+      "utterance": "지금 느끼는 걸 편하게 말씀해 보세요.",
+      "reference": "open_question",
+      "lexicon": "reflection_exploration"
+    },
+    {
+      "id": "ko075",
+      "utterance": "솔직히 저는 잘 이해가 안 돼요. 그게 그렇게 힘든 일인가요?",
+      "reference": "neutral",
+      "lexicon": "reflection"
+    },
+    {
+      "id": "ko076",
+      "utterance": "책임감 때문에 망설여지시는군요. 그래도 결국 떠나시는 게 맞아요.",
+      "reference": "advice",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko077",
+      "utterance": "외로우시죠. 하지만 곧 괜찮아지실 거예요.",
+      "reference": "premature_reassurance",
+      "lexicon": "validation"
+    },
+    {
+      "id": "ko078",
+      "utterance": "서운했구나. 그런데 왜 말을 안 했어?",
+      "reference": "why_question",
+      "lexicon": "reflection"
+    },
+    {
+      "id": "ko081",
+      "utterance": "가족분들은 뭐라고 하세요?",
+      "reference": "open_question",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko083",
+      "utterance": "팀장님이 뭐라고 하셨는데요?",
+      "reference": "open_question",
+      "lexicon": "neutral"
+    },
+    {
+      "id": "ko084",
+      "utterance": "선생님한테 다 말해도 괜찮아. 부모님께는 네 동의 없이 얘기하지 않을게.",
+      "reference": "neutral",
+      "lexicon": "validation"
+    }
+  ]
+}

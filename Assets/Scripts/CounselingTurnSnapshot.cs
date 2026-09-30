@@ -11,6 +11,9 @@ namespace AdieLab.AffectCounsel
         public string clientPrompt;
         public string clientReply;
         public string skill;
+        public string skillCode;
+        public string codingSource;
+        public string skillRationale;
         public int quality;
         public string alignment;
         public string coachingFeedback;
@@ -30,6 +33,8 @@ namespace AdieLab.AffectCounsel
         public int sourceTurn;
         public string selfAssessment;
         public string skill;
+        public string skillCode;
+        public string codingSource;
         public int quality;
     }
 }

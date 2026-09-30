@@ -275,6 +275,21 @@ mergeInto(LibraryManager.library, {
     S.applyLang();
   },
 
+  // Saves the learner's export bundle for the instructor dashboard (Blob download; the
+  // text is JSON produced by ResearchExportBundle, never interpreted as markup).
+  CounselCueWeb_Download: function (namePointer, textPointer) {
+    var name = UTF8ToString(namePointer).replace(/[^A-Za-z0-9._-]/g, "_") || "counselcue-export.json";
+    var blob = new Blob([UTF8ToString(textPointer)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  },
+
   CounselCueWeb_SetCase: function (casePointer) {
     var S = window.CounselCueWeb;
     if (S) S.c = UTF8ToString(casePointer);

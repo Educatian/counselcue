@@ -68,3 +68,6 @@ Screenshots/*
 
 # Editor automation mailbox (Assets/Editor/Automation)
 /Automation/
+
+# Local build output of eval scripts
+/.ci-build/

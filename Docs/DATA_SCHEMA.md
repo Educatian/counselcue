@@ -1,4 +1,4 @@
-# CounselCue local research data (schema v2)
+# CounselCue local research data (schema v3)
 
 CounselCue writes three JSON Lines files to `Application.persistentDataPath` **only after the learner opts in** on the briefing card ("연구용 로컬 기록에 동의합니다"). "Delete local records" removes all three files. Raw webcam video and audio are never stored. On WebGL the files live in the browser's IndexedDB-backed file system for that site.
 
@@ -14,7 +14,7 @@ Join the three files on `sessionId`. A scene replay starts a new `sessionId`; it
 
 | Field | Type | Notes |
 |---|---|---|
-| `schemaVersion` | int | `2` since this release. Records without it are v1 (no `caseId`, `sessionId` only in turn records). |
+| `schemaVersion` | int | `3` since skill-coding provenance was added; `2` added `caseId`/`appVersion`; records without it are v1. |
 | `sessionId` | string | Random GUID per session; not linked to any identity. |
 | `timestampUtc` | string | ISO 8601, UTC. |
 | `appVersion` | string | Unity `Application.version` (turn and summary records). |
@@ -35,6 +35,12 @@ Join the three files on `sessionId`. A scene replay starts a new `sessionId`; it
 | `webcamSignalQuality`, `webcamMovement` | Derived webcam signal indicators only. |
 | `auSource`, `auTracking`, `auCalibrated`, `au01` … `au45` | MediaPipe-derived AU **proxies** relative to the personal baseline; not FACS coding or emotion labels. |
 | `conversationEngine` | `local`, `persona-llm`, or `gpt-realtime-2.1`. |
+| `skillCode`, `codebookVersion` | v3. The code from ko-codebook-1 (`reflection_exploration`, `reflection`, `validation`, `open_question`, `closed_question`, `why_question`, `advice`, `premature_reassurance`, `neutral`, `silence`) that drove the turn. |
+| `codingSource` | v3. `llm` when the server coder (`POST /code`) answered with confidence ≥ 0.5, otherwise `lexicon`. |
+| `codingModel`, `codingConfidence`, `codingRationale`, `codingEvidence` | v3. LLM coder model id, its confidence (0–1), the one-sentence rationale shown in the debrief, and the quoted span of the utterance it relied on (empty for the lexicon). |
+| `lexiconCode`, `lexiconQuality` | v3. The lexicon's code for the same utterance, always recorded, so LLM–lexicon agreement can be computed from field data. |
+| `relationalModelVersion` | v3. Version of `RelationalModelWeights` in use (`avp-prior-1` or a fitted `fit-YYYYMMDD-nN`). |
+| `safetyBefore`, `guardednessBefore`, `disclosureBefore` | v3. Client state before the turn (the after-state is `relationalSafety`, `guardedness`, `willingnessToDisclose`). |
 
 ## `counseling-session-summaries.jsonl`
 
@@ -42,7 +48,23 @@ Join the three files on `sessionId`. A scene replay starts a new `sessionId`; it
 
 ## `counseling-self-assessments.jsonl`
 
-`caseId`, `trainingMode`, `sourceTurn`, `selfAssessment` (`잘된 장면` = effective, `다시 연습 필요` = needs another try), `skill`, `quality` (system values for comparison with the learner's own judgment).
+`caseId`, `trainingMode`, `sourceTurn`, `selfAssessment` (`잘된 장면` = effective, `다시 연습 필요` = needs another try), `skill`, `skillCode`, `codingSource`, `quality` (system values for comparison with the learner's own judgment).
+
+## Export bundle (for the instructor dashboard)
+
+“기록 내보내기 / Export records” on the briefing card writes one JSON file (WebGL: a download;
+desktop: `persistentDataPath/exports/`):
+
+```json
+{ "format": "counselcue-export", "version": 1, "exportedUtc": "…", "appVersion": "…",
+  "schemaVersion": 3, "codebookVersion": "ko-codebook-1",
+  "learnerId": "L-7F3A9C", "learnerCode": "(optional, typed by the learner)",
+  "sessions": [ …turn records… ], "summaries": [ … ], "assessments": [ … ] }
+```
+
+`learnerId` is a random device-local pseudonym. The arrays are the JSONL lines exactly as
+stored. The instructor dashboard (`Dashboard/dashboard.html`, deployed at `/dashboard/`) reads
+these files, or the raw JSONL files, entirely in the browser; nothing is uploaded.
 
 ## Handling guidance for studies
 

@@ -1,0 +1,2 @@
+﻿id,case_id,client_line,utterance,coder_a_code,coder_a_quality,coder_b_code,coder_b_quality,label_status,notes
+x001,workplace-anxiety-01,(직전 내담자 발화),(상담자 발화),,,,,expert,

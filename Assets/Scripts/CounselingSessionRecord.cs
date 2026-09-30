@@ -48,5 +48,20 @@ namespace AdieLab.AffectCounsel
         public float au45;
         public float deliveryModifier;
         public string conversationEngine;
+
+        // Schema v3: skill coding provenance and the model that produced the state change.
+        public string skillCode;
+        public string codebookVersion;
+        public string codingSource;
+        public string codingModel;
+        public float codingConfidence;
+        public string codingRationale;
+        public string codingEvidence;
+        public string lexiconCode;
+        public int lexiconQuality;
+        public string relationalModelVersion;
+        public float safetyBefore;
+        public float guardednessBefore;
+        public float disclosureBefore;
     }
 }

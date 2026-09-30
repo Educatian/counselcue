@@ -11,7 +11,8 @@ namespace AdieLab.AffectCounsel
         OpenQuestion,
         Advice,
         Neutral,
-        PrematureReassurance
+        PrematureReassurance,
+        ClosedQuestion
     }
 
     public readonly struct ResponseAssessment

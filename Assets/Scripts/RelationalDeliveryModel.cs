@@ -89,7 +89,15 @@ namespace AdieLab.AffectCounsel
             ResponseAssessment response,
             DeliveryObservation delivery,
             ClientRelationalState current,
-            CulturalInteractionProfile profile)
+            CulturalInteractionProfile profile) =>
+            Evaluate(response, delivery, current, profile, RelationalModelWeights.Active);
+
+        public static RelationalTurnResult Evaluate(
+            ResponseAssessment response,
+            DeliveryObservation delivery,
+            ClientRelationalState current,
+            CulturalInteractionProfile profile,
+            RelationalModelWeights weights)
         {
             DeliveryAlignment alignment;
             float modifier;
@@ -134,11 +142,14 @@ namespace AdieLab.AffectCounsel
                     : "현재 관찰된 전달 단서와 뚜렷한 충돌이 없습니다.";
             }
 
-            float verbalEffect = response.TrustDelta;
+            // Effects come from the versioned weights (RelationalModelWeights), keyed by the
+            // shared codebook, so a refit changes behaviour without code edits.
+            string code = CounselingCodebook.CodeOf(response);
+            float verbalEffect = weights.SafetyDelta(code, response.Quality);
             float safety = current.Safety + verbalEffect + modifier;
-            float guardedness = current.Guardedness - (verbalEffect * 0.65f) - modifier;
-            float disclosureEffect = DisclosureEffect(response.Move, response.Quality);
-            float disclosure = current.WillingnessToDisclose + disclosureEffect + (modifier * 0.8f);
+            float guardedness = current.Guardedness - (verbalEffect * weights.guardednessCoupling) - modifier;
+            float disclosureEffect = weights.DisclosureDelta(code, current.Safety);
+            float disclosure = current.WillingnessToDisclose + disclosureEffect + (modifier * weights.deliveryDisclosureCoupling);
             ClientRelationalState next = new ClientRelationalState(safety, guardedness, disclosure);
             return new RelationalTurnResult(next, alignment, modifier, coaching);
         }
@@ -149,14 +160,5 @@ namespace AdieLab.AffectCounsel
             move == CounselingMove.ReflectionAndExploration ||
             move == CounselingMove.OpenQuestion;
 
-        private static float DisclosureEffect(CounselingMove move, int quality)
-        {
-            if (move == CounselingMove.Advice) return -0.09f;
-            if (move == CounselingMove.PrematureReassurance) return -0.06f;
-            if (move == CounselingMove.ReflectionAndExploration) return 0.14f;
-            if (move == CounselingMove.Reflection || move == CounselingMove.Validation) return 0.10f;
-            if (move == CounselingMove.OpenQuestion) return 0.06f;
-            return quality > 0 ? 0.01f : -0.03f;
-        }
     }
 }

@@ -110,7 +110,7 @@ namespace AdieLab.AffectCounsel
                 ? $"{turn.turn}턴 · {turn.stage} · {turn.skill} · {turn.alignment}"
                 : $"{turn.turn}턴 · 장면 기록";
             string evidence = isAssessed
-                ? $"시스템 근거  {turn.coachingFeedback}"
+                ? $"시스템 근거  {turn.coachingFeedback}" + CodingLine(turn)
                 : "시스템 근거  자기평가 후 공개됩니다.";
             // Line prefixes stay plain ("상담자  ") so the English phrasebook can translate
             // them; only whole lines are wrapped in rich-text colour.
@@ -124,6 +124,13 @@ namespace AdieLab.AffectCounsel
             assessmentStatusLabel.text = isAssessed
                 ? $"나의 판단 · {turn.selfAssessment}"
                 : "먼저 이 장면에 대한 자신의 판단을 선택하세요.";
+        }
+
+        private static string CodingLine(CounselingTurnSnapshot turn)
+        {
+            if (string.IsNullOrWhiteSpace(turn.skillRationale)) return string.Empty;
+            string source = turn.codingSource == "llm" ? "AI 코딩" : "규칙 코딩";
+            return $"\n코딩 근거  {turn.skillRationale} ({source})";
         }
 
         private void SaveAssessment(string assessment)
@@ -140,6 +147,8 @@ namespace AdieLab.AffectCounsel
                 sourceTurn = turn.turn,
                 selfAssessment = assessment,
                 skill = turn.skill,
+                skillCode = turn.skillCode,
+                codingSource = turn.codingSource,
                 quality = turn.quality
             };
             LocalJsonlLog.Append("counseling-self-assessments.jsonl", record);

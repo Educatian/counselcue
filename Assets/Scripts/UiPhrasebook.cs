@@ -24,6 +24,10 @@ namespace AdieLab.AffectCounsel
             // Skills and alignment labels
             { "감정 반영 + 탐색", "Reflection + exploration" },
             { "공감적 반응", "Empathic response" },
+            { "감정 반영", "Reflection" },
+            { "닫힌 질문", "Closed question" },
+            { "AI 코딩", "AI coding" },
+            { "규칙 코딩", "Rule coding" },
             { "개방형 질문", "Open question" },
             { "성급한 조언", "Premature advice" },
             { "성급한 안심", "Premature reassurance" },
@@ -42,6 +46,7 @@ namespace AdieLab.AffectCounsel
             { "문장 내용과 얼굴의 긴장·미소가 같은 메시지인지 확인하세요.", "Check that your words and your facial tension or smile send the same message." },
             // Session messages
             { "AI 내담자 응답 생성 중…", "Generating the AI client's reply…" },
+            { "응답을 분석하는 중…", "Analyzing your response…" },
             { "이전 응답 요청이 취소되었습니다. 내용을 확인한 뒤 다시 보내세요.", "The previous request was canceled. Check your response and send it again." },
             { "선택 장면 재연습 · 원래 응답: ", "Scene replay · original response: " },
             { " · 다른 전달을 시도해 보세요.", " · Try a different delivery." },
@@ -57,6 +62,7 @@ namespace AdieLab.AffectCounsel
             { "먼저 자신의 판단을 선택하세요.", "Choose your own judgment first." },
             { "시스템 근거  자기평가 후 공개됩니다.", "System evidence  revealed after your self-assessment." },
             { "시스템 근거  ", "System evidence  " },
+            { "코딩 근거  ", "Coding rationale  " },
             { "장면 기록", "Scene record" },
             { "나의 판단 · ", "My judgment · " },
             { "잘된 장면", "Effective scene" },
@@ -108,6 +114,12 @@ namespace AdieLab.AffectCounsel
                 string line = lines[i];
                 if (line.StartsWith("상담자  ")) line = "Counselor  " + line.Substring("상담자  ".Length);
                 else if (line.StartsWith("내담자  ")) line = "Client  " + line.Substring("내담자  ".Length);
+                else if (line.StartsWith("코딩 근거  "))
+                {
+                    // The rationale is the coder's own Korean sentence; translate only the labels.
+                    line = "Coding rationale  " + line.Substring("코딩 근거  ".Length)
+                        .Replace("(AI 코딩)", "(AI coding)").Replace("(규칙 코딩)", "(rule coding)");
+                }
                 else line = Translate(line);
                 if (i > 0) builder.Append('\n');
                 builder.Append(line);

@@ -21,7 +21,7 @@ test("health never exposes credentials", async () => {
   assert.equal(r.status, 200);
   assert.deepEqual(await r.json(), {
     ok: true,
-    services: { persona: true, voice: true },
+    services: { persona: true, coder: true, voice: true },
   });
 });
 
@@ -285,4 +285,73 @@ test("voice limits pace each page and cap each address", async () => {
   assert.equal(r.status, 429);
   assert.deepEqual(pageKeys, ["198.51.100.4:tab-7"]);
   assert.deepEqual(addressKeys, ["198.51.100.4"]);
+});
+
+const coderReply = (content) =>
+  new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
+
+test("code returns a validated codebook label with rationale and real evidence", async () => {
+  let outbound;
+  await withFetch(
+    async (_url, init) => {
+      outbound = JSON.parse(init.body);
+      return coderReply(
+        '{"code":"reflection_exploration","quality":3,"rationale":"감정을 짚고 탐색을 열었습니다.","evidence":"숨이 막히는 느낌","confidence":0.82}',
+      );
+    },
+    async () => {
+      const r = await worker.fetch(
+        post("/code", {
+          sessionId: "s1",
+          caseId: "workplace-anxiety-01",
+          clientLine: "요즘 회사에 가려고 하면 숨이 막혀요.",
+          counselorUtterance: "숨이 막히는 느낌이 드시는군요. 그때 어떤 생각이 드세요?",
+        }),
+        env,
+      );
+      assert.equal(r.status, 200);
+      const body = await r.json();
+      assert.equal(body.code, "reflection_exploration");
+      assert.equal(body.skill, "감정 반영 + 탐색");
+      assert.equal(body.quality, 3);
+      assert.equal(body.evidence, "숨이 막히는 느낌");
+      assert.equal(body.codebook, "ko-codebook-1");
+    },
+  );
+  assert.equal(outbound.temperature, 0);
+  assert.match(outbound.messages[0].content, /premature_reassurance/);
+  const input = JSON.parse(outbound.messages[1].content);
+  assert.equal(input.previous_client_line, "요즘 회사에 가려고 하면 숨이 막혀요.");
+});
+
+test("code clamps quality, drops invented evidence and rejects unknown codes", async () => {
+  const answers = [
+    '{"code":"advice","quality":3,"rationale":"x","evidence":"없는 문장","confidence":2}',
+    '{"code":"diagnosis","quality":2}',
+  ];
+  await withFetch(
+    async () => coderReply(answers.shift()),
+    async () => {
+      const ok = await (await worker.fetch(post("/code", { sessionId: "s", counselorUtterance: "그냥 팀장님께 말씀드려 보세요." }), env)).json();
+      assert.equal(ok.quality, 1);
+      assert.equal(ok.evidence, "");
+      assert.equal(ok.confidence, 1);
+      const bad = await worker.fetch(post("/code", { sessionId: "s", counselorUtterance: "네" }), env);
+      assert.equal(bad.status, 502);
+      assert.equal((await bad.json()).error, "coder_invalid_output");
+    },
+  );
+});
+
+test("code uses its own rate-limit bucket and needs credentials", async () => {
+  const keys = [];
+  const limiter = { limit: async ({ key }) => (keys.push(key), { success: false }) };
+  const limited = await worker.fetch(
+    post("/code", { sessionId: "s-9", counselorUtterance: "네" }, { "CF-Connecting-IP": "203.0.113.5" }),
+    { ...env, CODE_LIMITER: limiter },
+  );
+  assert.equal(limited.status, 429);
+  assert.deepEqual(keys, ["203.0.113.5:s-9:code"]);
+  const missing = await worker.fetch(post("/code", { sessionId: "s", counselorUtterance: "네" }), { ...env, OPENROUTER_API_KEY: "" });
+  assert.equal(missing.status, 503);
 });

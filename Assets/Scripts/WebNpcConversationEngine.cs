@@ -19,6 +19,25 @@ namespace AdieLab.AffectCounsel
         public static NpcTurnReply Failure(string error) => new NpcTurnReply(false, "", "", error);
     }
 
+    /// <summary>Result of the server-side LLM skill coder (Server /code).</summary>
+    public readonly struct SkillCodingReply
+    {
+        public SkillCodingReply(bool ok, string code, int quality, string rationale, string evidence, float confidence, string model, string error)
+        {
+            Succeeded = ok; Code = code; Quality = quality; Rationale = rationale;
+            Evidence = evidence; Confidence = confidence; Model = model; Error = error;
+        }
+        public bool Succeeded { get; }
+        public string Code { get; }
+        public int Quality { get; }
+        public string Rationale { get; }
+        public string Evidence { get; }
+        public float Confidence { get; }
+        public string Model { get; }
+        public string Error { get; }
+        public static SkillCodingReply Failure(string error) => new SkillCodingReply(false, "", 0, "", "", 0f, "", error);
+    }
+
     [DisallowMultipleComponent]
     public sealed class WebNpcConversationEngine : MonoBehaviour
     {
@@ -27,6 +46,10 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private bool enableInEditor;
         [SerializeField] private string activeCaseId = "workplace-anxiety-01";
         [SerializeField, Range(0, 12)] private int historyTurns = 8;
+        [Header("LLM skill coder (lexicon is the fallback)")]
+        [SerializeField] private bool useLlmCoder = true;
+        [SerializeField, Range(3f, 20f)] private float coderTimeoutSeconds = 8f;
+        [SerializeField, Range(0f, 1f)] private float minCoderConfidence = 0.5f;
 
         // The persona server is stateless, so the recent dialogue is resent each turn.
         // Without it the LLM client cannot remember what it already disclosed.
@@ -36,6 +59,35 @@ namespace AdieLab.AffectCounsel
         public string ApiBaseUrl => apiBaseUrl.TrimEnd('/');
         public string ActiveCaseId => activeCaseId;
         public bool IsAvailable => Application.platform == RuntimePlatform.WebGLPlayer || enableInEditor;
+        public bool CoderEnabled => IsAvailable && useLlmCoder;
+        public float MinCoderConfidence => minCoderConfidence;
+
+        /// <summary>
+        /// Asks the server's LLM coder to code the counselor turn with the shared codebook.
+        /// Callers fall back to the lexicon on any failure or low confidence.
+        /// </summary>
+        public async Task<SkillCodingReply> RequestCodingAsync(string sessionId, int turn, string stage, string utterance, string clientLine)
+        {
+            if (!CoderEnabled) return SkillCodingReply.Failure("coder disabled");
+            CodeRequest payload = new CodeRequest {
+                sessionId=sessionId, caseId=activeCaseId, turn=turn, stage=stage,
+                counselorUtterance=Clip(utterance, 800), clientLine=Clip(clientLine, 240)
+            };
+            byte[] bytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(payload));
+            using UnityWebRequest request = new UnityWebRequest(ApiBaseUrl + "/code", UnityWebRequest.kHttpVerbPOST) {
+                uploadHandler=new UploadHandlerRaw(bytes), downloadHandler=new DownloadHandlerBuffer(),
+                timeout=Mathf.CeilToInt(coderTimeoutSeconds)
+            };
+            request.SetRequestHeader("Content-Type", "application/json");
+            UnityWebRequestAsyncOperation operation=request.SendWebRequest();
+            while (!operation.isDone) await Task.Yield();
+            if (request.result != UnityWebRequest.Result.Success)
+                return SkillCodingReply.Failure($"coder {request.responseCode}: {request.error}");
+            CodeResponse response = JsonUtility.FromJson<CodeResponse>(request.downloadHandler.text);
+            if (response == null || string.IsNullOrWhiteSpace(response.code)) return SkillCodingReply.Failure("coder empty");
+            return new SkillCodingReply(true, response.code, response.quality, response.rationale ?? "", response.evidence ?? "",
+                response.confidence, response.model ?? "", "");
+        }
 
         public void ConfigureCase(CounselingCaseDefinition definition)
         {
@@ -109,5 +161,13 @@ namespace AdieLab.AffectCounsel
         }
         [Serializable] private sealed class HistoryEntry { public string counselor; public string client; }
         [Serializable] private sealed class TurnResponse { public string reply; public string emotion; }
+        [Serializable] private sealed class CodeRequest {
+            public string sessionId; public string caseId; public int turn; public string stage;
+            public string counselorUtterance; public string clientLine;
+        }
+        [Serializable] private sealed class CodeResponse {
+            public string code; public int quality; public string rationale; public string evidence;
+            public float confidence; public string model;
+        }
     }
 }

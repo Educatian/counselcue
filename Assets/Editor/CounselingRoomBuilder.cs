@@ -555,10 +555,24 @@ namespace AdieLab.AffectCounsel.Editor
             refs.focusThreeButton = UiKit.MakeButton("StartFocusThree", card, new Vector2(x + (focusWidth + 12f) * 2f, -524f), new Vector2(focusWidth, 48f), "전달 정합 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
 
             UiKit.Hairline("ConsentDivider", card, new Vector2(x, -600f), width, new Color(0.118f, 0.129f, 0.122f, 0.12f));
-            refs.consentToggle = UiKit.Checkbox("ConsentToggle", card, new Vector2(x, -618f), new Vector2(590f, 28f),
+            refs.consentToggle = UiKit.Checkbox("ConsentToggle", card, new Vector2(x, -612f), new Vector2(600f, 28f),
                 "연구용 로컬 기록에 동의합니다 — 응답 텍스트와 파생 신호만 이 기기에 저장 (영상 제외)", UiTheme.Ink);
-            refs.deleteDataButton = UiKit.MakeButton("DeleteLocalData", card, new Vector2(x + width - 150f, -616f), new Vector2(150f, 32f), "로컬 기록 삭제", UiKit.Variant.GhostLight, 12, 10f);
-            refs.dataStatusLabel = UiKit.Label("DataStatus", card, "연구용 로컬 기록 꺼짐", new Vector2(x + 32f, -650f), new Vector2(560f, 18f), 12, UiTheme.InkMuted);
+            refs.deleteDataButton = UiKit.MakeButton("DeleteLocalData", card, new Vector2(x + width - 150f, -610f), new Vector2(150f, 32f), "로컬 기록 삭제", UiKit.Variant.GhostLight, 12, 10f);
+            // Class use: an optional learner code and an export file for the instructor dashboard.
+            refs.learnerCodeInput = UiKit.TextArea("LearnerCode", card, new Vector2(x, -652f), new Vector2(190f, 34f), "학습자 코드 (선택)");
+            refs.learnerCodeInput.lineType = InputField.LineType.SingleLine;
+            refs.learnerCodeInput.characterLimit = 40;
+            refs.learnerCodeInput.textComponent.fontSize = 13;
+            refs.learnerCodeInput.textComponent.rectTransform.anchoredPosition = new Vector2(12f, -7f);
+            refs.learnerCodeInput.textComponent.rectTransform.sizeDelta = new Vector2(166f, 22f);
+            Text codeHint = (Text)refs.learnerCodeInput.placeholder;
+            codeHint.gameObject.name = "LearnerCodePlaceholder";
+            codeHint.fontSize = 13;
+            codeHint.rectTransform.anchoredPosition = new Vector2(12f, -7f);
+            codeHint.rectTransform.sizeDelta = new Vector2(166f, 22f);
+            refs.learnerCodeInput.GetComponent<Image>().color = UiTheme.PaperDeep;
+            refs.exportDataButton = UiKit.MakeButton("ExportLocalData", card, new Vector2(x + 200f, -652f), new Vector2(150f, 34f), "기록 내보내기", UiKit.Variant.Tonal, 12, 10f);
+            refs.dataStatusLabel = UiKit.Fit(UiKit.Label("DataStatus", card, "연구용 로컬 기록 꺼짐", new Vector2(x + 364f, -660f), new Vector2(width - 364f, 20f), 12, UiTheme.InkMuted), 10);
         }
 
         private static void BuildPause(Transform hud, UiReferences refs)
@@ -831,6 +845,8 @@ namespace AdieLab.AffectCounsel.Editor
             SerializedObject serialized = new SerializedObject(controls);
             serialized.FindProperty("consentToggle").objectReferenceValue = ui.consentToggle;
             serialized.FindProperty("deleteButton").objectReferenceValue = ui.deleteDataButton;
+            serialized.FindProperty("exportButton").objectReferenceValue = ui.exportDataButton;
+            serialized.FindProperty("learnerCodeInput").objectReferenceValue = ui.learnerCodeInput;
             serialized.FindProperty("statusLabel").objectReferenceValue = ui.dataStatusLabel;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(controls);
@@ -1060,6 +1076,8 @@ namespace AdieLab.AffectCounsel.Editor
             public Image briefingPortrait;
             public Toggle consentToggle;
             public Button deleteDataButton;
+            public Button exportDataButton;
+            public InputField learnerCodeInput;
             public Text dataStatusLabel;
             public Text briefingPortraitCaption;
             public Text clientNameLabel;

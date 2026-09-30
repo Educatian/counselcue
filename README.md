@@ -47,10 +47,10 @@ System evidence remains hidden until the learner records a self-assessment. A se
 
 | Status | Scope |
 |---|---|
-| **Implemented** | Five selectable counseling cases with distinct Rocketbox avatars, FACS/viseme facial layers, five-state gaze behavior, Korean viseme planning, micro-blinks/breath/head motion, face-observation zoom and diagnostics, full and focused sessions, replay, relational trajectory, local JSONL logging, Korean/English UI, browser-native Korean input, microphone dictation, spotlight onboarding, ElevenLabs v3 client speech through a server proxy, and opt-in local research logging with one-click deletion |
-| **Experimental** | Case-specific Korean client personas through OpenRouter, bounded relational-state prompting, four-state emotional voice direction, thirteen MediaPipe-derived counselor AU proxies, personal baseline calibration, and deterministic local fallback |
-| **Planned** | Audio-aligned phoneme timing, expert case-authoring tools, server-side retention and pseudonymization policies, an educator dashboard, and multi-site user research |
-| **Requires validation** | Agreement between AU proxies and human FACS coding, expert inter-rater reliability for feedback rules, culture-specific cue interpretation, learning transfer, and change in counseling competence |
+| **Implemented** | Five selectable counseling cases with distinct Rocketbox avatars, FACS/viseme facial layers, five-state gaze behavior, Korean viseme planning, micro-blinks/breath/head motion, face-observation zoom and diagnostics, full and focused sessions, replay, relational trajectory, local JSONL logging, Korean/English UI, browser-native Korean input, microphone dictation, spotlight onboarding, ElevenLabs v3 client speech through a server proxy, opt-in local research logging with one-click deletion, a learner export file, and an instructor dashboard (`/dashboard/`) that reads exports in the browser |
+| **Experimental** | An LLM skill coder (`POST /code`, codebook ko-codebook-1) with the Korean lexicon as fallback and both codes logged per turn; a versioned relational model (`avp-prior-1`, exploration weighted ~3× a single empathy component on disclosure) that can be refit from expert ratings; case-specific Korean client personas through OpenRouter, bounded relational-state prompting, four-state emotional voice direction, thirteen MediaPipe-derived counselor AU proxies, personal baseline calibration, and deterministic local fallback |
+| **Planned** | Audio-aligned phoneme timing, expert case-authoring tools, server-side retention and pseudonymization policies, and multi-site user research |
+| **Requires validation** | Expert-coded Korean reference labels for skill coding (the shipped set is a draft), LLM-coder agreement with those experts, relational weights fitted to Korean ratings, agreement between AU proxies and human FACS coding, culture-specific cue interpretation, learning transfer, and change in counseling competence |
 
 ## Interface
 
@@ -125,10 +125,13 @@ The complete construct model, cultural interpretation principles, and validation
 - [Korean documentation](README.ko.md): session flow, LXD loop, AU calibration, GPT Realtime architecture, and privacy boundaries
 - [English documentation](README.en.md): capabilities, architecture, build workflow, privacy, and validation boundaries
 - [GAME_CONCEPT.md](GAME_CONCEPT.md): research framing, cultural profile, and validation plan
-- [Docs/DATA_SCHEMA.md](Docs/DATA_SCHEMA.md): opt-in local research records (schema v2), join keys, and handling guidance
+- [Docs/DATA_SCHEMA.md](Docs/DATA_SCHEMA.md): opt-in local research records (schema v3), the learner export bundle, join keys, and handling guidance
+- Skill-coding agreement: [eval/coding/README.md](eval/coding/README.md) — codebook, expert coding protocol, `node eval/coding-agreement.mjs` (κ, per-code F1, confusion; add `WORKER_URL` to score the LLM coder)
+- Relational model calibration: [eval/calibration/README.md](eval/calibration/README.md) — refit weights from expert ratings or coded transcripts with `node eval/calibrate-relational.mjs`
+- Instructor dashboard: [Dashboard/dashboard.html](Dashboard/dashboard.html) (built into the WebGL template by `Tools/build-dashboard.sh`, served at `/dashboard/`); learners use **기록 내보내기 / Export records** on the briefing card
 - Skill lexicon: **Tools → CounselCue → Export Skill Lexicon JSON** writes the pilot term lists to `Assets/Resources/CounselCue/skill-lexicon.json` so counseling experts can revise them; rerun the Response Evaluator Checks after edits
 - Persona evaluation: `WORKER_URL=… npm run eval` in `Server/CounselCue.EdgeWorker` checks role consistency, memory, safety and latency on a deployed worker
-- CI (`.github/workflows/ci.yml`) runs the worker tests, the Mono-compiled skill-detector and relational-model checks, and case/persona/web-bridge consistency checks without a Unity license
+- CI (`.github/workflows/ci.yml`) runs the worker tests, the Mono-compiled skill-detector, codebook, relational-model and export checks, the coding-agreement regression floor, the calibration pipeline, and case/persona/web-bridge consistency checks without a Unity license
 - [Docs/HIGGSFIELD_ASSET_PACK.md](Docs/HIGGSFIELD_ASSET_PACK.md): Higgsfield prompts and drop-in file slots for case illustrations, room art, loading/onboarding visuals, and an honest promo-video shot list
 
 ---

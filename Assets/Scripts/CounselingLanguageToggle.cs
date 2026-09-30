@@ -50,6 +50,8 @@ namespace AdieLab.AffectCounsel
             { "BriefingPortraitCaption", "AI-generated case illustration" },
             { "ConsentLabel", "I agree to local research logging — only response text and derived signals stay on this device (no video)" },
             { "DeleteLocalData", "Delete local records" },
+            { "ExportLocalData", "Export records" },
+            { "LearnerCodePlaceholder", "Learner code (optional)" },
             { "StartPractice", "Coached practice\n<size=12><color=#F6F1E7B3>Delivery feedback after every turn</color></size>" },
             { "StartEvaluation", "Assessment mode\n<size=12><color=#6B6F69>Feedback is revealed after the session</color></size>" },
             { "FocusedLabel", "MICRO-SKILL DRILLS  ·  3 MIN · 3 TURNS" },
@@ -174,7 +176,12 @@ namespace AdieLab.AffectCounsel
                     .Replace("응답 텍스트와 파생 신호만 이 기기에 저장됩니다.", "only response text and derived signals are stored on this device.")
                     .Replace("새 기록을 남기지 않습니다.", "no new records are written.")
                     .Replace("일부 로컬 기록을 삭제하지 못했습니다. 다시 시도해 주세요.", "Some local records could not be deleted. Please try again.")
-                    .Replace("삭제할 로컬 기록이 없습니다.", "There are no local records to delete.");
+                    .Replace("삭제할 로컬 기록이 없습니다.", "There are no local records to delete.")
+                    .Replace("내보낼 기록이 없습니다. 기록에 동의한 뒤 연습하면 기록이 쌓입니다.", "Nothing to export yet. Agree to logging, then practise to build records.")
+                    .Replace("기록 파일을 저장하지 못했습니다. 저장 공간과 권한을 확인해 주세요.", "The export could not be saved. Check storage space and permissions.")
+                    .Replace(" · 강사에게 전달하세요.", " · send it to your instructor.")
+                    .Replace("기록 파일을 내려받았습니다 · ", "Downloaded ")
+                    .Replace("기록 파일을 저장했습니다 · ", "Saved ");
                 data = Regex.Replace(data, "이 기기에 기록 파일 (\\d+)개", "$1 record file(s) on this device");
                 return Regex.Replace(data, "로컬 기록 파일 (\\d+)개를 삭제했습니다\\.", "Deleted $1 local record file(s).");
             }

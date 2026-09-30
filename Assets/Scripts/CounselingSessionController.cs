@@ -167,7 +167,25 @@ namespace AdieLab.AffectCounsel
             sendButton.interactable = false;
             try
             {
-                ResponseAssessment assessment = CounselingResponseEvaluator.Evaluate(utterance);
+                ResponseAssessment lexiconAssessment = CounselingResponseEvaluator.Evaluate(utterance);
+                ResponseAssessment assessment = lexiconAssessment;
+                SkillCodingReply coding = SkillCodingReply.Failure("not requested");
+                string codingSource = "lexicon";
+                if (webNpcEngine != null && webNpcEngine.CoderEnabled)
+                {
+                    feedbackLabel.text = "응답을 분석하는 중…";
+                    coding = await webNpcEngine.RequestCodingAsync(
+                        sessionId, turn + 1, sessionOrchestrator.CurrentStageLabel, utterance, clientLine.text);
+                    if (!IsCurrentSubmission(expectedSession, expectedSubmission)) return;
+                    // The LLM coder leads when it answers confidently with a known code;
+                    // otherwise the lexicon keeps the session going offline or on errors.
+                    if (coding.Succeeded && coding.Confidence >= webNpcEngine.MinCoderConfidence &&
+                        CounselingCodebook.TryFromCode(coding.Code, coding.Quality, coding.Rationale, out ResponseAssessment coded))
+                    {
+                        assessment = coded;
+                        codingSource = "llm";
+                    }
+                }
                 ClientRelationalState previousState = relationalState;
                 DeliveryObservation observation = actionUnits.IsTracking && actionUnits.IsCalibrated
                     ? new DeliveryObservation(true, actionUnits.Au04, actionUnits.Au12)
@@ -227,7 +245,8 @@ namespace AdieLab.AffectCounsel
                 feedbackLabel.text = sessionOrchestrator.ShowLiveCoaching
                     ? $"{engineLabel} · <color=#EFBE74>{AlignmentLabel(relationalResult.Alignment)}</color> · <color=#9FD0BA>{assessment.Skill}</color> · {relationalResult.CoachingFeedback}{sessionOrchestrator.CurrentFocusPrompt}"
                     : "평가 모드 · 세션 종료 후 전달 피드백을 확인합니다.";
-                WriteRecord(utterance, reply, assessment, observation, relationalResult);
+                WriteRecord(utterance, reply, assessment, observation, relationalResult,
+                    lexiconAssessment, coding, codingSource, previousState);
                 sessionOrchestrator.RecordTurn(new CounselingTurnSnapshot
                 {
                     turn = turn,
@@ -236,6 +255,9 @@ namespace AdieLab.AffectCounsel
                     clientPrompt = clientPrompt,
                     clientReply = reply,
                     skill = assessment.Skill,
+                    skillCode = CounselingCodebook.CodeOf(assessment),
+                    codingSource = codingSource,
+                    skillRationale = assessment.Rationale,
                     quality = assessment.Quality,
                     alignment = AlignmentLabel(relationalResult.Alignment),
                     coachingFeedback = relationalResult.CoachingFeedback,
@@ -299,7 +321,11 @@ namespace AdieLab.AffectCounsel
             string reply,
             ResponseAssessment assessment,
             DeliveryObservation observation,
-            RelationalTurnResult relationalResult)
+            RelationalTurnResult relationalResult,
+            ResponseAssessment lexiconAssessment,
+            SkillCodingReply coding,
+            string codingSource,
+            ClientRelationalState stateBefore)
         {
             CounselingSessionRecord record = new CounselingSessionRecord
             {
@@ -344,7 +370,20 @@ namespace AdieLab.AffectCounsel
                 au26 = actionUnits.Au26,
                 au45 = actionUnits.Au45,
                 deliveryModifier = relationalResult.DeliveryModifier,
-                conversationEngine = conversationEngine
+                conversationEngine = conversationEngine,
+                skillCode = CounselingCodebook.CodeOf(assessment),
+                codebookVersion = CounselingCodebook.Version,
+                codingSource = codingSource,
+                codingModel = coding.Succeeded ? coding.Model : string.Empty,
+                codingConfidence = coding.Succeeded ? coding.Confidence : 0f,
+                codingRationale = assessment.Rationale,
+                codingEvidence = coding.Succeeded ? coding.Evidence : string.Empty,
+                lexiconCode = CounselingCodebook.CodeOf(lexiconAssessment),
+                lexiconQuality = lexiconAssessment.Quality,
+                relationalModelVersion = RelationalModelWeights.Active.version,
+                safetyBefore = stateBefore.Safety,
+                guardednessBefore = stateBefore.Guardedness,
+                disclosureBefore = stateBefore.WillingnessToDisclose
             };
             LocalJsonlLog.Append("counseling-sessions.jsonl", record);
         }

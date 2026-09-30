@@ -88,6 +88,49 @@ namespace AdieLab.AffectCounsel.Editor
             Require(reassurance.Move == CounselingMove.PrematureReassurance, "Premature reassurance must not be scored as validation.");
             Require(reassuranceFirst.Alignment == DeliveryAlignment.RelationalOrderMismatch, "Reassurance before understanding must flag relational order.");
             Require(reassuranceFirst.State.WillingnessToDisclose < initial.WillingnessToDisclose, "Premature reassurance must not open disclosure.");
+
+            CodebookChecks();
+            WeightChecks(profile, initial);
+        }
+
+        private static void CodebookChecks()
+        {
+            foreach (string code in CounselingCodebook.Codes)
+            {
+                Require(CounselingCodebook.TryFromCode(code, CounselingCodebook.TypicalQuality(code), "", out ResponseAssessment coded),
+                    $"Codebook must accept its own code {code}.");
+                Require(CounselingCodebook.CodeOf(coded) == code, $"Code {code} must round-trip through an assessment.");
+            }
+            Require(!CounselingCodebook.TryFromCode("diagnosis", 2, "", out _), "Unknown codes must be rejected so the lexicon can take over.");
+            CounselingCodebook.TryFromCode("advice", 3, "", out ResponseAssessment advice);
+            Require(advice.Quality <= 1, "Advice cannot be rated as a high-quality response.");
+            Require(CounselingCodebook.CodeOf(CounselingResponseEvaluator.Evaluate("왜 그렇게 생각하세요?")) == CounselingCodebook.WhyQuestion,
+                "Lexicon 'why' questions must map to the why_question code.");
+        }
+
+        private static void WeightChecks(CulturalInteractionProfile profile, ClientRelationalState initial)
+        {
+            RelationalModelWeights prior = new RelationalModelWeights();
+            float exploration = prior.DisclosureDelta(CounselingCodebook.OpenQuestion, initial.Safety);
+            float reflection = prior.DisclosureDelta(CounselingCodebook.Reflection, initial.Safety);
+            float validation = prior.DisclosureDelta(CounselingCodebook.Validation, initial.Safety);
+            Require(exploration >= 2.9f * reflection && exploration >= 2.9f * validation,
+                "Prior must weight exploration about 3x a single empathy component on disclosure (AVP).");
+            Require(prior.SafetyDelta(CounselingCodebook.Reflection, 2) > prior.SafetyDelta(CounselingCodebook.OpenQuestion, 2),
+                "Empathy should build safety more than a bare question.");
+
+            // A refit (e.g. from expert ratings) must change behaviour without code edits.
+            RelationalModelWeights refit = new RelationalModelWeights { version = "check-refit" };
+            refit.Find(CounselingCodebook.OpenQuestion).disclosure = 0.30f;
+            ResponseAssessment question = CounselingResponseEvaluator.Evaluate("그때 어떤 생각이 드셨어요?");
+            float before = RelationalDeliveryEvaluator.Evaluate(question, DeliveryObservation.Unavailable, initial, profile, prior).State.WillingnessToDisclose;
+            float after = RelationalDeliveryEvaluator.Evaluate(question, DeliveryObservation.Unavailable, initial, profile, refit).State.WillingnessToDisclose;
+            Require(after > before + 0.15f, "Refit weights must drive the relational update.");
+
+            RelationalModelWeights gated = new RelationalModelWeights { safetyGate = 0.5f };
+            float lowSafety = gated.DisclosureDelta(CounselingCodebook.OpenQuestion, 0.1f);
+            float highSafety = gated.DisclosureDelta(CounselingCodebook.OpenQuestion, 0.9f);
+            Require(highSafety > lowSafety, "With a safety gate, openness must follow felt safety.");
         }
 
         private static void Require(bool condition, string message)

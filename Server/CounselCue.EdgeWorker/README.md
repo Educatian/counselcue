@@ -27,3 +27,14 @@ Vars (`wrangler.jsonc`): `OPENROUTER_MODEL`, `ELEVENLABS_VOICE_ID`, and `ELEVENL
 ```bash
 npm test
 ```
+
+## Skill coder (`POST /code`)
+
+Codes one counselor utterance with codebook **ko-codebook-1** and returns
+`{code, skill, quality, rationale, evidence, confidence, codebook, model}`. Input:
+`{sessionId, caseId, stage, clientLine, counselorUtterance}`. It runs at temperature 0 with a
+Korean coding manual (`CODER_SYSTEM`), clamps quality to each code's range, and keeps
+`evidence` only when it is a literal substring of the utterance. Model:
+`OPENROUTER_CODER_MODEL`, else `OPENROUTER_MODEL`. Rate limit: optional `CODE_LIMITER`
+binding (falls back to `TURN_LIMITER` with a `:code` key suffix) plus `TURN_IP_LIMITER`.
+The Unity client uses the result when confidence ≥ 0.5 and falls back to the lexicon otherwise.

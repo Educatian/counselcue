@@ -28,7 +28,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Mono compiler
         run: sudo apt-get update -qq && sudo apt-get install -y -qq mono-mcs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - run: Tools/ci/run-csharp-checks.sh
+      - name: Skill-coding agreement (lexicon vs reference labels, regression floor)
+        run: node eval/coding-agreement.mjs --floor --out /tmp/coding-report
+      - name: Relational model calibration pipeline
+        run: node eval/calibrate-relational.mjs --check
 
   consistency:
     name: Case, persona and web bridge consistency
