@@ -61,10 +61,13 @@ namespace AdieLab.AffectCounsel.Editor
             ("", Moves(CounselingMove.Silence))
         };
 
+        public static int LastFailureCount { get; private set; }
+
         [MenuItem("Tools/CounselCue/Run Response Evaluator Checks")]
         public static void RunFromMenu()
         {
             List<string> failures = Run();
+            LastFailureCount = failures.Count;
             if (failures.Count == 0) Debug.Log($"RESPONSE_EVALUATOR_CHECKS_PASS ({Fixtures.Length} fixtures)");
         }
 
