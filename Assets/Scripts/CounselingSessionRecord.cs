@@ -63,5 +63,7 @@ namespace AdieLab.AffectCounsel
         public float safetyBefore;
         public float guardednessBefore;
         public float disclosureBefore;
+        /// <summary>Gemini Live only: the counselor spoke over the client's reply (barge-in).</summary>
+        public bool liveInterrupted;
     }
 }

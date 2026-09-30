@@ -77,6 +77,11 @@ namespace AdieLab.AffectCounsel
                 session.Submit();
                 yield return new WaitForSecondsRealtime(2.5f);
                 yield return Capture("06-after-reassurance-turn-ko");
+                // A simulated Gemini Live exchange (the editor has no browser audio): the same
+                // pipeline codes the transcript, updates the relational model and records it.
+                session.SubmitLiveTurn("그 순간 어떤 느낌이 드셨는지 조금 더 들려주시겠어요?", "…음, 사실 회의실에 들어가기 전부터 손이 떨려요.", false);
+                yield return new WaitForSecondsRealtime(1.5f);
+                yield return Capture("11-live-turn-simulated-ko");
             }
 
             Click("EndSession");

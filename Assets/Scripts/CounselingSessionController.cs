@@ -25,6 +25,7 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Text feedbackLabel;
         [SerializeField] private Text allianceLabel;
         [SerializeField] private RelationalMeterHud relationalMeters;
+        [SerializeField] private LiveVoiceController liveVoice;
 
         private readonly string[] supportiveReplies =
         {
@@ -62,6 +63,9 @@ namespace AdieLab.AffectCounsel
         private string conversationEngine = "local";
         private int sessionGeneration;
         private int submissionGeneration;
+        private string committedClientLine = string.Empty;
+        private string currentEmotion = "anxious";
+        private readonly Queue<PendingLiveTurn> pendingLiveTurns = new Queue<PendingLiveTurn>();
 
         public bool IsSubmitting => isSubmitting;
         public string SessionId => sessionId;
@@ -155,27 +159,88 @@ namespace AdieLab.AffectCounsel
             feedbackLabel.text = "이전 응답 요청이 취소되었습니다. 내용을 확인한 뒤 다시 보내세요.";
         }
 
-        public async void Submit()
+        public void Submit()
         {
-            if (isSubmitting || sessionOrchestrator == null || !sessionOrchestrator.CanSubmit) return;
+            if (sessionOrchestrator == null || !sessionOrchestrator.CanSubmit) return;
             string utterance = counselorInput.text.Trim();
             if (utterance.Length == 0) return;
+            if (liveVoice != null && liveVoice.Active)
+            {
+                // Typed turn inside a live voice session: the client answers by voice and the
+                // exchange comes back through SubmitLiveTurn with both transcripts.
+                liveVoice.SendText(utterance);
+                counselorInput.text = string.Empty;
+                webBridge?.ClearInput();
+                return;
+            }
+            if (isSubmitting) return;
+            ProcessTurnAsync(utterance, null, false);
+        }
 
+        /// <summary>A completed exchange from a Gemini Live voice session (already spoken aloud).</summary>
+        public void SubmitLiveTurn(string counselorText, string clientText, bool interrupted)
+        {
+            if (sessionOrchestrator == null || !sessionOrchestrator.CanSubmit) return;
+            string counselor = (counselorText ?? string.Empty).Trim();
+            string reply = (clientText ?? string.Empty).Trim();
+            if (counselor.Length == 0)
+            {
+                // The client spoke without a counselor turn (e.g. after a long silence): show it,
+                // but there is nothing to code.
+                if (reply.Length > 0) SetClientLine(reply);
+                return;
+            }
+            pendingLiveTurns.Enqueue(new PendingLiveTurn { counselor = counselor, client = reply, interrupted = interrupted });
+            PumpLiveTurns();
+        }
+
+        public void ShowLivePartial(bool isClient, string text)
+        {
+            if (sessionOrchestrator == null || !sessionOrchestrator.CanSubmit) return;
+            if (isClient) clientLine.text = text;
+            else feedbackLabel.text = $"<color=#9FD0BA>듣는 중</color> · {text}";
+        }
+
+        public void OnLiveVoiceFailed(string reason)
+        {
+            string message = reason == "error:mic"
+                ? "마이크 권한이 없어 텍스트 대화로 계속합니다."
+                : reason == "error:unsupported"
+                    ? "이 브라우저는 실시간 음성을 지원하지 않아 텍스트 대화로 계속합니다."
+                    : "실시간 음성 연결이 끊겨 텍스트 대화로 전환했습니다.";
+            feedbackLabel.text = message;
+            SetInteractionEnabled(sessionOrchestrator != null && sessionOrchestrator.CanSubmit);
+        }
+
+        /// <summary>Emotion used for the avatar while a live reply plays.</summary>
+        public string CurrentClientEmotion => currentEmotion;
+
+        private void PumpLiveTurns()
+        {
+            if (isSubmitting || pendingLiveTurns.Count == 0) return;
+            PendingLiveTurn next = pendingLiveTurns.Dequeue();
+            ProcessTurnAsync(next.counselor, next.client, next.interrupted);
+        }
+
+        private async void ProcessTurnAsync(string utterance, string liveReply, bool liveInterrupted)
+        {
+            bool isLive = liveReply != null;
             int expectedSession = sessionGeneration;
             int expectedSubmission = ++submissionGeneration;
             isSubmitting = true;
             sendButton.interactable = false;
             try
             {
+                string clientPrompt = committedClientLine;
                 ResponseAssessment lexiconAssessment = CounselingResponseEvaluator.Evaluate(utterance);
                 ResponseAssessment assessment = lexiconAssessment;
                 SkillCodingReply coding = SkillCodingReply.Failure("not requested");
                 string codingSource = "lexicon";
                 if (webNpcEngine != null && webNpcEngine.CoderEnabled)
                 {
-                    feedbackLabel.text = "응답을 분석하는 중…";
+                    if (!isLive) feedbackLabel.text = "응답을 분석하는 중…";
                     coding = await webNpcEngine.RequestCodingAsync(
-                        sessionId, turn + 1, sessionOrchestrator.CurrentStageLabel, utterance, clientLine.text);
+                        sessionId, turn + 1, sessionOrchestrator.CurrentStageLabel, utterance, clientPrompt);
                     if (!IsCurrentSubmission(expectedSession, expectedSubmission)) return;
                     // The LLM coder leads when it answers confidently with a known code;
                     // otherwise the lexicon keeps the session going offline or on errors.
@@ -198,34 +263,45 @@ namespace AdieLab.AffectCounsel
 
                 bool supportive = assessment.Quality >= 2 &&
                                   relationalResult.State.WillingnessToDisclose >= previousState.WillingnessToDisclose;
-                string[] replies = supportive ? supportiveReplies : guardedReplies;
                 int proposedTurn = turn + 1;
-                string clientPrompt = clientLine.text;
-                string reply = caseDefinition != null
-                    ? caseDefinition.GetReply(proposedTurn - 1, supportive)
-                    : replies[Mathf.Min(proposedTurn - 1, replies.Length - 1)];
-                string selectedEngine = "local";
-                string replyEmotion = supportive ? "relieved" : "guarded";
-                if (webNpcEngine != null && webNpcEngine.IsAvailable)
+                string reply;
+                string selectedEngine;
+                string replyEmotion;
+                if (isLive)
                 {
-                    feedbackLabel.text = "AI 내담자 응답 생성 중…";
-                    NpcTurnReply npcReply = await webNpcEngine.RequestReplyAsync(
-                        sessionId, proposedTurn, sessionOrchestrator.CurrentStageLabel, utterance, relationalResult.State);
-                    if (npcReply.Succeeded)
-                    {
-                        reply = npcReply.Text;
-                        replyEmotion = npcReply.Emotion;
-                        selectedEngine = "persona-llm";
-                    }
+                    reply = liveReply;
+                    selectedEngine = "gemini-live";
+                    replyEmotion = EmotionForState(relationalResult.State, previousState);
                 }
-                else if (realtimeEngine != null && realtimeEngine.IsRequested)
+                else
                 {
-                    feedbackLabel.text = "GPT 내담자 연결 중…";
-                    RealtimeReply realtimeReply = await realtimeEngine.RequestReplyAsync(utterance);
-                    if (realtimeReply.Succeeded)
+                    string[] replies = supportive ? supportiveReplies : guardedReplies;
+                    reply = caseDefinition != null
+                        ? caseDefinition.GetReply(proposedTurn - 1, supportive)
+                        : replies[Mathf.Min(proposedTurn - 1, replies.Length - 1)];
+                    selectedEngine = "local";
+                    replyEmotion = supportive ? "relieved" : "guarded";
+                    if (webNpcEngine != null && webNpcEngine.IsAvailable)
                     {
-                        reply = realtimeReply.Text;
-                        selectedEngine = "gpt-realtime-2.1";
+                        feedbackLabel.text = "AI 내담자 응답 생성 중…";
+                        NpcTurnReply npcReply = await webNpcEngine.RequestReplyAsync(
+                            sessionId, proposedTurn, sessionOrchestrator.CurrentStageLabel, utterance, relationalResult.State);
+                        if (npcReply.Succeeded)
+                        {
+                            reply = npcReply.Text;
+                            replyEmotion = npcReply.Emotion;
+                            selectedEngine = "persona-llm";
+                        }
+                    }
+                    else if (realtimeEngine != null && realtimeEngine.IsRequested)
+                    {
+                        feedbackLabel.text = "GPT 내담자 연결 중…";
+                        RealtimeReply realtimeReply = await realtimeEngine.RequestReplyAsync(utterance);
+                        if (realtimeReply.Succeeded)
+                        {
+                            reply = realtimeReply.Text;
+                            selectedEngine = "gpt-realtime-2.1";
+                        }
                     }
                 }
 
@@ -235,18 +311,27 @@ namespace AdieLab.AffectCounsel
                 client.SetRelationalState(relationalState);
                 turn = proposedTurn;
                 conversationEngine = selectedEngine;
-                SetClientLine(reply);
+                currentEmotion = replyEmotion;
+                if (reply.Length > 0) SetClientLine(reply);
                 client.SetAffect(ClientAvatarController.AffectForEmotion(replyEmotion));
                 webNpcEngine?.RecordExchange(utterance, reply);
-                if (webBridge != null) webBridge.SpeakClient(reply, replyEmotion);
-                else client.Speak(reply, replyEmotion);
+                if (!isLive)
+                {
+                    if (webBridge != null) webBridge.SpeakClient(reply, replyEmotion);
+                    else client.Speak(reply, replyEmotion);
+                }
+                else
+                {
+                    liveVoice?.SendStateHint(relationalState, CounselingCodebook.CodeOf(assessment));
+                }
                 string engineLabel = conversationEngine == "local" ? "로컬 사례" :
-                    conversationEngine == "persona-llm" ? "AI 페르소나 + ElevenLabs" : "GPT Realtime";
+                    conversationEngine == "persona-llm" ? "AI 페르소나 + ElevenLabs" :
+                    conversationEngine == "gemini-live" ? "Gemini Live 음성" : "GPT Realtime";
                 feedbackLabel.text = sessionOrchestrator.ShowLiveCoaching
                     ? $"{engineLabel} · <color=#EFBE74>{AlignmentLabel(relationalResult.Alignment)}</color> · <color=#9FD0BA>{assessment.Skill}</color> · {relationalResult.CoachingFeedback}{sessionOrchestrator.CurrentFocusPrompt}"
                     : "평가 모드 · 세션 종료 후 전달 피드백을 확인합니다.";
                 WriteRecord(utterance, reply, assessment, observation, relationalResult,
-                    lexiconAssessment, coding, codingSource, previousState);
+                    lexiconAssessment, coding, codingSource, previousState, liveInterrupted);
                 sessionOrchestrator.RecordTurn(new CounselingTurnSnapshot
                 {
                     turn = turn,
@@ -264,8 +349,11 @@ namespace AdieLab.AffectCounsel
                     stateBefore = previousState,
                     stateAfter = relationalResult.State
                 }, assessment, relationalResult);
-                counselorInput.text = string.Empty;
-                webBridge?.ClearInput();
+                if (!isLive)
+                {
+                    counselorInput.text = string.Empty;
+                    webBridge?.ClearInput();
+                }
                 UpdateLabels();
             }
             catch (Exception exception)
@@ -282,8 +370,24 @@ namespace AdieLab.AffectCounsel
                 {
                     isSubmitting = false;
                     SetInteractionEnabled(sessionOrchestrator.CanSubmit);
+                    PumpLiveTurns();
                 }
             }
+        }
+
+        private static string EmotionForState(ClientRelationalState next, ClientRelationalState previous)
+        {
+            if (next.Guardedness >= 0.66f || next.WillingnessToDisclose < previous.WillingnessToDisclose - 0.02f) return "guarded";
+            if (next.Safety >= 0.55f && next.WillingnessToDisclose > previous.WillingnessToDisclose) return "relieved";
+            if (next.WillingnessToDisclose > previous.WillingnessToDisclose) return "thoughtful";
+            return "anxious";
+        }
+
+        private sealed class PendingLiveTurn
+        {
+            public string counselor;
+            public string client;
+            public bool interrupted;
         }
 
         private bool IsCurrentSubmission(int expectedSession, int expectedSubmission) =>
@@ -296,11 +400,16 @@ namespace AdieLab.AffectCounsel
 
         private void InvalidateSession()
         {
+            pendingLiveTurns.Clear();
             sessionGeneration++;
             CancelPendingSubmission();
         }
 
-        private void SetClientLine(string value) => clientLine.text = value;
+        private void SetClientLine(string value)
+        {
+            committedClientLine = value ?? string.Empty;
+            clientLine.text = committedClientLine;
+        }
 
         private string InitialLine => caseDefinition == null || string.IsNullOrWhiteSpace(caseDefinition.InitialClientLine)
             ? InitialClientLine
@@ -325,7 +434,8 @@ namespace AdieLab.AffectCounsel
             ResponseAssessment lexiconAssessment,
             SkillCodingReply coding,
             string codingSource,
-            ClientRelationalState stateBefore)
+            ClientRelationalState stateBefore,
+            bool liveInterrupted)
         {
             CounselingSessionRecord record = new CounselingSessionRecord
             {
@@ -383,7 +493,8 @@ namespace AdieLab.AffectCounsel
                 relationalModelVersion = RelationalModelWeights.Active.version,
                 safetyBefore = stateBefore.Safety,
                 guardednessBefore = stateBefore.Guardedness,
-                disclosureBefore = stateBefore.WillingnessToDisclose
+                disclosureBefore = stateBefore.WillingnessToDisclose,
+                liveInterrupted = liveInterrupted
             };
             LocalJsonlLog.Append("counseling-sessions.jsonl", record);
         }

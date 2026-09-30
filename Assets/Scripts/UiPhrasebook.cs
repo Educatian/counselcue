@@ -47,6 +47,15 @@ namespace AdieLab.AffectCounsel
             // Session messages
             { "AI 내담자 응답 생성 중…", "Generating the AI client's reply…" },
             { "응답을 분석하는 중…", "Analyzing your response…" },
+            // Live voice (Gemini Live)
+            { "텍스트로 응답하고, 내담자는 AI 음성으로 답합니다.", "You type; the client answers with an AI voice." },
+            { "마이크 음성이 Google Gemini로 실시간 전송됩니다 · 원음은 저장하지 않습니다.", "Your microphone audio streams to Google Gemini in real time · CounselCue stores no audio." },
+            { "실시간 음성은 웹 버전(Chrome·Edge)에서 사용할 수 있습니다.", "Live voice is available in the web version (Chrome or Edge)." },
+            { "마이크 권한이 없어 텍스트 대화로 계속합니다.", "No microphone permission, so the session continues in text." },
+            { "이 브라우저는 실시간 음성을 지원하지 않아 텍스트 대화로 계속합니다.", "This browser does not support live voice, so the session continues in text." },
+            { "실시간 음성 연결이 끊겨 텍스트 대화로 전환했습니다.", "The live voice connection dropped, so the session switched to text." },
+            { "Gemini Live 음성", "Gemini Live voice" },
+            { "듣는 중", "Listening" },
             { "이전 응답 요청이 취소되었습니다. 내용을 확인한 뒤 다시 보내세요.", "The previous request was canceled. Check your response and send it again." },
             { "선택 장면 재연습 · 원래 응답: ", "Scene replay · original response: " },
             { " · 다른 전달을 시도해 보세요.", " · Try a different delivery." },

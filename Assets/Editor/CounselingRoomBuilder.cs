@@ -92,6 +92,8 @@ namespace AdieLab.AffectCounsel.Editor
             ClientObservationDebugHud debugHud = runtime.AddComponent<ClientObservationDebugHud>();
             ResearchDataControls dataControls = runtime.AddComponent<ResearchDataControls>();
             runtime.AddComponent<DemoCaptureController>();
+            LiveVoiceController liveVoice = runtime.AddComponent<LiveVoiceController>();
+            ConversationModeSelector modeSelector = runtime.AddComponent<ConversationModeSelector>();
             WireWebcam(webcam, ui);
             WireActionUnits(actionUnits, ui);
             WireSession(session, orchestrator, caseDefinition, client, webcam, actionUnits, realtime, webNpc, webBridge, ui);
@@ -102,6 +104,7 @@ namespace AdieLab.AffectCounsel.Editor
             WireClientDebug(debugHud, client, ui);
             WireLanguageToggle(languageToggle, orchestrator, ui);
             WireResearchDataControls(dataControls, ui);
+            WireLiveVoice(liveVoice, modeSelector, session, orchestrator, webNpc, client, ui);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -550,7 +553,7 @@ namespace AdieLab.AffectCounsel.Editor
         {
             RectTransform overlay = UiKit.Overlay("BriefingOverlay", hud, new Color(0.02f, 0.024f, 0.022f, 0.9f));
             refs.briefingOverlay = overlay.gameObject;
-            RectTransform card = BuildSplitCard("BriefingCard", overlay, new Vector2(1240f, 720f), out RectTransform rail);
+            RectTransform card = BuildSplitCard("BriefingCard", overlay, new Vector2(1240f, 760f), out RectTransform rail);
 
             UiKit.SealMark(rail, new Vector2(36f, -38f), 46f);
             UiKit.Label("Wordmark", rail, "CounselCue", new Vector2(94f, -36f), new Vector2(240f, 32f), 21, UiTheme.Paper, true);
@@ -569,7 +572,7 @@ namespace AdieLab.AffectCounsel.Editor
                 refs.caseButtons[i] = button;
             }
             UiKit.Fit(UiKit.Label("PrivacyLine", rail, "웹캠 영상은 저장되지 않으며, 표정 분석은 이 기기 안에서만 이뤄집니다. 연구·훈련용 프로토타입입니다.",
-                new Vector2(36f, -616f), new Vector2(300f, 70f), 13, UiTheme.OnDarkMuted, false, TextAnchor.UpperLeft, 1.15f), 9);
+                new Vector2(36f, -656f), new Vector2(300f, 70f), 13, UiTheme.OnDarkMuted, false, TextAnchor.UpperLeft, 1.15f), 9);
 
             const float x = 420f;
             const float width = 772f;
@@ -583,26 +586,33 @@ namespace AdieLab.AffectCounsel.Editor
             refs.briefingBodyLabel = UiKit.Fit(UiKit.Label("BriefingBody", card, "상황\n\n이번 세션의 목표",
                 new Vector2(x, -160f), new Vector2(width, 196f), 15, UiTheme.Ink, false, TextAnchor.UpperLeft, 1.18f), 11);
 
-            UiKit.Hairline("BriefingDivider", card, new Vector2(x, -370f), width, new Color(0.118f, 0.129f, 0.122f, 0.12f));
-            UiKit.Eyebrow("FullSessionLabel", card, "전체 회기  ·  15분 · 10턴", new Vector2(x, -390f), width, UiTheme.CeladonDeep);
-            refs.practiceStartButton = UiKit.MakeButton("StartPractice", card, new Vector2(x, -412f), new Vector2(380f, 64f),
+            // Conversation mode: typed text (AI voice replies) or a real-time Gemini Live voice session.
+            UiKit.Eyebrow("ModeLabel", card, "대화 방식", new Vector2(x, -374f), 90f, UiTheme.CeladonDeep);
+            refs.modeTextButton = UiKit.MakeButton("ModeText", card, new Vector2(x + 92f, -364f), new Vector2(150f, 34f), "텍스트 대화", UiKit.Variant.GhostLight, 13, 10f);
+            refs.modeLiveButton = UiKit.MakeButton("ModeLive", card, new Vector2(x + 250f, -364f), new Vector2(236f, 34f), "실시간 음성 · Gemini Live", UiKit.Variant.GhostLight, 13, 10f);
+            refs.modeNote = UiKit.Fit(UiKit.Label("ConversationModeNote", card, "텍스트로 응답하고, 내담자는 AI 음성으로 답합니다.",
+                new Vector2(x + 500f, -366f), new Vector2(width - 500f, 34f), 12, UiTheme.InkMuted, false, TextAnchor.MiddleLeft, 1.05f), 10);
+
+            UiKit.Hairline("BriefingDivider", card, new Vector2(x, -412f), width, new Color(0.118f, 0.129f, 0.122f, 0.12f));
+            UiKit.Eyebrow("FullSessionLabel", card, "전체 회기  ·  15분 · 10턴", new Vector2(x, -432f), width, UiTheme.CeladonDeep);
+            refs.practiceStartButton = UiKit.MakeButton("StartPractice", card, new Vector2(x, -454f), new Vector2(380f, 64f),
                 "코칭 연습\n<size=12><color=#F6F1E7B3>턴마다 전달 피드백을 받습니다</color></size>", UiKit.Variant.Primary, 17, 14f);
-            refs.evaluationStartButton = UiKit.MakeButton("StartEvaluation", card, new Vector2(x + 392f, -412f), new Vector2(380f, 64f),
+            refs.evaluationStartButton = UiKit.MakeButton("StartEvaluation", card, new Vector2(x + 392f, -454f), new Vector2(380f, 64f),
                 "평가 모드\n<size=12><color=#6B6F69>피드백은 세션이 끝난 뒤 공개됩니다</color></size>", UiKit.Variant.OutlineLight, 17, 14f);
             NoFit(refs.practiceStartButton);
             NoFit(refs.evaluationStartButton);
-            UiKit.Eyebrow("FocusedLabel", card, "미세기술 집중연습  ·  3분 · 3턴", new Vector2(x, -500f), width, UiTheme.CeladonDeep);
+            UiKit.Eyebrow("FocusedLabel", card, "미세기술 집중연습  ·  3분 · 3턴", new Vector2(x, -542f), width, UiTheme.CeladonDeep);
             float focusWidth = (width - 24f) / 3f;
-            refs.focusOneButton = UiKit.MakeButton("StartFocusOne", card, new Vector2(x, -524f), new Vector2(focusWidth, 48f), "감정 반영 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
-            refs.focusTwoButton = UiKit.MakeButton("StartFocusTwo", card, new Vector2(x + focusWidth + 12f, -524f), new Vector2(focusWidth, 48f), "개방형 질문 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
-            refs.focusThreeButton = UiKit.MakeButton("StartFocusThree", card, new Vector2(x + (focusWidth + 12f) * 2f, -524f), new Vector2(focusWidth, 48f), "전달 정합 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
+            refs.focusOneButton = UiKit.MakeButton("StartFocusOne", card, new Vector2(x, -566f), new Vector2(focusWidth, 48f), "감정 반영 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
+            refs.focusTwoButton = UiKit.MakeButton("StartFocusTwo", card, new Vector2(x + focusWidth + 12f, -566f), new Vector2(focusWidth, 48f), "개방형 질문 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
+            refs.focusThreeButton = UiKit.MakeButton("StartFocusThree", card, new Vector2(x + (focusWidth + 12f) * 2f, -566f), new Vector2(focusWidth, 48f), "전달 정합 연습 · 3분", UiKit.Variant.Tonal, 14, 12f);
 
-            UiKit.Hairline("ConsentDivider", card, new Vector2(x, -600f), width, new Color(0.118f, 0.129f, 0.122f, 0.12f));
-            refs.consentToggle = UiKit.Checkbox("ConsentToggle", card, new Vector2(x, -612f), new Vector2(600f, 28f),
+            UiKit.Hairline("ConsentDivider", card, new Vector2(x, -642f), width, new Color(0.118f, 0.129f, 0.122f, 0.12f));
+            refs.consentToggle = UiKit.Checkbox("ConsentToggle", card, new Vector2(x, -654f), new Vector2(600f, 28f),
                 "연구용 로컬 기록에 동의합니다 — 응답 텍스트와 파생 신호만 이 기기에 저장 (영상 제외)", UiTheme.Ink);
-            refs.deleteDataButton = UiKit.MakeButton("DeleteLocalData", card, new Vector2(x + width - 150f, -610f), new Vector2(150f, 32f), "로컬 기록 삭제", UiKit.Variant.GhostLight, 12, 10f);
+            refs.deleteDataButton = UiKit.MakeButton("DeleteLocalData", card, new Vector2(x + width - 150f, -652f), new Vector2(150f, 32f), "로컬 기록 삭제", UiKit.Variant.GhostLight, 12, 10f);
             // Class use: an optional learner code and an export file for the instructor dashboard.
-            refs.learnerCodeInput = UiKit.TextArea("LearnerCode", card, new Vector2(x, -652f), new Vector2(190f, 34f), "학습자 코드 (선택)");
+            refs.learnerCodeInput = UiKit.TextArea("LearnerCode", card, new Vector2(x, -694f), new Vector2(190f, 34f), "학습자 코드 (선택)");
             refs.learnerCodeInput.lineType = InputField.LineType.SingleLine;
             refs.learnerCodeInput.characterLimit = 40;
             refs.learnerCodeInput.textComponent.fontSize = 13;
@@ -614,8 +624,8 @@ namespace AdieLab.AffectCounsel.Editor
             codeHint.rectTransform.anchoredPosition = new Vector2(12f, -7f);
             codeHint.rectTransform.sizeDelta = new Vector2(166f, 22f);
             refs.learnerCodeInput.GetComponent<Image>().color = UiTheme.PaperDeep;
-            refs.exportDataButton = UiKit.MakeButton("ExportLocalData", card, new Vector2(x + 200f, -652f), new Vector2(150f, 34f), "기록 내보내기", UiKit.Variant.Tonal, 12, 10f);
-            refs.dataStatusLabel = UiKit.Fit(UiKit.Label("DataStatus", card, "연구용 로컬 기록 꺼짐", new Vector2(x + 364f, -660f), new Vector2(width - 364f, 20f), 12, UiTheme.InkMuted), 10);
+            refs.exportDataButton = UiKit.MakeButton("ExportLocalData", card, new Vector2(x + 200f, -694f), new Vector2(150f, 34f), "기록 내보내기", UiKit.Variant.Tonal, 12, 10f);
+            refs.dataStatusLabel = UiKit.Fit(UiKit.Label("DataStatus", card, "연구용 로컬 기록 꺼짐", new Vector2(x + 364f, -702f), new Vector2(width - 364f, 20f), 12, UiTheme.InkMuted), 10);
         }
 
         private static void BuildPause(Transform hud, UiReferences refs)
@@ -881,6 +891,30 @@ namespace AdieLab.AffectCounsel.Editor
             serialized.FindProperty("toggleButton").objectReferenceValue = ui.faceDebugButton;
             serialized.FindProperty("cycleGazeButton").objectReferenceValue = ui.gazeCycleButton;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void WireLiveVoice(LiveVoiceController liveVoice, ConversationModeSelector selector, CounselingSessionController session,
+            CounselingSessionOrchestrator orchestrator, WebNpcConversationEngine webNpc, ClientAvatarHost client, UiReferences ui)
+        {
+            SerializedObject live = new SerializedObject(liveVoice);
+            live.FindProperty("session").objectReferenceValue = session;
+            live.FindProperty("npcEngine").objectReferenceValue = webNpc;
+            live.FindProperty("client").objectReferenceValue = client;
+            live.ApplyModifiedPropertiesWithoutUndo();
+            SerializedObject mode = new SerializedObject(selector);
+            mode.FindProperty("liveVoice").objectReferenceValue = liveVoice;
+            mode.FindProperty("textButton").objectReferenceValue = ui.modeTextButton;
+            mode.FindProperty("liveButton").objectReferenceValue = ui.modeLiveButton;
+            mode.FindProperty("note").objectReferenceValue = ui.modeNote;
+            mode.ApplyModifiedPropertiesWithoutUndo();
+            SerializedObject sessionSerialized = new SerializedObject(session);
+            sessionSerialized.FindProperty("liveVoice").objectReferenceValue = liveVoice;
+            sessionSerialized.ApplyModifiedPropertiesWithoutUndo();
+            SerializedObject orchestratorSerialized = new SerializedObject(orchestrator);
+            orchestratorSerialized.FindProperty("liveVoice").objectReferenceValue = liveVoice;
+            orchestratorSerialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(liveVoice);
+            EditorUtility.SetDirty(selector);
         }
 
         private static void WireResearchDataControls(ResearchDataControls controls, UiReferences ui)
@@ -1235,6 +1269,9 @@ namespace AdieLab.AffectCounsel.Editor
             public Text briefingCaseLabel;
             public Text briefingBodyLabel;
             public Text briefingMetaLabel;
+            public Button modeTextButton;
+            public Button modeLiveButton;
+            public Text modeNote;
             public RectTransform turnProgressFill;
             public RectTransform cameraCard;
             public RectTransform[] meterFills;

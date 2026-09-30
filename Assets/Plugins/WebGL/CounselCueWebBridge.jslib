@@ -19,6 +19,7 @@ mergeInto(LibraryManager.library, {
         placeholder: "응답을 입력하거나 마이크를 누르세요…",
         micLabel: "말하기", micAria: "음성 입력", micUnsupported: "Chrome 또는 Edge에서 음성 입력을 사용할 수 있습니다.",
         send: "응답하기", help: "? 사용 안내", skip: "건너뛰기", next: "다음", start: "시작하기",
+        liveConnecting: "● 실시간 음성 연결 중…", liveListening: "● 듣고 있어요 — 말씀하세요", liveSpeaking: "● 내담자가 말하는 중", liveMuted: "● 마이크 꺼짐 (눌러서 켜기)",
         steps: [
           ["내담자의 표정과 자세를 관찰하세요", "얼굴 근육, 시선, 움직임과 말의 내용을 함께 보세요."],
           ["관찰 줌을 활용하세요", "오른쪽 줌 컨트롤로 표정과 제스처를 가까이 확인하세요."],
@@ -34,6 +35,7 @@ mergeInto(LibraryManager.library, {
         placeholder: "Type your response in Korean or press the mic…",
         micLabel: "Speak", micAria: "Voice input", micUnsupported: "Voice input is available in Chrome or Edge.",
         send: "Respond", help: "? Guide", skip: "Skip", next: "Next", start: "Start",
+        liveConnecting: "● Connecting live voice…", liveListening: "● Listening — go ahead", liveSpeaking: "● Client is speaking", liveMuted: "● Mic off (tap to unmute)",
         steps: [
           ["Observe the client's face and posture", "Watch facial muscles, gaze and movement together with what is said."],
           ["Use the observation zoom", "Use the zoom controls on the right to look closely at expressions and gestures."],
@@ -64,6 +66,7 @@ mergeInto(LibraryManager.library, {
       ".ccb:focus-visible,.ctb:focus-visible,#cch:focus-visible{outline:3px solid #efbe74;outline-offset:3px}" +
       ".ccb:disabled{opacity:.5;cursor:not-allowed}.mic{background:#ffffff14;color:#f3efe6;box-shadow:inset 0 0 0 1px #ffffff26}.mic.on{background:#b84a38;box-shadow:0 0 0 6px #b84a3840}" +
       "#ccn{flex:0 0 150px;align-self:center;box-sizing:border-box;color:#c8cac2;font-size:12px;line-height:1.45;text-align:left;padding:0 4px}" +
+      "#ccn.live{color:#9fd0ba;font-weight:700}#ccn.live.speaking{color:#efbe74}#ccn.live.connecting{color:#c8cac2}#ccn.live.muted{color:#e79a86}.mic.live{background:#2c6352;color:#f6f1e7}" +
       "#cch{position:fixed;z-index:61;right:max(16px,env(safe-area-inset-right));bottom:calc(150px + env(safe-area-inset-bottom));border:0;border-radius:999px;background:#121513e6;color:#f3efe6;padding:9px 15px;font:700 13px/1 'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif;box-shadow:0 8px 24px #0006,inset 0 0 0 1px #ffffff1f;cursor:pointer}" +
       "#cct{position:fixed;inset:0;z-index:100;display:none;font-family:'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif;pointer-events:none}" +
       "#ccs{position:fixed;border:2px solid #efbe74;border-radius:18px;box-shadow:0 0 0 9999vmax #0000008c,0 0 30px #efbe7466;transition:left .25s,top .25s,width .25s,height .25s}" +
@@ -224,12 +227,184 @@ mergeInto(LibraryManager.library, {
     help.onclick = function () { S.i = 0; draw(); };
     addEventListener("resize", function () { S.place(); if (tour.style.display === "block") draw(); });
     S.show = function () { if (!S.get("counselcue-tour-v3")) { S.i = 0; draw(); } };
+    // ---- Gemini Live real-time voice ----------------------------------------------------
+    // Mic → 16 kHz PCM16 → WebSocket (ephemeral token from the worker's /live-token, persona
+    // locked server-side) → 24 kHz PCM16 playback. Transcripts and states go to Unity through
+    // SendMessage: OnLiveState, OnLivePartial, OnLiveTurn, OnLiveLevel.
+    var WORKLET = "class P extends AudioWorkletProcessor{constructor(){super();this.r=sampleRate/16000;this.a=0;this.s=0;this.c=0;this.o=new Int16Array(800);this.n=0;this.m=false;this.port.onmessage=e=>{this.m=!!e.data.mute}}" +
+      "process(i){const x=i[0]&&i[0][0];if(!x)return true;let e=0;for(let k=0;k<x.length;k++){const v=this.m?0:x[k];e+=v*v;this.s+=v;this.c++;this.a+=1;if(this.a>=this.r){this.a-=this.r;const y=Math.max(-1,Math.min(1,this.s/this.c));this.s=0;this.c=0;this.o[this.n++]=y<0?y*32768:y*32767;" +
+      "if(this.n===this.o.length){this.port.postMessage({pcm:this.o.buffer},[this.o.buffer]);this.o=new Int16Array(800);this.n=0}}}this.port.postMessage({level:Math.sqrt(e/x.length)});return true}}registerProcessor('cc-pcm16',P);";
+    var L = S.lv = { active: false, muted: false, handle: "", inText: "", outText: "", interrupted: false, queue: [], nextTime: 0, speaking: false, turnDone: false, hints: false };
+    var toUnity = function (method, value) { try { SendMessage(S.o, method, value); } catch (e) {} };
+    var b64 = function (buffer) {
+      var bytes = new Uint8Array(buffer), out = "";
+      for (var k = 0; k < bytes.length; k += 0x8000) out += String.fromCharCode.apply(null, bytes.subarray(k, k + 0x8000));
+      return btoa(out);
+    };
+    var setState = function (value) { L.state = value; toUnity("OnLiveState", value); S.liveBadge(); };
+    var send = function (payload) { if (L.ws && L.ws.readyState === 1) L.ws.send(JSON.stringify(payload)); };
+    var stopPlayback = function () {
+      for (var k = 0; k < L.queue.length; k++) { try { L.queue[k].stop(); } catch (e) {} }
+      L.queue = []; L.nextTime = 0;
+    };
+    var finishTurn = function (interrupted) {
+      var counselor = L.inText.trim(), client = L.outText.trim();
+      L.inText = ""; L.outText = "";
+      if (counselor || client) toUnity("OnLiveTurn", JSON.stringify({ counselor: counselor, client: client, interrupted: !!interrupted }));
+    };
+    var maybeListening = function () {
+      if (L.speaking && L.queue.length === 0 && L.turnDone) { L.speaking = false; setState("listening"); }
+    };
+    var partialAt = 0;
+    var partial = function (role, text) {
+      var now = Date.now();
+      if (now - partialAt < 180) return;
+      partialAt = now;
+      toUnity("OnLivePartial", JSON.stringify({ role: role, text: text.slice(-240) }));
+    };
+    var play = function (base64) {
+      if (!L.out) return;
+      var raw = atob(base64), n = raw.length >> 1, f = new Float32Array(n);
+      for (var k = 0; k < n; k++) { var v = raw.charCodeAt(2 * k) | (raw.charCodeAt(2 * k + 1) << 8); f[k] = (v >= 32768 ? v - 65536 : v) / 32768; }
+      var buffer = L.out.createBuffer(1, n, 24000);
+      buffer.copyToChannel(f, 0);
+      var source = L.out.createBufferSource();
+      source.buffer = buffer;
+      source.connect(L.gain);
+      var start = Math.max(L.out.currentTime + 0.04, L.nextTime);
+      source.start(start);
+      L.nextTime = start + buffer.duration;
+      L.queue.push(source);
+      source.onended = function () { var i = L.queue.indexOf(source); if (i >= 0) L.queue.splice(i, 1); maybeListening(); };
+      if (!L.speaking) { L.speaking = true; L.turnDone = false; setState("speaking"); }
+    };
+    var onMessage = function (event) {
+      var handle = function (text) {
+        var m; try { m = JSON.parse(text); } catch (e) { return; }
+        if (m.setupComplete) { L.ready = true; setState("listening"); return; }
+        if (m.sessionResumptionUpdate && m.sessionResumptionUpdate.resumable && m.sessionResumptionUpdate.newHandle) L.handle = m.sessionResumptionUpdate.newHandle;
+        if (m.goAway) { L.reconnect = true; }
+        var c = m.serverContent;
+        if (!c) return;
+        if (c.inputTranscription && c.inputTranscription.text) { L.inText += c.inputTranscription.text; partial("counselor", L.inText); }
+        if (c.outputTranscription && c.outputTranscription.text) { L.outText += c.outputTranscription.text; partial("client", L.outText); }
+        if (c.modelTurn && c.modelTurn.parts) {
+          for (var k = 0; k < c.modelTurn.parts.length; k++) {
+            var part = c.modelTurn.parts[k];
+            if (part.inlineData && part.inlineData.data && /audio/.test(part.inlineData.mimeType || "audio")) play(part.inlineData.data);
+          }
+        }
+        if (c.interrupted) { stopPlayback(); L.turnDone = true; maybeListening(); finishTurn(true); if (L.speaking) { L.speaking = false; setState("listening"); } }
+        if (c.turnComplete) { L.turnDone = true; finishTurn(false); maybeListening(); }
+      };
+      if (typeof event.data === "string") handle(event.data);
+      else if (event.data && event.data.text) event.data.text().then(handle);
+    };
+    var connect = function () {
+      var ws = new WebSocket(L.wsUrl + "?access_token=" + encodeURIComponent(L.token));
+      L.ws = ws; L.ready = false;
+      ws.onopen = function () {
+        var setup = { model: "models/" + L.model, generationConfig: { responseModalities: ["AUDIO"] },
+          inputAudioTranscription: {}, outputAudioTranscription: {}, sessionResumption: L.handle ? { handle: L.handle } : {} };
+        ws.send(JSON.stringify({ setup: setup }));
+      };
+      ws.onmessage = onMessage;
+      ws.onerror = function () {};
+      ws.onclose = function (e) {
+        if (!L.active) return;
+        // Live sessions end at their time limit or on network drops; resume with the
+        // handle while the token still has uses, otherwise hand control back to text.
+        if ((L.reconnect || e.code === 1000 || e.code === 1001 || e.code === 1006) && L.retries < 3) {
+          L.retries++; L.reconnect = false; setState("connecting"); setTimeout(connect, 400 * L.retries);
+        } else { S.liveStop(); toUnity("OnLiveState", "error:closed:" + e.code); }
+      };
+    };
+    S.liveStart = function (cfg) {
+      if (L.active) S.liveStop();
+      if (!navigator.mediaDevices || !window.AudioWorkletNode || !window.WebSocket) { toUnity("OnLiveState", "error:unsupported"); return; }
+      L.active = true; L.retries = 0; L.handle = ""; L.inText = ""; L.outText = ""; L.muted = false; L.hints = !!cfg.hints;
+      setState("connecting");
+      var mediaPromise = navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      var tokenPromise = fetch(S.a + "/live-token", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: cfg.sessionId, caseId: cfg.caseId, openingLine: cfg.openingLine, safety: cfg.safety, guardedness: cfg.guardedness, disclosure: cfg.disclosure }) })
+        .then(function (r) { if (!r.ok) throw Error("token " + r.status); return r.json(); });
+      Promise.all([mediaPromise, tokenPromise]).then(function (res) {
+        if (!L.active) { res[0].getTracks().forEach(function (t) { t.stop(); }); return; }
+        L.stream = res[0]; L.token = res[1].token; L.model = res[1].model; L.wsUrl = res[1].wsUrl;
+        L.inCtx = new AudioContext();
+        L.out = new AudioContext({ sampleRate: 24000 });
+        L.gain = L.out.createGain(); L.analyser = L.out.createAnalyser(); L.analyser.fftSize = 512;
+        L.gain.connect(L.analyser); L.analyser.connect(L.out.destination);
+        var url = URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" }));
+        return L.inCtx.audioWorklet.addModule(url).then(function () {
+          URL.revokeObjectURL(url);
+          var src = L.inCtx.createMediaStreamSource(L.stream);
+          L.node = new AudioWorkletNode(L.inCtx, "cc-pcm16");
+          L.node.port.onmessage = function (e) {
+            if (e.data.pcm) { if (L.ready && !L.muted) send({ realtimeInput: { audio: { data: b64(e.data.pcm), mimeType: "audio/pcm;rate=16000" } } }); }
+            else if (typeof e.data.level === "number") L.micLevel = e.data.level;
+          };
+          src.connect(L.node);
+          connect();
+          var data = new Float32Array(512), last = -1;
+          L.meter = setInterval(function () {
+            if (!L.speaking) { if (last !== 0) { last = 0; toUnity("OnLiveLevel", "0"); } return; }
+            L.analyser.getFloatTimeDomainData(data);
+            var e = 0; for (var k = 0; k < data.length; k++) e += data[k] * data[k];
+            var level = Math.min(1, Math.sqrt(e / data.length) * 5.5);
+            if (Math.abs(level - last) > 0.04) { last = level; toUnity("OnLiveLevel", level.toFixed(2)); }
+          }, 70);
+        });
+      }).catch(function (e) {
+        var denied = e && (e.name === "NotAllowedError" || e.name === "SecurityError");
+        S.liveStop();
+        toUnity("OnLiveState", denied ? "error:mic" : "error:" + String((e && e.message) || e).slice(0, 60));
+      });
+    };
+    S.liveStop = function () {
+      L.active = false; L.ready = false; L.speaking = false;
+      try { if (L.ws) L.ws.close(1000); } catch (e) {}
+      L.ws = null;
+      stopPlayback();
+      if (L.meter) clearInterval(L.meter);
+      if (L.stream) L.stream.getTracks().forEach(function (t) { t.stop(); });
+      L.stream = null;
+      try { if (L.inCtx) L.inCtx.close(); if (L.out) L.out.close(); } catch (e) {}
+      L.inCtx = null; L.out = null;
+      if (L.state !== "off") setState("off");
+    };
+    S.liveMute = function (value) {
+      L.muted = !!value;
+      if (L.node) L.node.port.postMessage({ mute: L.muted });
+      S.liveBadge();
+    };
+    S.liveText = function (text) {
+      if (!L.active || !L.ready || !text) return;
+      L.inText += (L.inText ? " " : "") + text;
+      send({ realtimeInput: { text: text } });
+    };
+    S.liveHint = function (text) {
+      if (!L.active || !L.ready || !L.hints || !text) return;
+      send({ clientContent: { turns: [{ role: "user", parts: [{ text: text }] }], turnComplete: false } });
+    };
+    S.liveBadge = function () {
+      var t = S.t(), note = root.querySelector("#ccn");
+      if (!L.active) { note.textContent = t.notice; note.className = ""; mic.classList.remove("live"); return; }
+      note.className = "live " + (L.muted ? "muted" : L.state || "");
+      note.textContent = L.muted ? t.liveMuted : L.state === "speaking" ? t.liveSpeaking : L.state === "connecting" ? t.liveConnecting : t.liveListening;
+      mic.classList.add("live");
+      mic.disabled = false;
+    };
+    // In live mode the mic button mutes/unmutes the stream instead of starting dictation.
+    var dictate = mic.onclick;
+    mic.onclick = function () { if (L.active) S.liveMute(!L.muted); else if (dictate) dictate(); };
     var skip = tour.querySelector(".skip");
     S.applyLang = function () {
       var t = S.t();
       document.documentElement.lang = S.lang;
       if (!S.feedbackSet) S.f.textContent = t.feedback;
       root.querySelector("#ccn").textContent = t.notice;
+      if (S.liveBadge) S.liveBadge();
       S.x.setAttribute("aria-label", t.input);
       S.x.placeholder = t.placeholder;
       mic.setAttribute("aria-label", t.micAria);
@@ -266,6 +441,33 @@ mergeInto(LibraryManager.library, {
     S.f.textContent = value;
     S.f.title = value;
     S.feedbackSet = true;
+  },
+
+  CounselCueWeb_LiveStart: function (configPointer) {
+    var S = window.CounselCueWeb;
+    if (!S || !S.liveStart) return;
+    var cfg; try { cfg = JSON.parse(UTF8ToString(configPointer)); } catch (e) { return; }
+    S.liveStart(cfg);
+  },
+
+  CounselCueWeb_LiveStop: function () {
+    var S = window.CounselCueWeb;
+    if (S && S.liveStop) S.liveStop();
+  },
+
+  CounselCueWeb_LiveMute: function (value) {
+    var S = window.CounselCueWeb;
+    if (S && S.liveMute) S.liveMute(!!value);
+  },
+
+  CounselCueWeb_LiveText: function (textPointer) {
+    var S = window.CounselCueWeb;
+    if (S && S.liveText) S.liveText(UTF8ToString(textPointer));
+  },
+
+  CounselCueWeb_LiveHint: function (textPointer) {
+    var S = window.CounselCueWeb;
+    if (S && S.liveHint) S.liveHint(UTF8ToString(textPointer));
   },
 
   CounselCueWeb_SetLanguage: function (isEnglish) {

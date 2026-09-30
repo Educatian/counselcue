@@ -202,6 +202,15 @@ namespace AdieLab.AffectCounsel
             speechRoutine = StartCoroutine(SpeechRoutine(60f, emotion, (text ?? string.Empty).Length));
         }
 
+        public void BeginExternalSpeech(string emotion)
+        {
+            StopSpeaking();
+            facialDriver?.BeginExternalSpeech();
+            speechRoutine = StartCoroutine(SpeechRoutine(60f, emotion, 40));
+        }
+
+        public void SetSpeechLevel(float level) => facialDriver?.SetExternalLevel(level);
+
         public void StopSpeaking()
         {
             if (speechRoutine != null) StopCoroutine(speechRoutine);

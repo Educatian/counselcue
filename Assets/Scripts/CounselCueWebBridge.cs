@@ -39,6 +39,9 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Text unityFeedbackLabel;
 
         private bool lastEnabled;
+        private LiveVoiceController liveVoice;
+
+        private void Awake() => liveVoice = GetComponent<LiveVoiceController>();
         private string lastFeedbackText = string.Empty;
         private string pendingSpeechText = string.Empty;
         private string pendingSpeechEmotion = "anxious";
@@ -82,7 +85,10 @@ namespace AdieLab.AffectCounsel
         private void Update()
         {
             SyncFeedback();
-            bool enabled = orchestrator != null && orchestrator.CanSubmit && session != null && !session.IsSubmitting;
+            // In a live voice session the dock stays up while a turn is being coded, so the
+            // learner can keep talking, typing or muting.
+            bool live = liveVoice != null && liveVoice.Active;
+            bool enabled = orchestrator != null && orchestrator.CanSubmit && session != null && (live || !session.IsSubmitting);
             if (enabled == lastEnabled) return;
             lastEnabled = enabled;
 #if UNITY_WEBGL && !UNITY_EDITOR

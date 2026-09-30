@@ -27,6 +27,8 @@ namespace AdieLab.AffectCounsel
         private float nextBlink;
         private bool speaking;
         private string[] visemes = Array.Empty<string>();
+        private bool externalDriven;
+        private float externalLevel;
         private float speechElapsed;
         private float speechDuration = 1f;
         private string activeViseme = "AA_VI_00_Sil";
@@ -96,8 +98,21 @@ namespace AdieLab.AffectCounsel
             speaking = true;
         }
 
+        /// <summary>Audio-driven speech: the mouth follows <see cref="SetExternalLevel"/>.</summary>
+        public void BeginExternalSpeech()
+        {
+            visemes = Array.Empty<string>();
+            externalLevel = 0f;
+            externalDriven = true;
+            speaking = true;
+        }
+
+        public void SetExternalLevel(float level) => externalLevel = Mathf.Clamp01(level);
+
         public void EndSpeech()
         {
+            externalDriven = false;
+            externalLevel = 0f;
             speaking = false;
             activeViseme = "AA_VI_00_Sil";
         }
@@ -143,6 +158,20 @@ namespace AdieLab.AffectCounsel
 
         private void UpdateSpeech()
         {
+            if (speaking && externalDriven)
+            {
+                // No text timing in a live stream: open the mouth with the audio level and
+                // drift between vowel shapes so it does not look like a single flapping pose.
+                float drift = Mathf.PerlinNoise(Time.time * 5.5f, 0.71f);
+                string vowel = drift < 0.3f ? "AA_VI_10_aa" : drift < 0.5f ? "AA_VI_11_E" : drift < 0.72f ? "AA_VI_13_O" : "AA_VI_12_I";
+                float level = Mathf.SmoothStep(0f, 1f, externalLevel);
+                visemeWeights.Clear();
+                visemeWeights[vowel] = level;
+                visemeWeights["AA_VI_00_Sil"] = 1f - level;
+                activeViseme = level > 0.2f ? vowel : "AA_VI_00_Sil";
+                speechOpenness = level * VisemeOpenness(vowel);
+                return;
+            }
             if (!speaking || visemes.Length == 0)
             {
                 activeViseme = "AA_VI_00_Sil";

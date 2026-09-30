@@ -21,7 +21,7 @@ test("health never exposes credentials", async () => {
   assert.equal(r.status, 200);
   assert.deepEqual(await r.json(), {
     ok: true,
-    services: { persona: true, coder: true, voice: true },
+    services: { persona: true, coder: true, live: false, voice: true },
   });
 });
 
@@ -354,4 +354,72 @@ test("code uses its own rate-limit bucket and needs credentials", async () => {
   assert.deepEqual(keys, ["203.0.113.5:s-9:code"]);
   const missing = await worker.fetch(post("/code", { sessionId: "s", counselorUtterance: "네" }), { ...env, OPENROUTER_API_KEY: "" });
   assert.equal(missing.status, 503);
+});
+
+test("live-token mints a locked Gemini Live token without exposing the key or persona", async () => {
+  let outboundUrl, outboundHeaders, outbound;
+  await withFetch(
+    async (url, init) => {
+      outboundUrl = url;
+      outboundHeaders = new Headers(init.headers);
+      outbound = JSON.parse(init.body);
+      return new Response(JSON.stringify({ name: "auth_tokens/abc123" }), { status: 200 });
+    },
+    async () => {
+      const r = await worker.fetch(
+        post("/live-token", {
+          sessionId: "s1",
+          caseId: "older-bereavement-01",
+          openingLine: "집에 들어가면 너무 조용합니다.",
+          safety: 0.4,
+          guardedness: 0.6,
+          disclosure: 0.3,
+        }),
+        { ...env, GEMINI_API_KEY: "test-gemini" },
+      );
+      assert.equal(r.status, 200);
+      const body = await r.json();
+      assert.equal(body.token, "auth_tokens/abc123");
+      assert.equal(body.model, "gemini-3.8-live");
+      assert.equal(body.voice, "Algenib");
+      assert.match(body.wsUrl, /BidiGenerateContentConstrained$/);
+      assert.ok(!JSON.stringify(body).includes("test-gemini"));
+      assert.ok(!JSON.stringify(body).includes("Lee Jeong-ho"));
+    },
+  );
+  assert.equal(outboundUrl, "https://generativelanguage.googleapis.com/v1beta/auth_tokens");
+  assert.equal(outboundHeaders.get("x-goog-api-key"), "test-gemini");
+  const config = outbound.liveConnectConstraints.config;
+  assert.equal(outbound.liveConnectConstraints.model, "models/gemini-3.8-live");
+  assert.deepEqual(config.responseModalities, ["AUDIO"]);
+  assert.equal(config.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Algenib");
+  const instruction = config.systemInstruction.parts[0].text;
+  assert.match(instruction, /Lee Jeong-ho/);
+  assert.match(instruction, /집에 들어가면 너무 조용합니다/);
+  assert.match(instruction, /\[상담 시스템\]/);
+  assert.doesNotMatch(instruction, /Return only valid JSON/);
+  assert.ok(outbound.uses >= 1 && outbound.uses <= 5);
+});
+
+test("live-token needs a Gemini key and honours rate limits and voice overrides", async () => {
+  const missing = await worker.fetch(post("/live-token", { sessionId: "s" }), env);
+  assert.equal(missing.status, 503);
+  const keys = [];
+  const limiter = { limit: async ({ key }) => (keys.push(key), { success: false }) };
+  const limited = await worker.fetch(
+    post("/live-token", { sessionId: "s-3" }, { "CF-Connecting-IP": "198.51.100.8" }),
+    { ...env, GEMINI_API_KEY: "k", LIVE_LIMITER: limiter },
+  );
+  assert.equal(limited.status, 429);
+  assert.deepEqual(keys, ["198.51.100.8:s-3:live"]);
+  let voice;
+  await withFetch(
+    async (_u, init) => ((voice = JSON.parse(init.body).liveConnectConstraints.config.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName),
+      new Response(JSON.stringify({ name: "t" }), { status: 200 })),
+    async () => {
+      await worker.fetch(post("/live-token", { sessionId: "s", caseId: "adolescent-pressure-01" }),
+        { ...env, GEMINI_API_KEY: "k", GEMINI_LIVE_VOICES: JSON.stringify({ "adolescent-pressure-01": "Aoede" }) });
+    },
+  );
+  assert.equal(voice, "Aoede");
 });

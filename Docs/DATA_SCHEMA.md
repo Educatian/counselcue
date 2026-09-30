@@ -34,7 +34,8 @@ Join the three files on `sessionId`. A scene replay starts a new `sessionId`; it
 | `culturalProfileId` | Interpretation profile, e.g. `ko-counseling-pilot-v1`. |
 | `webcamSignalQuality`, `webcamMovement` | Derived webcam signal indicators only. |
 | `auSource`, `auTracking`, `auCalibrated`, `au01` … `au45` | MediaPipe-derived AU **proxies** relative to the personal baseline; not FACS coding or emotion labels. |
-| `conversationEngine` | `local`, `persona-llm`, or `gpt-realtime-2.1`. |
+| `conversationEngine` | `local`, `persona-llm`, `gemini-live` (real-time voice; utterances are speech transcripts), or `gpt-realtime-2.1`. |
+| `liveInterrupted` | v3, Gemini Live only. The counselor spoke over the client's reply (barge-in); `clientReply` is then the part heard before the interruption. |
 | `skillCode`, `codebookVersion` | v3. The code from ko-codebook-1 (`reflection_exploration`, `reflection`, `validation`, `open_question`, `closed_question`, `why_question`, `advice`, `premature_reassurance`, `neutral`, `silence`) that drove the turn. |
 | `codingSource` | v3. `llm` when the server coder (`POST /code`) answered with confidence ≥ 0.5, otherwise `lexicon`. |
 | `codingModel`, `codingConfidence`, `codingRationale`, `codingEvidence` | v3. LLM coder model id, its confidence (0–1), the one-sentence rationale shown in the debrief, and the quoted span of the utterance it relied on (empty for the lexicon). |

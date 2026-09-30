@@ -11,6 +11,7 @@ namespace AdieLab.AffectCounsel
     {
         [SerializeField] private CounselingSessionController sessionController;
         [SerializeField] private CounselingReflectionController reflectionController;
+        [SerializeField] private LiveVoiceController liveVoice;
         [SerializeField] private CounselingCaseDefinition caseDefinition;
         [SerializeField] private CaseCatalog caseCatalog;
         [SerializeField] private ClientAvatarHost clientAvatar;
@@ -166,6 +167,7 @@ namespace AdieLab.AffectCounsel
             canceledSubmissionOnPause = sessionController.CancelPendingSubmission();
             phase = TrainingSessionPhase.Paused;
             pauseOverlay.SetActive(true);
+            liveVoice?.SetMuted(true);
             sessionController.SetInteractionEnabled(false);
         }
 
@@ -174,6 +176,7 @@ namespace AdieLab.AffectCounsel
             if (phase != TrainingSessionPhase.Paused) return;
             phase = TrainingSessionPhase.Active;
             pauseOverlay.SetActive(false);
+            liveVoice?.SetMuted(false);
             sessionController.SetInteractionEnabled(true);
             if (canceledSubmissionOnPause) sessionController.ShowCanceledSubmissionMessage();
             canceledSubmissionOnPause = false;
@@ -249,11 +252,21 @@ namespace AdieLab.AffectCounsel
             activeControlCard.SetActive(true);
             if (source == null) sessionController.BeginNewSession();
             else sessionController.BeginReplaySession(source, priorTurns);
+            // Live voice runs full and focused sessions; a scene replay stays in text so the
+            // earlier exchanges it rebuilds are exactly what the client remembers.
+            liveVoice?.StopSession();
+            if (source == null && liveVoice != null && liveVoice.Requested && caseDefinition != null)
+            {
+                string personaKey = string.IsNullOrWhiteSpace(caseDefinition.PersonaPromptKey) ? caseDefinition.CaseId : caseDefinition.PersonaPromptKey;
+                liveVoice.StartSession(sessionController.SessionId, personaKey,
+                    caseDefinition.InitialClientLine, ClientRelationalState.Initial);
+            }
             UpdateHud();
         }
 
         private void ShowBriefing()
         {
+            liveVoice?.StopSession();
             phase = TrainingSessionPhase.Briefing;
             activeControlCard.SetActive(false);
             pauseOverlay.SetActive(false);
@@ -264,6 +277,7 @@ namespace AdieLab.AffectCounsel
 
         private void FinishSession(bool timedOut)
         {
+            liveVoice?.StopSession();
             if (phase == TrainingSessionPhase.Debrief) return;
             sessionController.CancelPendingSubmission();
             phase = TrainingSessionPhase.Debrief;

@@ -23,7 +23,7 @@ namespace AdieLab.AffectCounsel
         private static readonly HashSet<string> DynamicKeys = new HashSet<string>
         {
             "WebcamStatus", "AuStatus", "SessionStatus", "StageLabel", "Alliance", "Feedback", "DataStatus",
-            "DebriefTitle", "DebriefSummary", "SceneDetail", "AssessmentStatus", "FaceObservation"
+            "DebriefTitle", "DebriefSummary", "SceneDetail", "AssessmentStatus", "FaceObservation", "ConversationModeNote"
         };
 
         private static readonly Dictionary<string, string> EnglishByKey = new Dictionary<string, string>
@@ -32,6 +32,9 @@ namespace AdieLab.AffectCounsel
             { "Privacy", "No video saved · on-device processing" },
             { "ZoomEyebrow", "ZOOM" },
             { "CaseListLabel", "CLIENTS" },
+            { "ModeLabel", "CONVERSATION" },
+            { "ModeText", "Text" },
+            { "ModeLive", "Live voice · Gemini Live" },
             { "CaseBriefEyebrow", "CASE BRIEF" },
             { "MeterHeading", "RELATIONAL STATE" },
             { "MeterLabel0", "Safety" },
@@ -185,6 +188,7 @@ namespace AdieLab.AffectCounsel
                 data = Regex.Replace(data, "이 기기에 기록 파일 (\\d+)개", "$1 record file(s) on this device");
                 return Regex.Replace(data, "로컬 기록 파일 (\\d+)개를 삭제했습니다\\.", "Deleted $1 local record file(s).");
             }
+            if (key == "ConversationModeNote") return UiPhrasebook.Translate(source);
             if (key == "FaceObservation")
             {
                 // CounselingCameraZoom flips this label between the two states.
