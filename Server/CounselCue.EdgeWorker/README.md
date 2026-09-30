@@ -18,7 +18,7 @@ Vars (`wrangler.jsonc`): `OPENROUTER_MODEL`, `ELEVENLABS_VOICE_ID`, and `ELEVENL
 
 - Only allow-listed browser origins are served; rejected origins never receive a matching CORS header.
 - Request bodies over 64 KB are rejected (Unity clips each field to the same limits the worker enforces); all text fields are length-bounded and control characters are stripped.
-- `TURN_LIMITER` paces each session (address + session id, 15/min) so a classroom behind one NAT is not throttled as a single user; `TURN_IP_LIMITER` caps a single address across sessions (240/min) so rotating session ids does not bypass it. `VOICE_LIMITER` is per address (20/min); raise it for large classroom pilots.
+- `TURN_LIMITER` paces each session (address + session id, 15/min) so a classroom behind one NAT is not throttled as a single user; `TURN_IP_LIMITER` caps a single address across sessions (240/min) so rotating session ids does not bypass it. `VOICE_LIMITER` paces each browser page (address + page id, 20/min) and `VOICE_IP_LIMITER` caps an address across pages (300/min).
 - Upstream calls time out after 20 s and return `504`; a missing key returns `503` without calling out.
 - The persona prompt forbids acute-crisis role-play and any self-harm method detail, and treats counselor text as dialogue, not instructions.
 

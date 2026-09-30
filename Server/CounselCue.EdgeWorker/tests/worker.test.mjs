@@ -273,3 +273,16 @@ test("rejected origins do not receive their own origin in CORS headers", async (
   assert.equal(r.status, 403);
   assert.notEqual(r.headers.get("access-control-allow-origin"), "https://evil.example");
 });
+
+test("voice limits pace each page and cap each address", async () => {
+  const pageKeys = [], addressKeys = [];
+  const page = { limit: async ({ key }) => (pageKeys.push(key), { success: true }) };
+  const address = { limit: async ({ key }) => (addressKeys.push(key), { success: false }) };
+  const r = await worker.fetch(
+    post("/voice", { text: "네", clientId: "tab-7" }, { "CF-Connecting-IP": "198.51.100.4" }),
+    { ...env, VOICE_LIMITER: page, VOICE_IP_LIMITER: address },
+  );
+  assert.equal(r.status, 429);
+  assert.deepEqual(pageKeys, ["198.51.100.4:tab-7"]);
+  assert.deepEqual(addressKeys, ["198.51.100.4"]);
+});

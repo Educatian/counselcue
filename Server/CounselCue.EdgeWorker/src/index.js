@@ -197,7 +197,13 @@ async function handleVoice(req, b, env, o) {
     emotion = Object.hasOwn(TAGS, b.emotion) ? b.emotion : "anxious",
     voice = voiceFor(caseKey(b.caseId), env);
   if (!text) return json({ error: "missing_text" }, 400, o);
-  if (!(await env.VOICE_LIMITER.limit({ key: clientKey(req) })).success)
+  // Pace each browser page (address + page id) and cap the address as a whole,
+  // mirroring /turn, so a classroom behind one NAT is not throttled as one user.
+  const address = clientKey(req),
+    page = clean(b.clientId, 64);
+  if (!(await env.VOICE_LIMITER.limit({ key: page ? address + ":" + page : address })).success)
+    return json({ error: "voice_rate_limited" }, 429, o);
+  if (env.VOICE_IP_LIMITER && !(await env.VOICE_IP_LIMITER.limit({ key: address })).success)
     return json({ error: "voice_rate_limited" }, 429, o);
   const r = await upstream(
     "https://api.elevenlabs.io/v1/text-to-speech/" +

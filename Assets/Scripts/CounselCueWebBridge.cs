@@ -50,6 +50,7 @@ namespace AdieLab.AffectCounsel
         [DllImport("__Internal")] private static extern void CounselCueWeb_SetFeedback(string value);
         [DllImport("__Internal")] private static extern void CounselCueWeb_Speak(string text, string emotion);
         [DllImport("__Internal")] private static extern void CounselCueWeb_SetCase(string caseId);
+        [DllImport("__Internal")] private static extern void CounselCueWeb_SetLanguage(int isEnglish);
 #endif
         private void Start()
         {
@@ -63,6 +64,18 @@ namespace AdieLab.AffectCounsel
             CounselCueWeb_Initialize(gameObject.name, npcEngine == null ? "" : npcEngine.ApiBaseUrl);
             SyncFeedback();
             CounselCueWeb_SetEnabled(0);
+#endif
+        }
+
+        private void OnEnable() => CounselingLanguageToggle.LanguageChanged += OnLanguageChanged;
+
+        private void OnDisable() => CounselingLanguageToggle.LanguageChanged -= OnLanguageChanged;
+
+        // Keeps the browser-side input bar and tour in the same language as the Unity UI.
+        private void OnLanguageChanged(bool useEnglish)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            CounselCueWeb_SetLanguage(useEnglish ? 1 : 0);
 #endif
         }
 

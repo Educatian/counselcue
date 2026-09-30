@@ -11,6 +11,9 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Button toggleButton;
         [SerializeField] private CounselingSessionOrchestrator orchestrator;
 
+        /// <summary>Raised after the UI language changes (true = English).</summary>
+        public static event System.Action<bool> LanguageChanged;
+
         private readonly Dictionary<Text, string> koreanByText = new Dictionary<Text, string>();
         private readonly Dictionary<Text, string> koreanByDynamicText = new Dictionary<Text, string>();
         private readonly List<Text> dynamicTexts = new List<Text>();
@@ -101,6 +104,7 @@ namespace AdieLab.AffectCounsel
             // Case title, client name, briefing body, case and focus buttons depend on the
             // selected case, so the orchestrator renders them instead of a fixed string table.
             if (orchestrator != null) orchestrator.SetEnglish(useEnglish);
+            LanguageChanged?.Invoke(useEnglish);
             RefreshToggleLabel();
         }
 

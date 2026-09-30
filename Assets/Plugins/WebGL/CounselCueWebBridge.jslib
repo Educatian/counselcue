@@ -6,8 +6,44 @@ mergeInto(LibraryManager.library, {
       on: false,
       i: 0,
       c: "",
-      v: 0
+      v: 0,
+      lang: "ko",
+      // Per-page id so the voice rate limit paces each learner, not a whole classroom NAT.
+      cid: Math.random().toString(36).slice(2) + Date.now().toString(36)
     };
+    S.T = {
+      ko: {
+        feedback: "상담자의 언어·비언어 전달을 함께 관찰합니다.",
+        notice: "AI 생성 내담자 음성 · 원음 미저장",
+        input: "상담자 응답",
+        placeholder: "응답을 입력하거나 마이크를 누르세요…",
+        micLabel: "말하기", micAria: "음성 입력", micUnsupported: "Chrome 또는 Edge에서 음성 입력을 사용할 수 있습니다.",
+        send: "응답하기", help: "? 사용 안내", skip: "건너뛰기", next: "다음", start: "시작하기",
+        steps: [
+          ["내담자의 표정과 자세를 관찰하세요", "얼굴 근육, 시선, 움직임과 말의 내용을 함께 보세요."],
+          ["관찰 줌을 활용하세요", "오른쪽 줌 컨트롤로 표정과 제스처를 가까이 확인하세요."],
+          ["한글 입력을 지원합니다", "한글 조합, 붙여넣기, Shift+Enter 줄바꿈이 가능합니다."],
+          ["마이크로 응답하세요", "최초 1회 브라우저 마이크 권한 승인이 필요합니다. 받아쓰기는 한국어로 인식합니다."],
+          ["감정 음성으로 답합니다", "AI 내담자 답변이 사례별 ElevenLabs 음성으로 재생됩니다."]
+        ]
+      },
+      en: {
+        feedback: "Observing the counselor's verbal and embodied delivery together.",
+        notice: "AI-generated client voice · no audio saved",
+        input: "Counselor response",
+        placeholder: "Type your response in Korean or press the mic…",
+        micLabel: "Speak", micAria: "Voice input", micUnsupported: "Voice input is available in Chrome or Edge.",
+        send: "Respond", help: "? Guide", skip: "Skip", next: "Next", start: "Start",
+        steps: [
+          ["Observe the client's face and posture", "Watch facial muscles, gaze and movement together with what is said."],
+          ["Use the observation zoom", "Use the zoom controls on the right to look closely at expressions and gestures."],
+          ["Korean input is supported", "Korean IME composition, paste, and Shift+Enter line breaks all work."],
+          ["Respond with the microphone", "Allow microphone access once. Dictation recognizes Korean speech."],
+          ["The client answers with an emotional voice", "The AI client's reply plays in a case-specific ElevenLabs voice."]
+        ]
+      }
+    };
+    S.t = function () { return S.T[S.lang] || S.T.ko; };
     // Browser storage can throw (blocked site data, some private modes); the tour
     // flag is a convenience and must never stop the bridge from initializing.
     S.get = function (key) { try { return window.localStorage.getItem(key); } catch (error) { return null; } };
@@ -39,7 +75,7 @@ mergeInto(LibraryManager.library, {
 
     var root = document.createElement("div");
     root.id = "cci";
-    root.innerHTML = '<div id="ccf">상담자의 언어·비언어 전달을 함께 관찰합니다.</div><div id="cccontrols"><span id="ccn">AI 생성 내담자 음성 · 원음 미저장</span><textarea aria-label="상담자 응답" placeholder="응답을 입력하거나 마이크를 누르세요…"></textarea><button class="ccb mic" aria-label="음성 입력">● <span class="lbl">말하기</span></button><button class="ccb send">응답하기</button></div>';
+    root.innerHTML = '<div id="ccf"></div><div id="cccontrols"><span id="ccn"></span><textarea></textarea><button class="ccb mic">● <span class="lbl"></span></button><button class="ccb send"></button></div>';
     document.body.appendChild(root);
     S.r = root;
     S.x = root.querySelector("textarea");
@@ -102,7 +138,7 @@ mergeInto(LibraryManager.library, {
       mic.onclick = function () { try { recognition.start(); } catch (error) { recognition.stop(); } };
     } else {
       mic.disabled = true;
-      mic.title = "Chrome 또는 Edge에서 음성 입력을 사용할 수 있습니다.";
+      S.micUnsupported = true;
     }
 
     var tour = document.createElement("div");
@@ -131,17 +167,17 @@ mergeInto(LibraryManager.library, {
       var rect = element.getBoundingClientRect();
       return [rect.left, rect.top, rect.width, rect.height];
     };
-    var steps = [
-      ["내담자의 표정과 자세를 관찰하세요", "얼굴 근육, 시선, 움직임과 말의 내용을 함께 보세요.", function () { return canvasArea(.31, .12, .38, .56); }],
-      ["관찰 줌을 활용하세요", "오른쪽 줌 컨트롤로 표정과 제스처를 가까이 확인하세요.", function () { return canvasArea(.78, .24, .205, .10); }],
-      ["한글 입력을 지원합니다", "한글 조합, 붙여넣기, Shift+Enter 줄바꿈이 가능합니다.", function () { return elementRect(S.x); }],
-      ["마이크로 응답하세요", "최초 1회 브라우저 마이크 권한 승인이 필요합니다.", function () { return elementRect(mic); }],
-      ["감정 음성으로 답합니다", "LLM 페르소나 답변이 ElevenLabs 음성으로 재생됩니다.", function () { return elementRect(send); }]
+    var targets = [
+      function () { return canvasArea(.31, .12, .38, .56); },
+      function () { return canvasArea(.78, .24, .205, .10); },
+      function () { return elementRect(S.x); },
+      function () { return elementRect(mic); },
+      function () { return elementRect(send); }
     ];
     var clamp = function (value, min, max) { return Math.max(min, Math.min(max, value)); };
     var draw = function () {
-      var step = steps[S.i];
-      var target = step[2]();
+      var step = S.t().steps[S.i];
+      var target = targets[S.i]();
       var pad = 7;
       var left = clamp(target[0] - pad, 6, innerWidth - 12);
       var top = clamp(target[1] - pad, 6, innerHeight - 12);
@@ -173,17 +209,34 @@ mergeInto(LibraryManager.library, {
       card.style.left = clamp(chosen[0], 12, innerWidth - cardWidth - 12) + "px";
       card.style.top = clamp(chosen[1], 12, innerHeight - cardHeight - 12) + "px";
       card.style.visibility = "visible";
-      next.textContent = S.i === steps.length - 1 ? "시작하기" : "다음";
+      next.textContent = S.i === targets.length - 1 ? S.t().start : S.t().next;
     };
     var closeTour = function () {
       tour.style.display = "none";
       S.set("counselcue-tour-v3", "done");
     };
-    next.onclick = function () { if (++S.i >= steps.length) closeTour(); else draw(); };
+    next.onclick = function () { if (++S.i >= targets.length) closeTour(); else draw(); };
     tour.querySelector(".skip").onclick = closeTour;
     help.onclick = function () { S.i = 0; draw(); };
     addEventListener("resize", function () { S.place(); if (tour.style.display === "block") draw(); });
     S.show = function () { if (!S.get("counselcue-tour-v3")) { S.i = 0; draw(); } };
+    var skip = tour.querySelector(".skip");
+    S.applyLang = function () {
+      var t = S.t();
+      document.documentElement.lang = S.lang;
+      if (!S.feedbackSet) S.f.textContent = t.feedback;
+      root.querySelector("#ccn").textContent = t.notice;
+      S.x.setAttribute("aria-label", t.input);
+      S.x.placeholder = t.placeholder;
+      mic.setAttribute("aria-label", t.micAria);
+      mic.querySelector(".lbl").textContent = t.micLabel;
+      mic.title = S.micUnsupported ? t.micUnsupported : "";
+      send.textContent = t.send;
+      help.textContent = t.help;
+      skip.textContent = t.skip;
+      if (tour.style.display === "block") draw();
+    };
+    S.applyLang();
   },
 
   CounselCueWeb_SetEnabled: function (value) {
@@ -208,6 +261,14 @@ mergeInto(LibraryManager.library, {
     var value = (parsed.body && parsed.body.textContent) || "";
     S.f.textContent = value;
     S.f.title = value;
+    S.feedbackSet = true;
+  },
+
+  CounselCueWeb_SetLanguage: function (isEnglish) {
+    var S = window.CounselCueWeb;
+    if (!S) return;
+    S.lang = isEnglish ? "en" : "ko";
+    S.applyLang();
   },
 
   CounselCueWeb_SetCase: function (casePointer) {
@@ -251,7 +312,7 @@ mergeInto(LibraryManager.library, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: controller ? controller.signal : undefined,
-      body: JSON.stringify({ text: UTF8ToString(textPointer), emotion: UTF8ToString(emotionPointer), caseId: S.c })
+      body: JSON.stringify({ text: UTF8ToString(textPointer), emotion: UTF8ToString(emotionPointer), caseId: S.c, clientId: S.cid })
     }).then(function (response) {
       if (!response.ok) throw Error("voice " + response.status);
       return response.blob();
