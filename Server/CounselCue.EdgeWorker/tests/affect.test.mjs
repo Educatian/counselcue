@@ -147,7 +147,7 @@ test("voice uses Gemini 3.8 Flash TTS through OpenRouter with a director line", 
   globalThis.fetch = async (u, init) => {
     url = u;
     sent = JSON.parse(init.body);
-    return new Response(new Uint8Array([0xff, 0xfb, 1, 2]), { headers: { "Content-Type": "audio/mpeg" } });
+    return new Response(new Uint8Array([1, 0, 2, 0]), { headers: { "Content-Type": "audio/pcm;rate=24000;channels=1" } });
   };
   try {
     const r = await worker.fetch(
@@ -156,11 +156,13 @@ test("voice uses Gemini 3.8 Flash TTS through OpenRouter with a director line", 
     );
     assert.equal(r.status, 200);
     assert.equal(r.headers.get("X-Voice-Provider"), "openrouter");
-    assert.equal(r.headers.get("Content-Type"), "audio/mpeg");
+    assert.equal(r.headers.get("Content-Type"), "audio/wav");
     assert.equal(url, "https://openrouter.ai/api/v1/audio/speech");
     assert.equal(sent.model, "google/gemini-3.8-flash-tts");
     assert.equal(sent.voice, "Iapetus");
-    assert.equal(sent.response_format, "mp3");
+    assert.equal(sent.response_format, "pcm");
+    const wav = new Uint8Array(await r.arrayBuffer());
+    assert.equal(String.fromCharCode(...wav.slice(0, 4)), "RIFF");
     assert.match(sent.input, /^Say in natural conversational Korean, as a 39-year-old Korean man.*noticeably guarded.*, quiet: <sigh> 괜찮아요\.$/);
     const plain = await worker.fetch(post("/voice", { text: "네.", caseId: "career-transition-01" }), {
       OPENROUTER_API_KEY: "k",

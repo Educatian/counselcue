@@ -19,7 +19,12 @@
     "OPENROUTER_TTS_MODEL": "google/gemini-3.8-flash-tts",
     "GEMINI_TTS_MODEL": "gemini-3.8-flash-tts",
     "EXPRESSION_DEFAULTS": { "expressivity": "natural", "vocalEvents": true },
+    // "off": OpenRouter speech has no separate style field and Gemini TTS can read a director
+    // line aloud, so only the tagged words are sent; affect comes from tags and voice choice.
+    "TTS_STYLE_PREFIX": "off",
   },
+  // WebGL build files served at GET /webgl/<version>/Build/<file> (see Docs/WEBGL_HOSTING.md).
+  "r2_buckets": [{ "binding": "WEBGL_BUCKET", "bucket_name": "counselcue-webgl-assets" }],
   "ratelimits": [
     {
       "name": "TURN_LIMITER",

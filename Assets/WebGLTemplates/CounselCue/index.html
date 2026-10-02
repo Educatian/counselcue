@@ -57,7 +57,17 @@
       warning.hidden = false;
       if (type !== 'error') setTimeout(() => { item.remove(); warning.hidden = !warning.children.length; }, 5000);
     }
-    const buildUrl = 'Build';
+    // CC_BUILD_SOURCE: the hosted demo loads the build from Cloudflare R2 through the API worker
+    // (GET /webgl/<version>/Build/*), so Pages only carries the HTML. ?build=vN picks another
+    // uploaded version; ?build=local, localhost and file:// use the Build folder next to this page.
+    const CC_BUILD_REMOTE = 'https://counselcue-api.jewoong-moon.workers.dev/webgl/';
+    const CC_BUILD_VERSION = 'v2';
+    const buildUrl = (() => {
+      const pick = new URLSearchParams(location.search).get('build') || '';
+      const local = pick === 'local' || location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+      if (local) return 'Build';
+      return CC_BUILD_REMOTE + (/^v[0-9][0-9a-z.-]{0,30}$/.test(pick) ? pick : CC_BUILD_VERSION) + '/Build';
+    })();
     const config = {
       arguments: [],
       dataUrl: buildUrl + '/{{{ DATA_FILENAME }}}',

@@ -552,17 +552,19 @@ async function handleVoice(req, b, env, o) {
     expressionControls(b.expression, env),
     { prepared: b.intensity !== undefined },
   );
+  let fallback = "";
   if (provider === "openrouter") {
-    const audio = await openRouterSpeech(plan, caseId, env);
-    if (audio) return audioResponse(audio, "audio/mpeg", "openrouter", plan, o);
-    if (!env.ELEVENLABS_API_KEY) return json({ error: "voice_unavailable" }, 502, o);
+    const result = await openRouterSpeech(plan, caseId, env);
+    if (result.audio) return audioResponse(result.audio, "audio/wav", "openrouter", plan, o);
+    fallback = "openrouter " + result.error;
+    if (!env.ELEVENLABS_API_KEY) return json({ error: "voice_unavailable", detail: fallback }, 502, o);
   }
   if (provider === "gemini") {
     const audio = await geminiSpeech(plan, caseId, env);
     if (audio) return audioResponse(audio, "audio/wav", "gemini", plan, o);
     if (!env.ELEVENLABS_API_KEY) return json({ error: "voice_unavailable" }, 502, o);
   }
-  return elevenLabsSpeech(text, plan, caseId, env, o);
+  return elevenLabsSpeech(text, plan, caseId, env, o, fallback);
 }
 
 // Gemini 3.8 Flash TTS: turn-level delivery in speech_metadata.style, point vocal events as
@@ -614,19 +616,24 @@ async function openRouterSpeech(plan, caseId, env) {
       model: clean(env.OPENROUTER_TTS_MODEL, 80) || OPENROUTER_TTS_MODEL,
       input: ttsInput(plan, env.TTS_STYLE_PREFIX !== "off"),
       voice: liveVoice(caseId, env),
-      response_format: "mp3",
+      // Gemini TTS on OpenRouter only returns raw PCM (16-bit mono, rate in the content type).
+      response_format: "pcm",
     }),
   });
-  if (!r) return null;
+  if (!r) return { error: "timeout" };
   if (!r.ok) {
-    console.error("OpenRouter TTS", r.status, (await r.text()).slice(0, 500));
-    return null;
+    const detail = (await r.text()).slice(0, 500);
+    console.error("OpenRouter TTS", r.status, detail);
+    return { error: r.status + " " + detail.replace(/[^\x20-\x7e]/g, " ").slice(0, 160) };
   }
   const bytes = new Uint8Array(await r.arrayBuffer());
-  return bytes.length > 0 ? bytes : null;
+  if (!bytes.length) return { error: "empty" };
+  const rate = Number((/rate=(\d+)/.exec(r.headers.get("Content-Type") || "") || [])[1]) || 24000;
+  const isWav = bytes.length > 12 && String.fromCharCode(...bytes.slice(0, 4)) === "RIFF";
+  return { audio: isWav ? bytes : pcmToWav(bytes, rate) };
 }
 
-async function elevenLabsSpeech(text, plan, caseId, env, o) {
+async function elevenLabsSpeech(text, plan, caseId, env, o, fallback = "") {
   if (!env.ELEVENLABS_API_KEY) return json({ error: "voice_not_configured" }, 503, o);
   const r = await upstream(
     "https://api.elevenlabs.io/v1/text-to-speech/" +
@@ -658,20 +665,50 @@ async function elevenLabsSpeech(text, plan, caseId, env, o) {
     console.error("ElevenLabs", r.status, (await r.text()).slice(0, 500));
     return json({ error: "voice_unavailable" }, 502, o);
   }
-  return audioResponse(r.body, "audio/mpeg", "elevenlabs", plan, o);
+  return audioResponse(r.body, "audio/mpeg", "elevenlabs", plan, o, fallback);
 }
 
-function audioResponse(body, type, provider, plan, o) {
+function audioResponse(body, type, provider, plan, o, fallback = "") {
   return new Response(body, {
     status: 200,
     headers: {
+      // Why a preferred provider was skipped (status and upstream message, no secrets).
+      ...(fallback ? { "X-Voice-Fallback": fallback.replace(/[^\x20-\x7e]/g, " ").slice(0, 200) } : {}),
       ...cors(o),
       "Content-Type": type,
       "Cache-Control": "no-store",
       "X-AI-Generated-Voice": "true",
       "X-Voice-Provider": provider,
       "X-Expression-Policy": plan.policy,
-      "Access-Control-Expose-Headers": "X-Voice-Provider, X-Expression-Policy",
+      "Access-Control-Expose-Headers": "X-Voice-Provider, X-Expression-Policy, X-Voice-Fallback",
+    },
+  });
+}
+
+// WebGL builds kept in R2 (binding WEBGL_BUCKET, objects under <version>/Build/...), served
+// to the demo page so builds are not limited by static-host file caps. Read-only, versioned
+// paths only, immutable caching.
+const WEBGL_TYPES = { js: "application/javascript", wasm: "application/wasm", unityweb: "application/octet-stream", json: "application/json", data: "application/octet-stream" };
+async function handleWebgl(req, u, env, o) {
+  if (!env.WEBGL_BUCKET) return json({ error: "webgl_not_configured" }, 503, o);
+  let key;
+  try {
+    key = decodeURIComponent(u.pathname.slice("/webgl/".length));
+  } catch {
+    return json({ error: "not_found" }, 404, o);
+  }
+  if (!/^v[0-9][0-9a-z.-]{0,30}\/Build\/[A-Za-z0-9_-][A-Za-z0-9._-]{0,79}$/.test(key) || key.includes(".."))
+    return json({ error: "not_found" }, 404, o);
+  const object = await env.WEBGL_BUCKET.get(key);
+  if (!object) return json({ error: "not_found" }, 404, o);
+  const ext = key.split(".").pop();
+  return new Response(req.method === "HEAD" ? null : object.body, {
+    status: 200,
+    headers: {
+      ...cors(o),
+      "Content-Type": WEBGL_TYPES[ext] || "application/octet-stream",
+      "Cache-Control": "public, max-age=31536000, immutable",
+      ETag: object.httpEtag,
     },
   });
 }
@@ -681,6 +718,8 @@ export default {
     const u = new URL(req.url),
       o = req.headers.get("Origin");
     if (o && !ALLOWED_ORIGINS.has(o)) return json({ error: "origin_not_allowed" }, 403, null);
+    if ((req.method === "GET" || req.method === "HEAD") && u.pathname.startsWith("/webgl/"))
+      return handleWebgl(req, u, env, o);
     if (req.method === "OPTIONS")
       return new Response(null, { status: 204, headers: cors(o) });
     if (req.method === "GET" && u.pathname === "/health")

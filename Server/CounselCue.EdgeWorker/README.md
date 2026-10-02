@@ -8,6 +8,7 @@ Server-side proxy for the hosted WebGL demo. API keys and persona prompts stay o
 | `POST /voice` | ElevenLabs v3 client speech with bounded emotion tags. The voice is chosen per case (see *Client voices*). |
 | `POST /code` | LLM skill coder (see below). |
 | `POST /live-token` | Mints a short-lived **Gemini Live** token for a real-time voice session (see below). |
+| `GET /webgl/<version>/Build/<file>` | Streams the WebGL build from the R2 bucket bound as `WEBGL_BUCKET`, with CORS for the allowed origins and immutable caching. See `Docs/WEBGL_HOSTING.md`. |
 | `GET /health` | Reports which services are configured, never the secrets themselves. |
 
 ## Configuration

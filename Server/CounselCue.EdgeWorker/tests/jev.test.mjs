@@ -98,3 +98,20 @@ test("/analyze codes empty turns as silence without a call and fails safely", as
     globalThis.fetch = old;
   }
 });
+
+test("/webgl serves versioned build files from R2 with long caching", async () => {
+  const objects = { "v2/Build/WebGL.wasm.unityweb": { body: "WASM", size: 4, httpEtag: '"e1"' } };
+  const bucket = { get: async (k) => objects[k] || null };
+  const get = (path, origin = "https://counselcue.pages.dev") =>
+    worker.fetch(new Request("https://worker.test" + path, { headers: { Origin: origin } }), { WEBGL_BUCKET: bucket });
+  const ok = await get("/webgl/v2/Build/WebGL.wasm.unityweb");
+  assert.equal(ok.status, 200);
+  assert.equal(await ok.text(), "WASM");
+  assert.equal(ok.headers.get("Content-Type"), "application/octet-stream");
+  assert.match(ok.headers.get("Cache-Control"), /immutable/);
+  assert.equal(ok.headers.get("Access-Control-Allow-Origin"), "https://counselcue.pages.dev");
+  assert.equal((await get("/webgl/v2/Build/missing.js")).status, 404);
+  assert.equal((await get("/webgl/../secrets")).status, 404);
+  assert.equal((await get("/webgl/v2/index.html")).status, 404);
+  assert.equal((await get("/webgl/v2/Build/WebGL.wasm.unityweb", "https://evil.example")).status, 403);
+});
