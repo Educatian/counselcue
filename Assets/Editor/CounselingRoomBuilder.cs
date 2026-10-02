@@ -172,8 +172,11 @@ namespace AdieLab.AffectCounsel.Editor
             Build();
             Directory.CreateDirectory("Builds/WebGL");
             Directory.CreateDirectory("Logs");
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-            PlayerSettings.WebGL.decompressionFallback = false;
+            // Brotli with the loader's decompression fallback: small downloads on any static
+            // host, whether or not it sends Content-Encoding for .unityweb files.
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+            PlayerSettings.WebGL.decompressionFallback = true;
+            PlayerSettings.WebGL.dataCaching = true;
             PlayerSettings.WebGL.template = "PROJECT:CounselCue";
             System.DateTime started = System.DateTime.UtcNow;
             BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
@@ -196,6 +199,16 @@ namespace AdieLab.AffectCounsel.Editor
                 foreach (string file in Directory.GetFiles("Builds/WebGL/Build"))
                     lines.Add($"{Path.GetFileName(file)} {new FileInfo(file).Length}");
             }
+            // Largest packed assets (before compression), to see what the download is made of.
+            var assets = new System.Collections.Generic.List<(string path, ulong size)>();
+            foreach (PackedAssets packed in report.packedAssets)
+                foreach (PackedAssetInfo info in packed.contents)
+                    assets.Add((info.sourceAssetPath, info.packedSize));
+            lines.Add("-- largest assets (packed bytes) --");
+            foreach (var group in System.Linq.Enumerable.Take(System.Linq.Enumerable.OrderByDescending(
+                         System.Linq.Enumerable.GroupBy(assets, a => a.path),
+                         g => System.Linq.Enumerable.Aggregate(g, 0UL, (sum, a) => sum + a.size)), 40))
+                lines.Add($"{System.Linq.Enumerable.Aggregate(group, 0UL, (sum, a) => sum + a.size)} {group.Key}");
             File.WriteAllLines("Logs/webgl-build-report.txt", lines);
             Debug.Log("COUNSELCUE_WEBGL_BUILD " + string.Join(" | ", lines));
             if (report.summary.result != BuildResult.Succeeded)

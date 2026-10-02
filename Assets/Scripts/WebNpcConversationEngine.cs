@@ -78,6 +78,29 @@ namespace AdieLab.AffectCounsel
         /// Asks the server's LLM coder to code the counselor turn with the shared codebook.
         /// Callers fall back to the lexicon on any failure or low confidence.
         /// </summary>
+        /// <summary>Jev real-time analysis (worker /analyze); fast, typed, with calibrated confidence.</summary>
+        public async Task<JevAnalysis> RequestAnalysisAsync(string sessionId, string utterance, string clientLine, string clientReply = null)
+        {
+            if (!IsAvailable || AnalysisSettings.Mode == AnalysisMode.Off) return JevAnalysis.Failure("analysis off");
+            AnalyzeRequest payload = new AnalyzeRequest {
+                sessionId=sessionId, caseId=activeCaseId, phase=phaseKey, counselorUtterance=Clip(utterance, 800),
+                clientLine=Clip(clientLine, 600), clientReply=Clip(clientReply, 400)
+            };
+            byte[] bytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(payload));
+            using UnityWebRequest request = new UnityWebRequest(ApiBaseUrl + "/analyze", UnityWebRequest.kHttpVerbPOST) {
+                uploadHandler=new UploadHandlerRaw(bytes), downloadHandler=new DownloadHandlerBuffer(), timeout=6
+            };
+            request.SetRequestHeader("Content-Type", "application/json");
+            UnityWebRequestAsyncOperation operation=request.SendWebRequest();
+            while (!operation.isDone) await Task.Yield();
+            if (request.result != UnityWebRequest.Result.Success)
+                return JevAnalysis.Failure($"analysis {request.responseCode}: {request.error}");
+            JevAnalysis result = JsonUtility.FromJson<JevAnalysis>(request.downloadHandler.text);
+            if (result == null || !CounselingCodebook.IsKnown(result.code)) return JevAnalysis.Failure("analysis empty");
+            result.succeeded = true;
+            return result;
+        }
+
         public async Task<SkillCodingReply> RequestCodingAsync(string sessionId, int turn, string stage, string utterance, string clientLine)
         {
             if (!CoderEnabled) return SkillCodingReply.Failure("coder disabled");
@@ -174,6 +197,10 @@ namespace AdieLab.AffectCounsel
         }
         [Serializable] private sealed class HistoryEntry { public string counselor; public string client; }
         [Serializable] private sealed class TurnResponse { public string reply; public string emotion; public float intensity; public AffectPlan plan; }
+        [Serializable] private sealed class AnalyzeRequest {
+            public string sessionId; public string caseId; public string phase;
+            public string counselorUtterance; public string clientLine; public string clientReply;
+        }
         [Serializable] private sealed class CodeRequest {
             public string sessionId; public string caseId; public int turn; public string stage; public string phase;
             public string counselorUtterance; public string clientLine;

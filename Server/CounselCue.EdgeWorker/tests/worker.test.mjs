@@ -22,7 +22,7 @@ test("health never exposes credentials", async () => {
   assert.equal(r.status, 200);
   assert.deepEqual(await r.json(), {
     ok: true,
-    services: { persona: true, coder: true, live: false, voice: true },
+    services: { persona: true, coder: true, analysis: true, live: false, voice: true },
   });
 });
 

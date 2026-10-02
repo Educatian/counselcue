@@ -1,6 +1,7 @@
 import { phaseBlock, phaseKey } from "./phases.js";
 import { LIVE_AFFECT_TOOL, affectPlan, expressionControls, liveExpressionBlock, pcmToWav, ttsInput } from "./affect.js";
 import { LEGACY_PERSONAS, LEGACY_VOICES } from "./legacy.js";
+import { JEV_ENDPOINT, JEV_MODEL, analysisQuestions, analysisResult } from "./jev.js";
 
 const ALLOWED_ORIGINS = new Set([
   "https://educatian.github.io",
@@ -361,6 +362,52 @@ async function handleTurn(req, b, env, o) {
   }
 }
 
+// Real-time analysis with Jev (src/jev.js): a provisional skill code, quality and the client's
+// affect with calibrated probabilities in well under a second, alongside the LLM coder.
+async function handleAnalyze(req, b, env, o) {
+  if (!env.OPENROUTER_API_KEY || env.ANALYSIS === "off") return json({ error: "analysis_not_configured" }, 503, o);
+  const sid = clean(b.sessionId, 64),
+    utterance = clean(b.counselorUtterance, 800),
+    reply = clean(b.clientReply, MAX_REPLY_CHARS);
+  if (!sid) return json({ error: "missing_input" }, 400, o);
+  const address = clientKey(req);
+  if (!(await env.TURN_LIMITER.limit({ key: address + ":" + sid + ":analyze" })).success)
+    return json({ error: "analysis_rate_limited" }, 429, o);
+  if (!utterance)
+    return json({ engine: "jev", code: "silence", confidence: 1, quality: 0, qualityScore: 0, latencyMs: 0, model: "" }, 200, o);
+  const started = Date.now();
+  const r = await upstream(JEV_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + env.OPENROUTER_API_KEY,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://educatian.github.io/counselcue/",
+      "X-Title": "CounselCue",
+    },
+    body: JSON.stringify({
+      model: clean(env.JEV_MODEL, 60) || JEV_MODEL,
+      state: {
+        session_phase: phaseKey(b.phase),
+        client_line: clean(b.clientLine, 600),
+        counselor_utterance: utterance,
+        ...(reply ? { client_reply: reply } : {}),
+      },
+      questions: analysisQuestions(!!reply),
+    }),
+  });
+  if (!r) return json({ error: "analysis_timeout" }, 504, o);
+  if (!r.ok) {
+    console.error("Jev", r.status, (await r.text()).slice(0, 500));
+    return json({ error: "analysis_unavailable" }, 502, o);
+  }
+  try {
+    return json(analysisResult(await r.json(), Date.now() - started), 200, o);
+  } catch (e) {
+    console.error("Jev parse", e && e.message);
+    return json({ error: "analysis_invalid_output" }, 502, o);
+  }
+}
+
 async function handleCode(req, b, env, o) {
   if (!env.OPENROUTER_API_KEY) return json({ error: "coder_not_configured" }, 503, o);
   const sid = clean(b.sessionId, 64),
@@ -643,6 +690,7 @@ export default {
           services: {
             persona: !!env.OPENROUTER_API_KEY,
             coder: !!env.OPENROUTER_API_KEY,
+            analysis: !!env.OPENROUTER_API_KEY && env.ANALYSIS !== "off",
             live: !!env.GEMINI_API_KEY,
             voice: !!(env.OPENROUTER_API_KEY || env.GEMINI_API_KEY || env.ELEVENLABS_API_KEY),
           },
@@ -650,7 +698,7 @@ export default {
         200,
         o,
       );
-    const routes = { "/turn": handleTurn, "/voice": handleVoice, "/code": handleCode, "/live-token": handleLiveToken };
+    const routes = { "/turn": handleTurn, "/voice": handleVoice, "/code": handleCode, "/analyze": handleAnalyze, "/live-token": handleLiveToken };
     if (req.method !== "POST" || !Object.hasOwn(routes, u.pathname))
       return json({ error: "not_found" }, 404, o);
     const { body, error, status } = await readBody(req);

@@ -41,6 +41,11 @@ Join the three files on `sessionId`. A scene replay starts a new `sessionId`; it
 | `clientAffectIntensity` | v3. 0–1 intensity the voice and face rendered, after the expressivity gain and any cap. |
 | `expressionPolicy` | v3. Expression policy version (`expr-1`), `live-report` for Gemini Live, or empty for local scripted replies. |
 | `expressivity` | v3. Expressivity in force: `restrained`, `natural` or `vivid` (briefing card or study URL). |
+| `analysisMode` | v3. Real-time analysis mode: `off`, `shadow` (Jev provisional, LLM coder decides) or `jev` (Jev decides when confident). |
+| `jevCode` / `jevConfidence` / `jevQuality` | v3. Jev's skill code for the counselor turn, its calibrated confidence, and quality 0–3 (−1 = no analysis). |
+| `jevAttendsToFeeling` | v3. Jev's probability that the counselor acknowledged a feeling the client expressed. |
+| `jevLatencyMs` / `jevModel` | v3. Jev round-trip time at the worker and the exact model version. |
+| `jevClientAffect` | v3. Live mode: Jev's reading of the client's spoken reply. |
 | `skillCode`, `codebookVersion` | v3. The code from ko-codebook-1 (`reflection_exploration`, `reflection`, `validation`, `open_question`, `closed_question`, `why_question`, `advice`, `premature_reassurance`, `neutral`, `silence`) that drove the turn. |
 | `codingSource` | v3. `llm` when the server coder (`POST /code`) answered with confidence ≥ 0.5, otherwise `lexicon`. |
 | `codingModel`, `codingConfidence`, `codingRationale`, `codingEvidence` | v3. LLM coder model id, its confidence (0–1), the one-sentence rationale shown in the debrief, and the quoted span of the utterance it relied on (empty for the lexicon). |

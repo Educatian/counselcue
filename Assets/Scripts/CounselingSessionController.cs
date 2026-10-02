@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -69,6 +70,7 @@ namespace AdieLab.AffectCounsel
         private float currentIntensity = 0.5f;
         private string currentExpressionPolicy = string.Empty;
         private string liveAffect = string.Empty;
+        private JevAnalysis lastAnalysis = JevAnalysis.Failure("none");
         private float liveIntensity = -1f;
         private readonly Queue<PendingLiveTurn> pendingLiveTurns = new Queue<PendingLiveTurn>();
 
@@ -261,11 +263,29 @@ namespace AdieLab.AffectCounsel
                 ResponseAssessment assessment = lexiconAssessment;
                 SkillCodingReply coding = SkillCodingReply.Failure("not requested");
                 string codingSource = "lexicon";
-                if (webNpcEngine != null && webNpcEngine.CoderEnabled)
+                // Jev (fast, typed) and the LLM coder (slower, explains) run side by side.
+                Task<SkillCodingReply> codingTask = webNpcEngine != null && webNpcEngine.CoderEnabled
+                    ? webNpcEngine.RequestCodingAsync(sessionId, turn + 1, sessionOrchestrator.CurrentStageLabel, utterance, clientPrompt)
+                    : null;
+                Task<JevAnalysis> analysisTask = webNpcEngine != null && AnalysisSettings.Mode != AnalysisMode.Off
+                    ? webNpcEngine.RequestAnalysisAsync(sessionId, utterance, clientPrompt, liveReply)
+                    : null;
+                lastAnalysis = JevAnalysis.Failure("not requested");
+                if (analysisTask != null)
                 {
-                    if (!isLive) feedbackLabel.text = "응답을 분석하는 중…";
-                    coding = await webNpcEngine.RequestCodingAsync(
-                        sessionId, turn + 1, sessionOrchestrator.CurrentStageLabel, utterance, clientPrompt);
+                    if (!isLive && codingTask == null) feedbackLabel.text = "응답을 분석하는 중…";
+                    lastAnalysis = await analysisTask;
+                    if (!IsCurrentSubmission(expectedSession, expectedSubmission)) return;
+                    if (lastAnalysis.succeeded && sessionOrchestrator.ShowLiveCoaching)
+                        feedbackLabel.text = $"<color=#9FD0BA>실시간 분석</color> · {CounselingCodebook.SkillLabel(lastAnalysis.code)} · 확신도 {lastAnalysis.confidence:P0} · 정밀 분석 중…";
+                    // Live mode without an affect report: let Jev's reading of the reply drive the face.
+                    if (isLive && lastAnalysis.succeeded && liveAffect.Length == 0 && !string.IsNullOrEmpty(lastAnalysis.clientAffect))
+                        ApplyLiveAffect(lastAnalysis.clientAffect, lastAnalysis.clientIntensity);
+                }
+                if (codingTask != null)
+                {
+                    if (!isLive && !lastAnalysis.succeeded) feedbackLabel.text = "응답을 분석하는 중…";
+                    coding = await codingTask;
                     if (!IsCurrentSubmission(expectedSession, expectedSubmission)) return;
                     // The LLM coder leads when it answers confidently with a known code;
                     // otherwise the lexicon keeps the session going offline or on errors.
@@ -274,6 +294,20 @@ namespace AdieLab.AffectCounsel
                     {
                         assessment = coded;
                         codingSource = "llm";
+                    }
+                }
+                // Jev-first mode: a confident Jev code decides the turn; the LLM's explanation is
+                // kept when it agrees, otherwise the rationale says the code came from Jev.
+                if (AnalysisSettings.Mode == AnalysisMode.JevFirst && lastAnalysis.succeeded &&
+                    lastAnalysis.confidence >= AnalysisSettings.MinConfidence)
+                {
+                    bool agrees = coding.Succeeded && coding.Code == lastAnalysis.code;
+                    string rationale = agrees ? coding.Rationale
+                        : $"실시간 분석(Jev)이 '{CounselingCodebook.SkillLabel(lastAnalysis.code)}'로 판정했습니다 (확신도 {lastAnalysis.confidence:P0}).";
+                    if (CounselingCodebook.TryFromCode(lastAnalysis.code, lastAnalysis.quality, rationale, out ResponseAssessment jevCoded))
+                    {
+                        assessment = jevCoded;
+                        codingSource = "jev";
                     }
                 }
                 ClientRelationalState previousState = relationalState;
@@ -522,6 +556,14 @@ namespace AdieLab.AffectCounsel
                 clientAffectIntensity = currentIntensity,
                 expressionPolicy = currentExpressionPolicy,
                 expressivity = ExpressionSettings.ToControls().expressivity,
+                analysisMode = AnalysisSettings.Key(AnalysisSettings.Mode),
+                jevCode = lastAnalysis.succeeded ? lastAnalysis.code : string.Empty,
+                jevConfidence = lastAnalysis.succeeded ? lastAnalysis.confidence : 0f,
+                jevQuality = lastAnalysis.succeeded ? lastAnalysis.quality : -1,
+                jevAttendsToFeeling = lastAnalysis.succeeded ? lastAnalysis.attendsToFeeling : 0f,
+                jevLatencyMs = lastAnalysis.succeeded ? lastAnalysis.latencyMs : 0,
+                jevModel = lastAnalysis.succeeded ? lastAnalysis.model : string.Empty,
+                jevClientAffect = lastAnalysis.succeeded ? lastAnalysis.clientAffect : string.Empty,
                 skillCode = CounselingCodebook.CodeOf(assessment),
                 codebookVersion = CounselingCodebook.Version,
                 codingSource = codingSource,

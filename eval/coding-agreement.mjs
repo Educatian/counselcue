@@ -2,12 +2,13 @@
 // Agreement between skill coders on expert-coded Korean utterances (codebook ko-codebook-1).
 //
 //   node eval/coding-agreement.mjs                         # lexicon vs reference labels
-//   WORKER_URL=https://… node eval/coding-agreement.mjs    # + LLM coder (Server /code)
+//   WORKER_URL=https://… node eval/coding-agreement.mjs    # + LLM coder (/code) and Jev (/analyze)
 //   node eval/coding-agreement.mjs --gold path.csv --floor # CI: fail if lexicon kappa drops
 //
 // Reports accuracy, Cohen's kappa, per-code precision/recall/F1, a confusion matrix and
 // quality agreement (quadratic-weighted kappa on items where both coders chose the same code).
-// Pairs: lexicon–A, llm–A, llm–lexicon and, when a second expert column is filled, A–B.
+// Pairs: lexicon–A, llm–A, llm–lexicon, jev–A, jev–llm and, when a second expert column is
+// filled, A–B. Jev rows also report median latency and how calibrated its confidence is.
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -128,6 +129,46 @@ function lexiconCodes(items) {
   return items.map((it) => out.get(it.id) || { code: "neutral", quality: 1 });
 }
 
+async function jevCodes(items) {
+  const results = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      const it = items[i];
+      try {
+        const r = await fetch(workerUrl + "/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: "eval-" + it.id, caseId: it.case_id, clientLine: it.client_line, counselorUtterance: it.utterance || "" }),
+        });
+        const body = await r.json();
+        results[i] = r.ok
+          ? { code: body.code, quality: body.quality, confidence: body.confidence, latencyMs: body.latencyMs }
+          : { code: "neutral", quality: 1, error: body.error || r.status };
+      } catch (e) {
+        results[i] = { code: "neutral", quality: 1, error: String(e) };
+      }
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  return results;
+}
+
+// Expected calibration error over 5 confidence bins (|accuracy − confidence|, weighted).
+function calibrationError(reference, predicted) {
+  const bins = Array.from({ length: 5 }, () => ({ n: 0, correct: 0, conf: 0 }));
+  predicted.forEach((p, i) => {
+    if (p.error || !Number.isFinite(p.confidence)) return;
+    const b = bins[Math.min(4, Math.floor(p.confidence * 5))];
+    b.n++;
+    b.conf += p.confidence;
+    if (p.code === reference[i]) b.correct++;
+  });
+  const total = bins.reduce((s, b) => s + b.n, 0) || 1;
+  return bins.reduce((s, b) => s + (b.n ? (b.n / total) * Math.abs(b.correct / b.n - b.conf / b.n) : 0), 0);
+}
+
 async function llmCodes(items) {
   const results = new Array(items.length);
   let next = 0;
@@ -191,6 +232,16 @@ async function main() {
     report.pairs["llm_vs_A"] = compare(refCodes, llm.map((x) => x.code), refQ, llm.map((x) => x.quality));
     report.pairs["llm_vs_lexicon"] = compare(lex.map((x) => x.code), llm.map((x) => x.code), lex.map((x) => x.quality), llm.map((x) => x.quality));
     report.llmErrors = llm.filter((x) => x.error).length;
+    const jev = await jevCodes(items);
+    report.pairs["jev_vs_A"] = compare(refCodes, jev.map((x) => x.code), refQ, jev.map((x) => x.quality));
+    report.pairs["jev_vs_llm"] = compare(llm.map((x) => x.code), jev.map((x) => x.code), llm.map((x) => x.quality), jev.map((x) => x.quality));
+    const latencies = jev.filter((x) => !x.error).map((x) => x.latencyMs).sort((a, b) => a - b);
+    report.jev = {
+      errors: jev.filter((x) => x.error).length,
+      medianLatencyMs: latencies.length ? latencies[Math.floor(latencies.length / 2)] : null,
+      p95LatencyMs: latencies.length ? latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * 0.95))] : null,
+      calibrationError: calibrationError(refCodes, jev),
+    };
   }
 
   report.disagreements = items.map((it, i) => ({

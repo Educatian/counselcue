@@ -74,5 +74,17 @@ namespace AdieLab.AffectCounsel
         public string expressionPolicy;
         /// <summary>Expressivity setting in force: restrained, natural or vivid.</summary>
         public string expressivity;
+        /// <summary>Real-time analysis mode: off, shadow (Jev provisional, LLM decides) or jev (Jev decides when confident).</summary>
+        public string analysisMode;
+        /// <summary>Jev's skill code for this counselor turn, its calibrated confidence and quality (-1 = no analysis).</summary>
+        public string jevCode;
+        public float jevConfidence;
+        public int jevQuality = -1;
+        /// <summary>Jev: probability the counselor acknowledged a feeling the client expressed.</summary>
+        public float jevAttendsToFeeling;
+        public int jevLatencyMs;
+        public string jevModel;
+        /// <summary>Live mode: Jev's reading of the client's spoken reply.</summary>
+        public string jevClientAffect;
     }
 }

@@ -14,7 +14,8 @@ namespace AdieLab.AffectCounsel.Editor
     {
         public const string Root = "Assets/ThirdParty/ActorCore/";
 
-        public override uint GetVersion() => 1;
+        // 2: crunched textures and web-sized maps (the 9 actors made a 217 MB WebGL data file).
+        public override uint GetVersion() => 3;
 
         private void OnPreprocessModel()
         {
@@ -23,7 +24,10 @@ namespace AdieLab.AffectCounsel.Editor
             importer.animationType = ModelImporterAnimationType.Human;
             importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
             importer.importBlendShapes = true;
-            importer.importBlendShapeNormals = ModelImporterNormals.Calculate;
+            // Blendshape normal deltas roughly doubled each actor's mesh data; the client's
+            // expressions are low-intensity, so base normals shade them well enough for the web.
+            importer.importBlendShapeNormals = ModelImporterNormals.None;
+            importer.meshCompression = ModelImporterMeshCompression.Low;
             importer.importCameras = false;
             importer.importLights = false;
             importer.importAnimation = false;
@@ -36,7 +40,9 @@ namespace AdieLab.AffectCounsel.Editor
             if (!assetPath.StartsWith(Root)) return;
             TextureImporter importer = (TextureImporter)assetImporter;
             string file = Path.GetFileNameWithoutExtension(assetPath);
-            importer.textureCompression = TextureImporterCompression.CompressedHQ;
+            importer.textureCompression = TextureImporterCompression.Compressed;
+            importer.crunchedCompression = true;
+            importer.compressionQuality = 60;
             importer.mipmapEnabled = true;
             importer.anisoLevel = 4;
             switch (file)
@@ -47,12 +53,13 @@ namespace AdieLab.AffectCounsel.Editor
                     importer.alphaIsTransparency = true;
                     break;
                 case "Normal":
-                    importer.maxTextureSize = 2048;
+                    // The face is seen at most ~600 px tall; 1024 keeps pores and wrinkles.
+                    importer.maxTextureSize = 1024;
                     importer.textureType = TextureImporterType.NormalMap;
                     break;
                 case "MetallicSmoothness":
                 case "Occlusion":
-                    importer.maxTextureSize = 1024;
+                    importer.maxTextureSize = 512;
                     importer.sRGBTexture = false;
                     break;
                 default:
