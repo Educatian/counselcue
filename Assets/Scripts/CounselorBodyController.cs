@@ -17,7 +17,9 @@ namespace AdieLab.AffectCounsel
         [SerializeField] private Camera viewCamera;
         [SerializeField] private CounselingCameraZoom cameraZoom;
         [SerializeField] private Transform chair;
-        [SerializeField, Range(0f, 30f)] private float glancePitch = 22f;
+        // The notepad rests on the crossed knee, about 60° below eye level; a real glance at
+        // notes on the lap tilts the head 45–55°.
+        [SerializeField, Range(0f, 60f)] private float glancePitch = 47f;
         [SerializeField, Range(0f, 20f)] private float glanceFieldOfView = 12f;
         [SerializeField] private float glanceHoldSeconds = 1.3f;
 

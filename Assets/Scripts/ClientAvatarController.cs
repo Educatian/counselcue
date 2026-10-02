@@ -143,6 +143,9 @@ namespace AdieLab.AffectCounsel
             }
         }
 
+        /// <summary>0..1 from the expression plan: scales how strongly the affect shows on the face.</summary>
+        public void SetAffectIntensity(float value) => facialDriver?.SetIntensity(value);
+
         public void SetAffect(ClientAffect value, bool immediate = false)
         {
             affect = value;

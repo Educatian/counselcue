@@ -295,6 +295,18 @@ mergeInto(LibraryManager.library, {
         if (m.setupComplete) { L.ready = true; setState("listening"); return; }
         if (m.sessionResumptionUpdate && m.sessionResumptionUpdate.resumable && m.sessionResumptionUpdate.newHandle) L.handle = m.sessionResumptionUpdate.newHandle;
         if (m.goAway) { L.reconnect = true; }
+        // The persona reports its feeling through a silent, non-blocking function call so
+        // the avatar's face follows the voice (server: affect.js LIVE_AFFECT_TOOL).
+        if (m.toolCall && m.toolCall.functionCalls) {
+          var responses = [];
+          for (var q = 0; q < m.toolCall.functionCalls.length; q++) {
+            var fc = m.toolCall.functionCalls[q];
+            if (fc.name === "set_client_affect") toUnity("OnLiveAffect", JSON.stringify(fc.args || {}));
+            responses.push({ id: fc.id, name: fc.name, response: { result: "ok", scheduling: "SILENT" } });
+          }
+          if (responses.length) send({ toolResponse: { functionResponses: responses } });
+          return;
+        }
         var c = m.serverContent;
         if (!c) return;
         if (c.inputTranscription && c.inputTranscription.text) { L.inText += c.inputTranscription.text; partial("counselor", L.inText); }
@@ -337,7 +349,7 @@ mergeInto(LibraryManager.library, {
       setState("connecting");
       var mediaPromise = navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       var tokenPromise = fetch(S.a + "/live-token", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: cfg.sessionId, caseId: cfg.caseId, phase: cfg.phase, openingLine: cfg.openingLine, safety: cfg.safety, guardedness: cfg.guardedness, disclosure: cfg.disclosure }) })
+        body: JSON.stringify({ sessionId: cfg.sessionId, caseId: cfg.caseId, phase: cfg.phase, openingLine: cfg.openingLine, safety: cfg.safety, guardedness: cfg.guardedness, disclosure: cfg.disclosure, expression: cfg.expression }) })
         .then(function (r) { if (!r.ok) throw Error("token " + r.status); return r.json(); });
       Promise.all([mediaPromise, tokenPromise]).then(function (res) {
         if (!L.active) { res[0].getTracks().forEach(function (t) { t.stop(); }); return; }
@@ -426,6 +438,59 @@ mergeInto(LibraryManager.library, {
       skip.textContent = t.skip;
       if (tour.style.display === "block") draw();
     };
+    // Client voice: POST /voice with the reply and its expression plan, play the audio, and
+    // tell Unity when it starts, ends or fails (Unity then lip-syncs or falls back).
+    S.speak = function (payload) {
+      if (!S.a) return;
+      // Each request gets a token; a slower earlier request must not start playing
+      // over (or report on behalf of) the reply that superseded it.
+      var token = ++S.v;
+      var current = function () { return token === S.v; };
+      // Cancel a superseded request so it is neither billed nor counted against the voice limit.
+      if (S.ac) S.ac.abort();
+      var controller = window.AbortController ? new AbortController() : null;
+      S.ac = controller;
+      var notify = function (name) { if (current()) SendMessage(S.o, name, ""); };
+      var clean = function () {
+        if (S.auUrl) URL.revokeObjectURL(S.auUrl);
+        S.auUrl = "";
+        S.au = null;
+      };
+      if (S.au) {
+        S.au.onended = null;
+        S.au.onerror = null;
+        S.au.pause();
+        clean();
+        notify("OnWebVoiceEnded");
+      }
+      var failed = false;
+      var fail = function (error) {
+        if (failed || !current()) return;
+        failed = true;
+        if (error) console.warn(error);
+        clean();
+        notify("OnWebVoiceFailed");
+      };
+      fetch(S.a + "/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller ? controller.signal : undefined,
+        body: JSON.stringify(Object.assign({}, payload, { caseId: S.c, clientId: S.cid }))
+      }).then(function (response) {
+        if (!response.ok) throw Error("voice " + response.status);
+        return response.blob();
+      }).then(function (blob) {
+        if (!current()) return;
+        var url = URL.createObjectURL(blob);
+        var audio = new Audio(url);
+        S.au = audio;
+        S.auUrl = url;
+        audio.onplay = function () { notify("OnWebVoiceStarted"); };
+        audio.onended = function () { clean(); notify("OnWebVoiceEnded"); };
+        audio.onerror = function () { fail(Error("audio playback failed")); };
+        audio.play().catch(fail);
+      }).catch(fail);
+    };
     S.applyLang();
   },
 
@@ -510,54 +575,14 @@ mergeInto(LibraryManager.library, {
 
   CounselCueWeb_Speak: function (textPointer, emotionPointer) {
     var S = window.CounselCueWeb;
-    if (!S || !S.a) return;
-    // Each request gets a token; a slower earlier request must not start playing
-    // over (or report on behalf of) the reply that superseded it.
-    var token = ++S.v;
-    var current = function () { return token === S.v; };
-    // Cancel a superseded request so it is neither billed nor counted against the voice limit.
-    if (S.ac) S.ac.abort();
-    var controller = window.AbortController ? new AbortController() : null;
-    S.ac = controller;
-    var notify = function (name) { if (current()) SendMessage(S.o, name, ""); };
-    var clean = function () {
-      if (S.auUrl) URL.revokeObjectURL(S.auUrl);
-      S.auUrl = "";
-      S.au = null;
-    };
-    if (S.au) {
-      S.au.onended = null;
-      S.au.onerror = null;
-      S.au.pause();
-      clean();
-      notify("OnWebVoiceEnded");
-    }
-    var failed = false;
-    var fail = function (error) {
-      if (failed || !current()) return;
-      failed = true;
-      if (error) console.warn(error);
-      clean();
-      notify("OnWebVoiceFailed");
-    };
-    fetch(S.a + "/voice", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller ? controller.signal : undefined,
-      body: JSON.stringify({ text: UTF8ToString(textPointer), emotion: UTF8ToString(emotionPointer), caseId: S.c, clientId: S.cid })
-    }).then(function (response) {
-      if (!response.ok) throw Error("voice " + response.status);
-      return response.blob();
-    }).then(function (blob) {
-      if (!current()) return;
-      var url = URL.createObjectURL(blob);
-      var audio = new Audio(url);
-      S.au = audio;
-      S.auUrl = url;
-      audio.onplay = function () { notify("OnWebVoiceStarted"); };
-      audio.onended = function () { clean(); notify("OnWebVoiceEnded"); };
-      audio.onerror = function () { fail(Error("audio playback failed")); };
-      audio.play().catch(fail);
-    }).catch(fail);
+    if (S && S.speak) S.speak({ text: UTF8ToString(textPointer), emotion: UTF8ToString(emotionPointer) });
+  },
+
+  // payload: { text, spoken, emotion, intensity, delivery, expression } from the AffectPlan.
+  CounselCueWeb_SpeakPlan: function (jsonPointer) {
+    var S = window.CounselCueWeb;
+    if (!S || !S.speak) return;
+    var payload; try { payload = JSON.parse(UTF8ToString(jsonPointer)); } catch (e) { return; }
+    S.speak(payload);
   }
 });

@@ -93,6 +93,7 @@ namespace AdieLab.AffectCounsel
         }
 
         public void SetAffect(ClientAffect value, bool immediate = false) => activeClient?.SetAffect(value, immediate);
+        public void SetAffectIntensity(float value) => activeClient?.SetAffectIntensity(value);
         public void SetRelationalState(ClientRelationalState state) => activeClient?.SetRelationalState(state);
         public void Speak(string text, string emotion) => activeClient?.Speak(text, emotion);
         public void BeginSpeaking(string text, string emotion) => activeClient?.BeginSpeaking(text, emotion);

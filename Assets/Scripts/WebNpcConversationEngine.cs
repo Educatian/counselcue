@@ -9,13 +9,15 @@ namespace AdieLab.AffectCounsel
 {
     public readonly struct NpcTurnReply
     {
-        private NpcTurnReply(bool ok, string text, string emotion, string error)
-        { Succeeded = ok; Text = text; Emotion = emotion; Error = error; }
+        private NpcTurnReply(bool ok, string text, string emotion, string error, AffectPlan plan = null)
+        { Succeeded = ok; Text = text; Emotion = emotion; Error = error; Plan = plan; }
         public bool Succeeded { get; }
         public string Text { get; }
         public string Emotion { get; }
+        /// <summary>The server expression policy's plan for this reply; null from older servers.</summary>
+        public AffectPlan Plan { get; }
         public string Error { get; }
-        public static NpcTurnReply Success(string text, string emotion) => new NpcTurnReply(true, text, emotion, "");
+        public static NpcTurnReply Success(string text, string emotion, AffectPlan plan = null) => new NpcTurnReply(true, text, emotion, "", plan);
         public static NpcTurnReply Failure(string error) => new NpcTurnReply(false, "", "", error);
     }
 
@@ -133,7 +135,7 @@ namespace AdieLab.AffectCounsel
             TurnRequest payload = new TurnRequest {
                 sessionId=sessionId, caseId=activeCaseId, turn=turn, stage=stage, phase=phaseKey, counselorUtterance=Clip(utterance, 800),
                 safety=state.Safety, guardedness=state.Guardedness, disclosure=state.WillingnessToDisclose,
-                openingLine=openingLine, history=history.ToArray()
+                openingLine=openingLine, history=history.ToArray(), expression=ExpressionSettings.ToControls()
             };
             byte[] bytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(payload));
             using UnityWebRequest request = new UnityWebRequest(ApiBaseUrl + "/turn", UnityWebRequest.kHttpVerbPOST) {
@@ -148,7 +150,8 @@ namespace AdieLab.AffectCounsel
             TurnResponse response=JsonUtility.FromJson<TurnResponse>(request.downloadHandler.text);
             return response == null || string.IsNullOrWhiteSpace(response.reply)
                 ? NpcTurnReply.Failure("NPC 응답이 비어 있습니다.")
-                : NpcTurnReply.Success(response.reply.Trim(), NormalizeEmotion(response.emotion));
+                : NpcTurnReply.Success(response.reply.Trim(), NormalizeEmotion(response.emotion),
+                    response.plan != null && !string.IsNullOrEmpty(response.plan.policy) ? response.plan : null);
         }
 
         // Mirrors the worker's per-field limits so the request body stays well under its cap.
@@ -167,10 +170,10 @@ namespace AdieLab.AffectCounsel
         [Serializable] private sealed class TurnRequest {
             public string sessionId; public string caseId; public int turn; public string stage; public string phase; public string counselorUtterance;
             public float safety; public float guardedness; public float disclosure;
-            public string openingLine; public HistoryEntry[] history;
+            public string openingLine; public HistoryEntry[] history; public ExpressionControls expression;
         }
         [Serializable] private sealed class HistoryEntry { public string counselor; public string client; }
-        [Serializable] private sealed class TurnResponse { public string reply; public string emotion; }
+        [Serializable] private sealed class TurnResponse { public string reply; public string emotion; public float intensity; public AffectPlan plan; }
         [Serializable] private sealed class CodeRequest {
             public string sessionId; public string caseId; public int turn; public string stage; public string phase;
             public string counselorUtterance; public string clientLine;

@@ -67,7 +67,8 @@ namespace AdieLab.AffectCounsel
                 safety = state.Safety,
                 guardedness = state.Guardedness,
                 disclosure = state.WillingnessToDisclose,
-                hints = sendStateHints
+                hints = sendStateHints,
+                expression = ExpressionSettings.ToControls()
             };
             SetState(LiveVoiceState.Connecting);
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -156,6 +157,14 @@ namespace AdieLab.AffectCounsel
             session?.ShowLivePartial(partial.role == "client", partial.text);
         }
 
+        /// <summary>set_client_affect from the live persona: the face matches the voice.</summary>
+        public void OnLiveAffect(string json)
+        {
+            LiveAffect report = Parse<LiveAffect>(json);
+            if (report == null || string.IsNullOrWhiteSpace(report.affect)) return;
+            session?.ApplyLiveAffect(report.affect, report.intensity);
+        }
+
         public void OnLiveTurn(string json)
         {
             LiveTurn turn = Parse<LiveTurn>(json);
@@ -180,7 +189,9 @@ namespace AdieLab.AffectCounsel
         {
             public string sessionId; public string caseId; public string openingLine; public string phase;
             public float safety; public float guardedness; public float disclosure; public bool hints;
+            public ExpressionControls expression;
         }
+        [Serializable] private sealed class LiveAffect { public string affect; public float intensity; }
         [Serializable] private sealed class LivePartial { public string role; public string text; }
         [Serializable] private sealed class LiveTurn { public string counselor; public string client; public bool interrupted; }
     }

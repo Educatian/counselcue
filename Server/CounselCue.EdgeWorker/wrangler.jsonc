@@ -12,6 +12,11 @@
     // an entry use the worker's built-in age/gender-matched premade voice
     // (DEFAULT_VOICES), then ELEVENLABS_VOICE_ID, e.g. "adolescent-pressure-01": "<voice id>".
     "ELEVENLABS_VOICE_IDS": {},
+    // Expression pipeline (src/affect.js). Voice provider: "gemini" (Gemini 3.8 Flash TTS,
+    // needs GEMINI_API_KEY) or "elevenlabs". Defaults apply when the browser sends no controls.
+    "VOICE_PROVIDER": "gemini",
+    "GEMINI_TTS_MODEL": "gemini-3.8-flash-tts",
+    "EXPRESSION_DEFAULTS": { "expressivity": "natural", "vocalEvents": true },
   },
   "ratelimits": [
     {

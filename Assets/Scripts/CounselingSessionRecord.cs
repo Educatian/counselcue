@@ -67,5 +67,12 @@ namespace AdieLab.AffectCounsel
         public bool liveInterrupted;
         /// <summary>Counseling phase practised: intake, goal_setting, middle, termination.</summary>
         public string sessionPhase = "intake";
+        /// <summary>Client affect and intensity the expression pipeline rendered for this reply.</summary>
+        public string clientAffect;
+        public float clientAffectIntensity;
+        /// <summary>Expression policy version (e.g. expr-1), "live-report" or empty for local replies.</summary>
+        public string expressionPolicy;
+        /// <summary>Expressivity setting in force: restrained, natural or vivid.</summary>
+        public string expressivity;
     }
 }

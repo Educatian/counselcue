@@ -37,6 +37,10 @@ Join the three files on `sessionId`. A scene replay starts a new `sessionId`; it
 | `conversationEngine` | `local`, `persona-llm`, `gemini-live` (real-time voice; utterances are speech transcripts), or `gpt-realtime-2.1`. |
 | `liveInterrupted` | v3, Gemini Live only. The counselor spoke over the client's reply (barge-in); `clientReply` is then the part heard before the interruption. |
 | `sessionPhase` | v3. Counseling phase practised: `intake`, `goal_setting`, `middle` (resistance, holding and containing) or `termination`. Also in session summaries. |
+| `clientAffect` | v3. Client affect rendered for this reply (`guarded`, `anxious`, `relieved`, `thoughtful`), from the expression plan (text mode) or the persona's `set_client_affect` report (live mode). |
+| `clientAffectIntensity` | v3. 0–1 intensity the voice and face rendered, after the expressivity gain and any cap. |
+| `expressionPolicy` | v3. Expression policy version (`expr-1`), `live-report` for Gemini Live, or empty for local scripted replies. |
+| `expressivity` | v3. Expressivity in force: `restrained`, `natural` or `vivid` (briefing card or study URL). |
 | `skillCode`, `codebookVersion` | v3. The code from ko-codebook-1 (`reflection_exploration`, `reflection`, `validation`, `open_question`, `closed_question`, `why_question`, `advice`, `premature_reassurance`, `neutral`, `silence`) that drove the turn. |
 | `codingSource` | v3. `llm` when the server coder (`POST /code`) answered with confidence ≥ 0.5, otherwise `lexicon`. |
 | `codingModel`, `codingConfidence`, `codingRationale`, `codingEvidence` | v3. LLM coder model id, its confidence (0–1), the one-sentence rationale shown in the debrief, and the quoted span of the utterance it relied on (empty for the lexicon). |

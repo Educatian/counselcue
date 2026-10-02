@@ -44,6 +44,8 @@ namespace AdieLab.AffectCounsel
         [Header("Counseling phase (접수·초기 / 목표 설정 / 중반부 / 종결)")]
         [SerializeField] private Button[] phaseButtons = new Button[0];
         [SerializeField] private Text phaseNote;
+        [SerializeField] private Button[] expressivityButtons = new Button[0];
+        [SerializeField] private Text expressivityNote;
 
         private readonly List<CounselingTurnSnapshot> turns = new List<CounselingTurnSnapshot>();
         // Exchanges that preceded the current session when it is a scene replay, so a
@@ -148,6 +150,12 @@ namespace AdieLab.AffectCounsel
                 CounselingPhase option = CounselingPhaseLibrary.All[i];
                 if (phaseButtons[i] != null) phaseButtons[i].onClick.AddListener(() => SetCounselingPhase(option));
             }
+            for (int i = 0; expressivityButtons != null && i < expressivityButtons.Length && i < 3; i++)
+            {
+                Expressivity option = (Expressivity)i;
+                if (expressivityButtons[i] != null) expressivityButtons[i].onClick.AddListener(() => ExpressionSettings.Level = option);
+            }
+            ExpressionSettings.Changed += RefreshExpressivityButtons;
         }
 
         private void Start()
@@ -383,12 +391,37 @@ namespace AdieLab.AffectCounsel
             briefingBodyLabel.text = body.ToString();
             ApplyBriefingPortrait();
             RefreshPhaseButtons();
+            RefreshExpressivityButtons();
             Button[] focusButtons = { focusOneButton, focusTwoButton, focusThreeButton };
             for (int i = 0; i < focusButtons.Length; i++)
             {
                 bool available = caseDefinition.FocusSkills != null && i < caseDefinition.FocusSkills.Length;
                 focusButtons[i].gameObject.SetActive(available);
                 if (available) focusButtons[i].GetComponentInChildren<Text>().text = FocusButtonLabel(caseDefinition.FocusSkills[i]);
+            }
+        }
+
+        private void OnDestroy() => ExpressionSettings.Changed -= RefreshExpressivityButtons;
+
+        /// <summary>How strongly the AI client shows emotion (voice and face); fixed by study URL parameters.</summary>
+        private void RefreshExpressivityButtons()
+        {
+            if (expressivityButtons == null) return;
+            Expressivity level = ExpressionSettings.Level;
+            bool locked = ExpressionSettings.LockedByStudy;
+            for (int i = 0; i < expressivityButtons.Length && i < 3; i++)
+            {
+                if (expressivityButtons[i] == null) continue;
+                Expressivity option = (Expressivity)i;
+                UiTheme.SetChoice(expressivityButtons[i], option == level, false);
+                expressivityButtons[i].interactable = !locked || option == level;
+                Text label = expressivityButtons[i].GetComponentInChildren<Text>();
+                if (label != null) label.text = useEnglish ? ExpressionSettings.LabelEn(option) : ExpressionSettings.LabelKo(option);
+            }
+            if (expressivityNote != null)
+            {
+                string note = useEnglish ? ExpressionSettings.NoteEn(level) : ExpressionSettings.NoteKo(level);
+                expressivityNote.text = locked ? (useEnglish ? "Fixed by the study settings · " : "연구 설정으로 고정됨 · ") + note : note;
             }
         }
 

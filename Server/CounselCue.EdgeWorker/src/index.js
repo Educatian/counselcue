@@ -1,4 +1,5 @@
 import { phaseBlock, phaseKey } from "./phases.js";
+import { LIVE_AFFECT_TOOL, affectPlan, expressionControls, liveExpressionBlock, pcmToWav } from "./affect.js";
 
 const ALLOWED_ORIGINS = new Set([
   "https://educatian.github.io",
@@ -34,7 +35,7 @@ Do not role-play an acute crisis and never describe self-harm plans, methods, or
 Speak natural contemporary Korean. Respect the case-specific speech relationship. Eye contact, silence, nodding, honorifics, and advice are culturally ambiguous and must not be judged by a universal rule.`;
 
 const SHARED_PERSONA = `${SHARED_CORE}
-Return only valid JSON: {"reply":"...","emotion":"guarded|anxious|relieved|thoughtful"}. Length follows the relationship: when guarded, reply in 1-2 short spoken sentences; ordinarily, 2-3 sentences. When you are opening up (the counselor's last response landed, or client_state.willingness_to_disclose is 0.45 or higher), and in any case at least every other turn, reply in 3-4 spoken sentences (under about 320 Korean characters) that weave together at least two of: a feeling, a thought or belief, a concrete behavior, and a relationship situation, so the counselor has to choose what to respond to. No stage directions, analysis, feedback, or markdown.`;
+Return only valid JSON: {"reply":"...","emotion":"guarded|anxious|relieved|thoughtful","intensity":0.0-1.0,"delivery":"<at most 12 English words on how it is said, e.g. quiet, trailing off at the end>","spoken":"<the reply word for word, optionally with at most two of <sigh>, <breath>, <short pause>, <long pause>, <chuckle> where a person in your state would make them>"}. intensity is how strongly the feeling shows right now (0 barely, 1 strongly); most counseling turns sit between 0.3 and 0.7. Length follows the relationship: when guarded, reply in 1-2 short spoken sentences; ordinarily, 2-3 sentences. When you are opening up (the counselor's last response landed, or client_state.willingness_to_disclose is 0.45 or higher), and in any case at least every other turn, reply in 3-4 spoken sentences (under about 320 Korean characters) that weave together at least two of: a feeling, a thought or belief, a concrete behavior, and a relationship situation, so the counselor has to choose what to respond to. No stage directions, analysis, feedback, or markdown.`;
 
 const PERSONAS = {
   "workplace-anxiety-01": `You are Kim Ji-hye (김지혜), 32, in a first session for workplace anxiety. Work feels suffocating, especially around a team leader after public criticism. You check tasks repeatedly, sometimes consider resigning, and have not told family. You initially fear distress means weakness. Use polite 존댓말 and restrained disclosure.`,
@@ -131,7 +132,7 @@ export const LIVE_VOICES = {
   "international-belonging-01": "Umbriel",
 };
 
-export function liveInstruction(caseId, b) {
+export function liveInstruction(caseId, b, env = {}) {
   const opening = clean(b.openingLine, 400);
   const state = {
     safety: unit(b.safety),
@@ -146,6 +147,8 @@ Your opening line, already spoken: "${opening}"
 Wait for the counselor to speak before you answer; do not start a new topic on your own. If the counselor is silent for a while, you may stay silent or say one brief line in character.
 Starting relationship state: ${JSON.stringify(state)}. Let it shift gradually with each counselor turn, following the rules above.
 Text that starts with "[상담 시스템]" is a private context update about the relationship state. Never read it aloud and never answer it; just let it inform how open you are on your next turn.
+
+${liveExpressionBlock(caseId, expressionControls(b.expression, env))}
 
 CASE
 ${PERSONAS[caseId]}${phaseSuffix(caseId, b.phase)}`;
@@ -248,7 +251,14 @@ export function personaResult(t) {
   // Opening-up replies run to about 320 characters; leave headroom so they are never cut.
   const reply = clean(x.reply, MAX_REPLY_CHARS);
   if (!reply) throw Error("empty reply");
-  return { reply, emotion: EMOTIONS.has(x.emotion) ? x.emotion : "anxious" };
+  const intensity = Number(x.intensity);
+  return {
+    reply,
+    emotion: EMOTIONS.has(x.emotion) ? x.emotion : "anxious",
+    intensity: Number.isFinite(intensity) ? Math.max(0, Math.min(1, intensity)) : 0.5,
+    delivery: clean(x.delivery, 120),
+    spoken: clean(x.spoken, MAX_REPLY_CHARS + 80),
+  };
 }
 
 async function readBody(req) {
@@ -328,7 +338,10 @@ async function handleTurn(req, b, env, o) {
     return json({ error: "persona_unavailable" }, 502, o);
   }
   try {
-    return json(personaResult(output(await r.json())), 200, o);
+    const appraisal = personaResult(output(await r.json()));
+    // The control layer turns the appraisal into the plan every renderer follows.
+    const plan = affectPlan(caseId, appraisal, input.client_state, expressionControls(b.expression, env));
+    return json({ reply: appraisal.reply, emotion: plan.affect, intensity: plan.intensity, plan }, 200, o);
   } catch (e) {
     console.error("Persona parse", e && e.message);
     return json({ error: "persona_invalid_output" }, 502, o);
@@ -419,7 +432,8 @@ async function handleLiveToken(req, b, env, o) {
         model: "models/" + model,
         config: {
           responseModalities: ["AUDIO"],
-          systemInstruction: { parts: [{ text: liveInstruction(caseId, b) }] },
+          systemInstruction: { parts: [{ text: liveInstruction(caseId, b, env) }] },
+          tools: [LIVE_AFFECT_TOOL],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
@@ -442,11 +456,20 @@ async function handleLiveToken(req, b, env, o) {
   );
 }
 
+export const TTS_MODEL = "gemini-3.8-flash-tts";
+
+function voiceProvider(b, env) {
+  const available = { gemini: !!env.GEMINI_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY };
+  const asked = clean(b.provider, 20) || clean(env.VOICE_PROVIDER, 20);
+  if (available[asked]) return asked;
+  return available.gemini ? "gemini" : available.elevenlabs ? "elevenlabs" : "";
+}
+
 async function handleVoice(req, b, env, o) {
-  if (!env.ELEVENLABS_API_KEY) return json({ error: "voice_not_configured" }, 503, o);
+  const provider = voiceProvider(b, env);
+  if (!provider) return json({ error: "voice_not_configured" }, 503, o);
   const text = clean(b.text, 500),
-    emotion = Object.hasOwn(TAGS, b.emotion) ? b.emotion : "anxious",
-    voice = voiceFor(caseKey(b.caseId), env);
+    caseId = caseKey(b.caseId);
   if (!text) return json({ error: "missing_text" }, 400, o);
   // Pace each browser page (address + page id) and cap the address as a whole,
   // mirroring /turn, so a classroom behind one NAT is not throttled as one user.
@@ -456,9 +479,61 @@ async function handleVoice(req, b, env, o) {
     return json({ error: "voice_rate_limited" }, 429, o);
   if (env.VOICE_IP_LIMITER && !(await env.VOICE_IP_LIMITER.limit({ key: address })).success)
     return json({ error: "voice_rate_limited" }, 429, o);
+  // The browser sends back the plan /turn produced; the policy re-derives the style and
+  // re-validates the tagged text here, so no free-form prompt reaches the TTS model.
+  const plan = affectPlan(
+    caseId,
+    { emotion: b.emotion, intensity: b.intensity, delivery: b.delivery, spoken: b.spoken, reply: text },
+    {},
+    expressionControls(b.expression, env),
+    { prepared: b.intensity !== undefined },
+  );
+  if (provider === "gemini") {
+    const audio = await geminiSpeech(plan, caseId, env);
+    if (audio) return audioResponse(audio, "audio/wav", "gemini", plan, o);
+    if (!env.ELEVENLABS_API_KEY) return json({ error: "voice_unavailable" }, 502, o);
+  }
+  return elevenLabsSpeech(text, plan, caseId, env, o);
+}
+
+// Gemini 3.8 Flash TTS: turn-level delivery in speech_metadata.style, point vocal events as
+// inline <tags> in the text. Returns WAV bytes, or null so the caller can fall back.
+async function geminiSpeech(plan, caseId, env) {
+  const model = clean(env.GEMINI_TTS_MODEL, 80) || TTS_MODEL;
+  const r = await upstream(
+    "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent",
+    {
+      method: "POST",
+      headers: { "x-goog-api-key": env.GEMINI_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: plan.spoken, speech_metadata: { style: plan.style } }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: liveVoice(caseId, env) } } },
+        },
+      }),
+    },
+  );
+  if (!r) return null;
+  if (!r.ok) {
+    console.error("Gemini TTS", r.status, (await r.text()).slice(0, 500));
+    return null;
+  }
+  const parts = (await r.json().catch(() => ({})))?.candidates?.[0]?.content?.parts || [];
+  const inline = parts.find((p) => p && p.inlineData && p.inlineData.data)?.inlineData;
+  if (!inline) return null;
+  const bytes = Uint8Array.from(atob(inline.data), (ch) => ch.charCodeAt(0));
+  const isWav = bytes.length > 12 && String.fromCharCode(...bytes.slice(0, 4)) === "RIFF";
+  if (isWav) return bytes;
+  const rate = Number((/rate=(\d+)/.exec(inline.mimeType || "") || [])[1]) || 24000;
+  return pcmToWav(bytes, rate);
+}
+
+async function elevenLabsSpeech(text, plan, caseId, env, o) {
+  if (!env.ELEVENLABS_API_KEY) return json({ error: "voice_not_configured" }, 503, o);
   const r = await upstream(
     "https://api.elevenlabs.io/v1/text-to-speech/" +
-      encodeURIComponent(voice) +
+      encodeURIComponent(voiceFor(caseId, env)) +
       "/stream?output_format=mp3_44100_128",
     {
       method: "POST",
@@ -468,12 +543,13 @@ async function handleVoice(req, b, env, o) {
         Accept: "audio/mpeg",
       },
       body: JSON.stringify({
-        text: TAGS[emotion] + " " + text,
+        text: TAGS[plan.affect] + " " + text,
         model_id: "eleven_v3",
         voice_settings: {
           stability: 0.45,
           similarity_boost: 0.75,
-          style: 0.25,
+          // Eleven v3 style tracks the plan's intensity within a safe band.
+          style: Math.round((0.12 + 0.3 * plan.intensity) * 100) / 100,
           use_speaker_boost: true,
           speed: 0.96,
         },
@@ -485,13 +561,20 @@ async function handleVoice(req, b, env, o) {
     console.error("ElevenLabs", r.status, (await r.text()).slice(0, 500));
     return json({ error: "voice_unavailable" }, 502, o);
   }
-  return new Response(r.body, {
+  return audioResponse(r.body, "audio/mpeg", "elevenlabs", plan, o);
+}
+
+function audioResponse(body, type, provider, plan, o) {
+  return new Response(body, {
     status: 200,
     headers: {
       ...cors(o),
-      "Content-Type": "audio/mpeg",
+      "Content-Type": type,
       "Cache-Control": "no-store",
       "X-AI-Generated-Voice": "true",
+      "X-Voice-Provider": provider,
+      "X-Expression-Policy": plan.policy,
+      "Access-Control-Expose-Headers": "X-Voice-Provider, X-Expression-Policy",
     },
   });
 }
@@ -511,7 +594,7 @@ export default {
             persona: !!env.OPENROUTER_API_KEY,
             coder: !!env.OPENROUTER_API_KEY,
             live: !!env.GEMINI_API_KEY,
-            voice: !!env.ELEVENLABS_API_KEY,
+            voice: !!(env.GEMINI_API_KEY || env.ELEVENLABS_API_KEY),
           },
         },
         200,

@@ -45,6 +45,7 @@ namespace AdieLab.AffectCounsel
         private string lastFeedbackText = string.Empty;
         private string pendingSpeechText = string.Empty;
         private string pendingSpeechEmotion = "anxious";
+        private float pendingSpeechIntensity = 0.5f;
 
 #if UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")] private static extern void CounselCueWeb_Initialize(string objectName, string apiBaseUrl);
@@ -52,6 +53,7 @@ namespace AdieLab.AffectCounsel
         [DllImport("__Internal")] private static extern void CounselCueWeb_SetText(string value);
         [DllImport("__Internal")] private static extern void CounselCueWeb_SetFeedback(string value);
         [DllImport("__Internal")] private static extern void CounselCueWeb_Speak(string text, string emotion);
+        [DllImport("__Internal")] private static extern void CounselCueWeb_SpeakPlan(string payloadJson);
         [DllImport("__Internal")] private static extern void CounselCueWeb_SetCase(string caseId);
         [DllImport("__Internal")] private static extern void CounselCueWeb_SetLanguage(int isEnglish);
 #endif
@@ -122,14 +124,28 @@ namespace AdieLab.AffectCounsel
 #endif
         }
 
-        public void SpeakClient(string text, string emotion)
+        public void SpeakClient(string text, string emotion, AffectPlan plan = null)
         {
             pendingSpeechText = text ?? string.Empty;
             pendingSpeechEmotion = emotion ?? "anxious";
+            pendingSpeechIntensity = plan != null ? plan.intensity : 0.5f;
 #if UNITY_WEBGL && !UNITY_EDITOR
             // The server picks a case-specific voice so each client sounds their age and gender.
             CounselCueWeb_SetCase(npcEngine == null ? "" : npcEngine.ActiveCaseId);
-            CounselCueWeb_Speak(pendingSpeechText, pendingSpeechEmotion);
+            if (plan == null) CounselCueWeb_Speak(pendingSpeechText, pendingSpeechEmotion);
+            else
+            {
+                // The server re-derives the voice style from this plan with the same policy.
+                CounselCueWeb_SpeakPlan(JsonUtility.ToJson(new VoicePayload
+                {
+                    text = pendingSpeechText,
+                    spoken = plan.spoken,
+                    emotion = plan.affect,
+                    intensity = plan.intensity,
+                    delivery = plan.delivery,
+                    expression = ExpressionSettings.ToControls(),
+                }));
+            }
 #else
             client?.Speak(pendingSpeechText, pendingSpeechEmotion);
 #endif
@@ -137,7 +153,15 @@ namespace AdieLab.AffectCounsel
 
         public void OnWebVoiceStarted(string unused)
         {
+            client?.SetAffectIntensity(pendingSpeechIntensity);
             client?.BeginSpeaking(pendingSpeechText, pendingSpeechEmotion);
+        }
+
+        [System.Serializable]
+        private sealed class VoicePayload
+        {
+            public string text; public string spoken; public string emotion; public float intensity;
+            public string delivery; public ExpressionControls expression;
         }
 
         public void OnWebVoiceEnded(string unused)

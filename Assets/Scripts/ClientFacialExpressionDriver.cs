@@ -46,6 +46,9 @@ namespace AdieLab.AffectCounsel
         private ClientRelationalState relationalState = ClientRelationalState.Initial;
         private float expressionIntensity = 0.72f;
         private float sadnessTone;
+        // Plan intensity (0..1) mapped to a display gain; 0.5 leaves the base profiles as tuned.
+        private float affectGain = 1f;
+        private float affectGainTarget = 1f;
         private float restingLid;
         private bool speaking;
         private string[] visemes = Array.Empty<string>();
@@ -158,6 +161,11 @@ namespace AdieLab.AffectCounsel
             if (gaze != null) gaze.GazeShifted -= OnGazeShifted;
         }
 
+        public void SetIntensity(float intensity)
+        {
+            affectGainTarget = Mathf.Lerp(0.55f, 1.45f, Mathf.Clamp01(intensity));
+        }
+
         public void SetContext(ClientAffect clientAffect, ClientRelationalState state)
         {
             affect = clientAffect;
@@ -221,6 +229,7 @@ namespace AdieLab.AffectCounsel
             UpdateSpeech(dt);
             UpdateAsymmetry(dt);
             UpdateEpisodes(dt);
+            affectGain = Mathf.MoveTowards(affectGain, affectGainTarget, dt * 0.8f);
             UpdatePulses(dt);
 
             float guarded = relationalState.Guardedness;
@@ -232,7 +241,7 @@ namespace AdieLab.AffectCounsel
                 bool isViseme = binding.key.StartsWith("AA_VI_", StringComparison.OrdinalIgnoreCase);
                 bool isBlink = IsBlink(binding.key);
                 float target = ResolveTarget(binding.key, guarded, safety, gazePitch);
-                if (!isViseme && !isBlink) target *= expressionIntensity * episodeGain;
+                if (!isViseme && !isBlink) target *= expressionIntensity * episodeGain * affectGain;
                 target *= ResolveSideMultiplier(binding.key);
                 // Expressions rise faster than they fade (Krumhuber et al., 2013; Cohn & Schmidt, 2004).
                 float smoothTime = isViseme ? 0.065f : isBlink ? 0.03f : target > binding.current ? 0.14f : 0.34f;

@@ -65,6 +65,11 @@ namespace AdieLab.AffectCounsel
         private int submissionGeneration;
         private string committedClientLine = string.Empty;
         private string currentEmotion = "anxious";
+        // Expression pipeline: the latest plan (text mode) or affect report (live mode).
+        private float currentIntensity = 0.5f;
+        private string currentExpressionPolicy = string.Empty;
+        private string liveAffect = string.Empty;
+        private float liveIntensity = -1f;
         private readonly Queue<PendingLiveTurn> pendingLiveTurns = new Queue<PendingLiveTurn>();
 
         public bool IsSubmitting => isSubmitting;
@@ -221,6 +226,18 @@ namespace AdieLab.AffectCounsel
 
         /// <summary>Emotion used for the avatar while a live reply plays.</summary>
         public string CurrentClientEmotion => currentEmotion;
+        public float CurrentClientIntensity => currentIntensity;
+
+        /// <summary>Gemini Live reported the client's feeling (set_client_affect); the face follows at once.</summary>
+        public void ApplyLiveAffect(string affect, float intensity)
+        {
+            liveAffect = (affect ?? string.Empty).Trim().ToLowerInvariant();
+            liveIntensity = Mathf.Clamp01(intensity);
+            currentEmotion = liveAffect.Length > 0 ? liveAffect : currentEmotion;
+            currentIntensity = liveIntensity;
+            client?.SetAffect(ClientAvatarController.AffectForEmotion(currentEmotion));
+            client?.SetAffectIntensity(currentIntensity);
+        }
 
         private void PumpLiveTurns()
         {
@@ -275,11 +292,15 @@ namespace AdieLab.AffectCounsel
                 string reply;
                 string selectedEngine;
                 string replyEmotion;
+                float replyIntensity = 0.5f;
+                AffectPlan replyPlan = null;
                 if (isLive)
                 {
                     reply = liveReply;
                     selectedEngine = "gemini-live";
-                    replyEmotion = EmotionForState(relationalResult.State, previousState);
+                    // Prefer the persona's own report from the live session over the state heuristic.
+                    replyEmotion = liveAffect.Length > 0 ? liveAffect : EmotionForState(relationalResult.State, previousState);
+                    if (liveIntensity >= 0f) replyIntensity = liveIntensity;
                 }
                 else
                 {
@@ -298,6 +319,8 @@ namespace AdieLab.AffectCounsel
                         {
                             reply = npcReply.Text;
                             replyEmotion = npcReply.Emotion;
+                            replyPlan = npcReply.Plan;
+                            if (replyPlan != null) replyIntensity = replyPlan.intensity;
                             selectedEngine = "persona-llm";
                         }
                     }
@@ -320,12 +343,15 @@ namespace AdieLab.AffectCounsel
                 turn = proposedTurn;
                 conversationEngine = selectedEngine;
                 currentEmotion = replyEmotion;
+                currentIntensity = replyIntensity;
+                currentExpressionPolicy = replyPlan != null ? replyPlan.policy : isLive && liveIntensity >= 0f ? "live-report" : string.Empty;
                 if (reply.Length > 0) SetClientLine(reply);
                 client.SetAffect(ClientAvatarController.AffectForEmotion(replyEmotion));
+                client.SetAffectIntensity(replyIntensity);
                 webNpcEngine?.RecordExchange(utterance, reply);
                 if (!isLive)
                 {
-                    if (webBridge != null) webBridge.SpeakClient(reply, replyEmotion);
+                    if (webBridge != null) webBridge.SpeakClient(reply, replyEmotion, replyPlan);
                     else client.Speak(reply, replyEmotion);
                 }
                 else
@@ -333,7 +359,7 @@ namespace AdieLab.AffectCounsel
                     liveVoice?.SendStateHint(relationalState, CounselingCodebook.CodeOf(assessment));
                 }
                 string engineLabel = conversationEngine == "local" ? "로컬 사례" :
-                    conversationEngine == "persona-llm" ? "AI 페르소나 + ElevenLabs" :
+                    conversationEngine == "persona-llm" ? "AI 페르소나 + 감정 음성" :
                     conversationEngine == "gemini-live" ? "Gemini Live 음성" : "GPT Realtime";
                 feedbackLabel.text = sessionOrchestrator.ShowLiveCoaching
                     ? $"{engineLabel} · <color=#EFBE74>{AlignmentLabel(relationalResult.Alignment)}</color> · <color=#9FD0BA>{assessment.Skill}</color> · {relationalResult.CoachingFeedback}{sessionOrchestrator.CurrentFocusPrompt}"
@@ -492,6 +518,10 @@ namespace AdieLab.AffectCounsel
                 deliveryModifier = relationalResult.DeliveryModifier,
                 conversationEngine = conversationEngine,
                 sessionPhase = caseDefinition != null ? caseDefinition.PhaseKey : "intake",
+                clientAffect = currentEmotion,
+                clientAffectIntensity = currentIntensity,
+                expressionPolicy = currentExpressionPolicy,
+                expressivity = ExpressionSettings.ToControls().expressivity,
                 skillCode = CounselingCodebook.CodeOf(assessment),
                 codebookVersion = CounselingCodebook.Version,
                 codingSource = codingSource,
