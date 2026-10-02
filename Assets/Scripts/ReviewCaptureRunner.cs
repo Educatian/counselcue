@@ -34,6 +34,7 @@ namespace AdieLab.AffectCounsel
             string logPath = Path.Combine(OutputFolder, "capture-log.txt");
             Directory.CreateDirectory(OutputFolder);
             File.WriteAllText(logPath, string.Empty);
+            File.WriteAllText(Path.Combine(OutputFolder, "face-diag.txt"), string.Empty);
             Application.logMessageReceived += (message, stack, type) =>
             {
                 if (type == LogType.Log) return;
@@ -78,6 +79,15 @@ namespace AdieLab.AffectCounsel
                 main.transform.rotation = Quaternion.LookRotation(face - position);
                 main.fieldOfView = CounselingCameraZoom.CloseFieldOfView * 0.6f;
                 yield return Capture($"13-face-case{i + 1}");
+                FaceDiagnostics.Append(Path.Combine(OutputFolder, "face-diag.txt"), $"case{i + 1}", host);
+                // Two speaking frames to check jaw opening and lip closure during speech.
+                host.Speak("요즘은 아침마다 마음이 무거워요. 무엇부터 말해야 할지 모르겠어요.", "Anxious");
+                yield return new WaitForSecondsRealtime(0.45f);
+                yield return Capture($"13s-speak-case{i + 1}-a");
+                yield return new WaitForSecondsRealtime(0.5f);
+                yield return Capture($"13s-speak-case{i + 1}-b");
+                host.StopSpeaking();
+                yield return new WaitForSecondsRealtime(0.3f);
                 main.transform.SetPositionAndRotation(position, rotation);
                 main.fieldOfView = fov;
                 if (zoom != null) zoom.enabled = true;

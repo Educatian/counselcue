@@ -24,6 +24,19 @@ namespace AdieLab.AffectCounsel
             return 1f - Ease((elapsed - close - hold) / open);
         }
 
+        /// <summary>A blink of the given total duration with a fast close and slower reopening
+        /// (closing about a third of the blink, reopening about half).</summary>
+        public static float BlinkWeight(float elapsed, float duration)
+        {
+            if (elapsed < 0f || duration <= 0f || elapsed >= duration) return 0f;
+            float close = duration * 0.32f;
+            float hold = duration * 0.14f;
+            float open = duration - close - hold;
+            if (elapsed < close) return Ease(elapsed / close);
+            if (elapsed < close + hold) return 1f;
+            return 1f - Ease((elapsed - close - hold) / open);
+        }
+
         public static float Ease(float value)
         {
             float t = Mathf.Clamp01(value);

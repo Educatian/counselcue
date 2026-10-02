@@ -68,6 +68,10 @@ namespace AdieLab.AffectCounsel
             leftUpperArm = Bone(HumanBodyBones.LeftUpperArm); leftLowerArm = Bone(HumanBodyBones.LeftLowerArm); leftHand = Bone(HumanBodyBones.LeftHand);
             rightUpperArm = Bone(HumanBodyBones.RightUpperArm); rightLowerArm = Bone(HumanBodyBones.RightLowerArm); rightHand = Bone(HumanBodyBones.RightHand);
             if (head != null) headScale = head.localScale;
+            // The counselor's face is seen in the opening shots: keep the jaw closed and the face alive.
+            ClientFacialExpressionDriver face = animator.gameObject.GetOrAddComponent<ClientFacialExpressionDriver>();
+            face.Initialize(null);
+            face.SetContext(ClientAffect.Relieved, ClientRelationalState.Initial);
             BuildProps();
         }
 

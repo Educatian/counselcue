@@ -45,7 +45,7 @@ namespace AdieLab.AffectCounsel
 
         public bool TryGetObservationAnchors(out Vector3 bodyAnchor, out Vector3 faceAnchor)
         {
-            animator ??= GetComponentInChildren<Animator>(true);
+            if (animator == null) animator = GetComponentInChildren<Animator>(true);
             if (animator != null && animator.isHuman)
             {
                 Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
@@ -90,13 +90,13 @@ namespace AdieLab.AffectCounsel
             lookTarget = configuredLookTarget;
             clientProfile = configuredProfile;
             avatarPresentation = configuredPresentation;
-            animator ??= GetComponentInChildren<Animator>(true);
+            if (animator == null) animator = GetComponentInChildren<Animator>(true);
             InitializeDrivers();
         }
 
         private void Awake()
         {
-            animator ??= GetComponentInChildren<Animator>();
+            if (animator == null) animator = GetComponentInChildren<Animator>();
             InitializeDrivers();
             SetAffect(ClientAffect.Anxious, true);
         }
@@ -105,15 +105,15 @@ namespace AdieLab.AffectCounsel
         {
             if (animator != null)
             {
-                gazeController = animator.GetComponent<ClientGazeController>() ?? animator.gameObject.AddComponent<ClientGazeController>();
-                facialDriver = animator.GetComponent<ClientFacialExpressionDriver>() ?? animator.gameObject.AddComponent<ClientFacialExpressionDriver>();
+                gazeController = animator.gameObject.GetOrAddComponent<ClientGazeController>();
+                facialDriver = animator.gameObject.GetOrAddComponent<ClientFacialExpressionDriver>();
                 if (animator.GetComponent<ClientMicroMotionController>() == null) animator.gameObject.AddComponent<ClientMicroMotionController>();
-                gestureController = animator.GetComponent<ClientGestureController>() ?? animator.gameObject.AddComponent<ClientGestureController>();
+                gestureController = animator.gameObject.GetOrAddComponent<ClientGestureController>();
                 gazeController.Initialize(lookTarget, clientProfile, avatarPresentation);
-                facialDriver.Initialize(avatarPresentation);
+                facialDriver.Initialize(avatarPresentation, clientProfile);
                 gestureController.Initialize(clientProfile);
             }
-            renderingController = GetComponent<ClientRenderingController>() ?? gameObject.AddComponent<ClientRenderingController>();
+            renderingController = gameObject.GetOrAddComponent<ClientRenderingController>();
             renderingController.ApplyReadableFaceMaterials();
             if (animator != null && animator.layerCount > GestureLayer)
             {

@@ -31,6 +31,10 @@ namespace AdieLab.AffectCounsel
 
         public ClientGazeState State => state;
         public float ContactWeight => currentWeight;
+        /// <summary>Approximate vertical eye angle (positive up), for lid-gaze coupling.</summary>
+        public float GazePitchDegrees { get; private set; }
+        /// <summary>Raised whenever the gaze moves to a new state (used for gaze-evoked blinks).</summary>
+        public event System.Action<ClientGazeState> GazeShifted;
 
         public void CycleDebugState()
         {
@@ -68,6 +72,14 @@ namespace AdieLab.AffectCounsel
             Vector3 desired = ResolveTargetPosition();
             smoothedTarget = Vector3.SmoothDamp(smoothedTarget, desired, ref targetVelocity, 0.32f);
             currentWeight = Mathf.MoveTowards(currentWeight, ResolveLookWeight(), Time.deltaTime * 1.8f);
+            Transform headBone = animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.Head) : null;
+            if (headBone != null)
+            {
+                Vector3 toTarget = smoothedTarget - headBone.position;
+                Vector3 toCounselor = counselorEyeAnchor.position - headBone.position;
+                float pitch = Mathf.Asin(Mathf.Clamp(toTarget.normalized.y, -1f, 1f)) - Mathf.Asin(Mathf.Clamp(toCounselor.normalized.y, -1f, 1f));
+                GazePitchDegrees = pitch * Mathf.Rad2Deg * Mathf.Clamp01(currentWeight * 1.25f);
+            }
         }
 
         private void OnAnimatorIK(int layerIndex)
@@ -101,6 +113,7 @@ namespace AdieLab.AffectCounsel
         private void Enter(ClientGazeState next)
         {
             state = next;
+            GazeShifted?.Invoke(next);
             // Keep one side per aversion instead of swinging left and right.
             if (next == ClientGazeState.BriefAvert) avertSide = Random.value < 0.5f ? -1f : 1f;
             stateRemaining = next switch

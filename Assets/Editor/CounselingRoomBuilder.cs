@@ -397,6 +397,17 @@ namespace AdieLab.AffectCounsel.Editor
             softbox.transform.position = new Vector3(-1.8f, 2.35f, -1.5f);
             softbox.transform.LookAt(new Vector3(0f, 1.25f, 1.05f));
 
+            // Warm, low fill from the counselor's side at eye level: lifts the client's face out of
+            // the grey and puts a catchlight in the eyes. No shadows, short range.
+            GameObject eyeFill = new GameObject("CounselorEyeLevelFill");
+            Light warmFill = eyeFill.AddComponent<Light>();
+            warmFill.type = LightType.Point;
+            warmFill.color = new Color(1f, 0.84f, 0.70f);
+            warmFill.intensity = 0.6f;
+            warmFill.range = 3.0f;
+            warmFill.shadows = LightShadows.None;
+            eyeFill.transform.position = new Vector3(0.32f, 1.36f, -0.45f);
+
             // Box-projected reflections for the glossy walnut, trim and floor; rendered once at
             // start (6 small faces), which WebGL handles comfortably.
             GameObject probeObject = new GameObject("RoomReflectionProbe");

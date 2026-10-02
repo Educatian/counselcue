@@ -83,7 +83,7 @@ namespace AdieLab.AffectCounsel
             BuildOverlay();
             if (hudCanvas != null)
             {
-                hudGroup = hudCanvas.GetComponent<CanvasGroup>() ?? hudCanvas.gameObject.AddComponent<CanvasGroup>();
+                hudGroup = hudCanvas.gameObject.GetOrAddComponent<CanvasGroup>();
                 hudGroup.alpha = 0f;
                 hudGroup.blocksRaycasts = false;
             }

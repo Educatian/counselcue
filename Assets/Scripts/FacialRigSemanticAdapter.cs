@@ -34,6 +34,10 @@ namespace AdieLab.AffectCounsel
             { "Mouth_Press_L", "AU_24_L_LipPressor" }, { "Mouth_Press_R", "AU_24_R_LipPressor" },
             { "Mouth_Tighten_L", "AU_23_L_LipTightener" }, { "Mouth_Tighten_R", "AU_23_R_LipTightener" },
             { "Mouth_Drop_Lower", "AU_25_LipsPart" }, { "Jaw_Open", "AU_26_JawDrop" },
+            { "Mouth_Stretch_L", "AU_20_L_LipStretcher" }, { "Mouth_Stretch_R", "AU_20_R_LipStretcher" },
+            // Eye-region deformation that lets the upper lid follow vertical gaze.
+            { "Eye_L_Look_Down", "EYE_L_LookDown" }, { "Eye_R_Look_Down", "EYE_R_LookDown" },
+            { "Eye_L_Look_Up", "EYE_L_LookUp" }, { "Eye_R_Look_Up", "EYE_R_LookUp" },
             { "Eye_Blink_L", "AU_43_L_EyeClosed" }, { "Eye_Blink_R", "AU_43_R_EyeClosed" },
             { "Eye_Blink", "AU_45_Blink" },
             { "V_Open", "AA_VI_10_aa" }, { "V_Wide", "AA_VI_11_E" }, { "V_Lip_Open", "AA_VI_12_I" },
