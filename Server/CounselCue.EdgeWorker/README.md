@@ -104,7 +104,7 @@ Live mode picks the first engine that is keyed (or `LIVE_PROVIDER` = `gemini` | 
 
 | Engine | Needs | How it talks |
 | --- | --- | --- |
-| `gemini` | `GEMINI_API_KEY` | Gemini Live, speech to speech (jslib client). |
+| `gemini` | `GEMINI_API_KEY` | Gemini Live, speech to speech (jslib client). The ephemeral token locks the setup through the REST field `bidiGenerateContentSetup`. The `set_client_affect` tool is opt-in (`LIVE_AFFECT_TOOL=on`): it delays the first audio by a round trip and splits the reply into a second turn, so by default Jev's reading drives the face. First reply audio about 1.4 s after a typed turn. |
 | `openai` | `OPENAI_API_KEY` | OpenAI Realtime, speech to speech. `/live-token` mints a 10-minute client secret with the persona, voice (`OPENAI_LIVE_VOICES`), Korean transcription and server VAD locked; the browser streams 24 kHz PCM16 (`TemplateData/cc-live-openai.js`). The model and transcriber fall back through `OPENAI_REALTIME_MODELS` / `OPENAI_TRANSCRIBE_MODELS`. |
 | `relay` | `OPENROUTER_API_KEY` | Hands-free: browser speech recognition ends a turn on a short pause, `/turn` writes the reply, `/voice` streams it (ElevenLabs MP3 through MediaSource). About 3.5 s from the end of the counselor's turn to the client's voice. |
 

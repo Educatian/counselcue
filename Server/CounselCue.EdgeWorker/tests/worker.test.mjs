@@ -406,16 +406,19 @@ test("live-token mints a locked Gemini Live token without exposing the key or pe
   );
   assert.equal(outboundUrl, "https://generativelanguage.googleapis.com/v1beta/auth_tokens");
   assert.equal(outboundHeaders.get("x-goog-api-key"), "test-gemini");
-  const config = outbound.liveConnectConstraints.config;
-  assert.equal(outbound.liveConnectConstraints.model, "models/gemini-3.8-live");
-  assert.deepEqual(config.responseModalities, ["AUDIO"]);
-  assert.equal(config.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Algenib");
+  const config = outbound.bidiGenerateContentSetup;
+  assert.equal(config.model, "models/gemini-3.8-live");
+  assert.deepEqual(config.generationConfig.responseModalities, ["AUDIO"]);
+  assert.equal(config.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Algenib");
   const instruction = config.systemInstruction.parts[0].text;
   assert.match(instruction, /Lee Jeong-ho/);
   assert.match(instruction, /집에 들어가면 너무 조용합니다/);
   assert.match(instruction, /\[상담 시스템\]/);
   assert.doesNotMatch(instruction, /Return only valid JSON/);
   assert.ok(outbound.uses >= 1 && outbound.uses <= 5);
+  // No affect tool by default: it delays the first audio and splits the turn.
+  assert.equal(config.tools, undefined);
+  assert.doesNotMatch(instruction, /set_client_affect/);
 });
 
 test("live-token needs a Gemini key and honours rate limits and voice overrides", async () => {
@@ -431,7 +434,7 @@ test("live-token needs a Gemini key and honours rate limits and voice overrides"
   assert.deepEqual(keys, ["198.51.100.8:s-3:live"]);
   let voice;
   await withFetch(
-    async (_u, init) => ((voice = JSON.parse(init.body).liveConnectConstraints.config.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName),
+    async (_u, init) => ((voice = JSON.parse(init.body).bidiGenerateContentSetup.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName),
       new Response(JSON.stringify({ name: "t" }), { status: 200 })),
     async () => {
       await worker.fetch(post("/live-token", { sessionId: "s", caseId: "adolescent-pressure-01" }),
@@ -526,7 +529,7 @@ test("live-token forwards the phase into the locked instruction", async () => {
       assert.equal(r.status, 200);
     },
   );
-  assert.match(outbound.liveConnectConstraints.config.systemInstruction.parts[0].text, /SESSION PHASE: goal_setting/);
+  assert.match(outbound.bidiGenerateContentSetup.systemInstruction.parts[0].text, /SESSION PHASE: goal_setting/);
 });
 
 test("code sends the phase and names greetings as neutral", async () => {

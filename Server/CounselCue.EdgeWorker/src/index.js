@@ -452,7 +452,10 @@ async function handleCode(req, b, env, o) {
       ],
       response_format: { type: "json_object" },
       temperature: 0,
-      max_tokens: 480,
+      // Gemini's thinking counts against max_tokens; with 480 and default thinking the JSON
+      // was sometimes cut off ("Unterminated string"). Light thinking, room for the answer.
+      reasoning: { effort: "low" },
+      max_tokens: 1400,
     }),
   });
   if (!r) return json({ error: "coder_timeout" }, 504, o);
@@ -498,6 +501,10 @@ async function handleLiveToken(req, b, env, o) {
     return json({ error: "live_rate_limited" }, 429, o);
   if (provider === "openai") return openAiLiveToken(caseId, b, env, o);
   const model = clean(env.GEMINI_LIVE_MODEL, 80) || LIVE_MODEL;
+  // The set_client_affect tool call costs the model an extra round trip before it speaks and
+  // splits the reply into a second turn, so it is opt-in (LIVE_AFFECT_TOOL=on). By default the
+  // face follows Jev's reading of each reply.
+  const affectTool = env.LIVE_AFFECT_TOOL === "on";
   const voice = liveVoice(caseId, env);
   const now = Date.now();
   // One session plus a few reconnects (Live sessions end at 15 minutes of audio or on
@@ -510,17 +517,19 @@ async function handleLiveToken(req, b, env, o) {
       uses: 4,
       expireTime,
       newSessionExpireTime: expireTime,
-      liveConnectConstraints: {
+      // REST field (the JS SDK calls it liveConnectConstraints). Locks the whole setup, so the
+      // browser cannot change the persona, voice or tools.
+      bidiGenerateContentSetup: {
         model: "models/" + model,
-        config: {
+        generationConfig: {
           responseModalities: ["AUDIO"],
-          systemInstruction: { parts: [{ text: liveInstruction(caseId, b, env) }] },
-          tools: [LIVE_AFFECT_TOOL],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
-          inputAudioTranscription: {},
-          outputAudioTranscription: {},
-          sessionResumption: {},
         },
+        systemInstruction: { parts: [{ text: liveInstruction(caseId, b, env, { affectTool }) }] },
+        ...(affectTool ? { tools: [LIVE_AFFECT_TOOL] } : {}),
+        inputAudioTranscription: {},
+        outputAudioTranscription: {},
+        sessionResumption: {},
       },
     }),
   });

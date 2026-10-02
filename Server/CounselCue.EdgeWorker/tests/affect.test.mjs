@@ -235,10 +235,11 @@ test("live sessions carry the expression block and the silent affect tool", asyn
   try {
     const r = await worker.fetch(post("/live-token", { sessionId: "s1", caseId: "adolescent-pressure-01" }), {
       GEMINI_API_KEY: "g",
+      LIVE_AFFECT_TOOL: "on",
       TURN_LIMITER: limiter,
     });
     assert.equal(r.status, 200);
-    const tool = sent.liveConnectConstraints.config.tools[0].functionDeclarations[0];
+    const tool = sent.bidiGenerateContentSetup.tools[0].functionDeclarations[0];
     assert.equal(tool.name, "set_client_affect");
     assert.equal(tool.behavior, "NON_BLOCKING");
   } finally {
