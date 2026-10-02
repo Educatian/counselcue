@@ -21,8 +21,11 @@ export const EXPRESSIVITY = {
 export const VOCAL_EVENTS = ["sigh", "breath", "short pause", "long pause", "chuckle"];
 const EVENT_RE = /<(sigh|breath|short pause|long pause|chuckle)>/g;
 
+import { LEGACY_CASE_VOICE } from "./legacy.js";
+
 // Who is speaking, for the TTS director note (kept in English, which TTS style prompts follow best).
 export const CASE_VOICE = {
+  ...LEGACY_CASE_VOICE,
   "workplace-anxiety-01": "a 32-year-old Korean woman, polite and restrained",
   "adolescent-pressure-01": "a 16-year-old Korean high-school girl, quiet and cautious with adults",
   "career-transition-01": "a 39-year-old Korean man, measured and earnest",
@@ -40,6 +43,7 @@ const AFFECT_STYLE = {
 // Sadness colours the bereavement case whatever the momentary affect.
 const CASE_UNDERTONE = {
   "older-bereavement-01": "with an undertone of grief",
+  "bereavement-isolation-06": "with an undertone of grief",
 };
 
 const clamp01 = (v) => Math.max(0, Math.min(1, Number.isFinite(Number(v)) ? Number(v) : 0));
@@ -119,8 +123,9 @@ export function affectPlan(caseId, appraisal, state, controls, options = {}) {
   const note = cleanDelivery(a.delivery);
   const who = CASE_VOICE[caseId] || "a Korean adult";
   const undertone = CASE_UNDERTONE[caseId] ? ", " + CASE_UNDERTONE[caseId] : "";
+  const direction = `${intensityWord(intensity)} ${look.tone}${undertone}, ${look.pace}`;
   const style =
-    `Speak as ${who} in a counseling session: ${intensityWord(intensity)} ${look.tone}${undertone}, ${look.pace}. ` +
+    `Speak as ${who} in a counseling session: ${direction}. ` +
     (note ? `Delivery: ${note}. ` : "") +
     "Natural conversational Korean, never acted or exaggerated.";
   return {
@@ -132,10 +137,22 @@ export function affectPlan(caseId, appraisal, state, controls, options = {}) {
     expressivity: c.expressivity,
     locked: !!c.lockAffect,
     style,
+    speaker: who,
+    direction,
     delivery: note,
     spoken,
     events: (spoken.match(EVENT_RE) || []).map((t) => t.slice(1, -1)),
   };
+}
+
+/**
+ * Input text for TTS endpoints without a separate style field (OpenRouter speech): a short
+ * director line in Gemini TTS's "Say ...:" form, then the words to speak.
+ */
+export function ttsInput(plan, withStyle = true) {
+  if (!withStyle) return plan.spoken;
+  const note = plan.delivery ? `, ${plan.delivery}` : "";
+  return `Say in natural conversational Korean, as ${plan.speaker} in a counseling session, ${plan.direction}${note}: ${plan.spoken}`;
 }
 
 /** Expression guidance for the real-time (Gemini Live) persona instruction. */

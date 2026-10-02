@@ -1,8 +1,12 @@
 import { phaseBlock, phaseKey } from "./phases.js";
-import { LIVE_AFFECT_TOOL, affectPlan, expressionControls, liveExpressionBlock, pcmToWav } from "./affect.js";
+import { LIVE_AFFECT_TOOL, affectPlan, expressionControls, liveExpressionBlock, pcmToWav, ttsInput } from "./affect.js";
+import { LEGACY_PERSONAS, LEGACY_VOICES } from "./legacy.js";
 
 const ALLOWED_ORIGINS = new Set([
   "https://educatian.github.io",
+  "https://counselcue.pages.dev",
+  "https://counselcue-play.jewoong-moon.workers.dev",
+  "https://counselcue-webgl.jewoong-moon.workers.dev",
   "http://localhost:8000",
   "http://127.0.0.1:8000",
   "http://localhost:8080",
@@ -37,7 +41,14 @@ Speak natural contemporary Korean. Respect the case-specific speech relationship
 const SHARED_PERSONA = `${SHARED_CORE}
 Return only valid JSON: {"reply":"...","emotion":"guarded|anxious|relieved|thoughtful","intensity":0.0-1.0,"delivery":"<at most 12 English words on how it is said, e.g. quiet, trailing off at the end>","spoken":"<the reply word for word, optionally with at most two of <sigh>, <breath>, <short pause>, <long pause>, <chuckle> where a person in your state would make them>"}. intensity is how strongly the feeling shows right now (0 barely, 1 strongly); most counseling turns sit between 0.3 and 0.7. Length follows the relationship: when guarded, reply in 1-2 short spoken sentences; ordinarily, 2-3 sentences. When you are opening up (the counselor's last response landed, or client_state.willingness_to_disclose is 0.45 or higher), and in any case at least every other turn, reply in 3-4 spoken sentences (under about 320 Korean characters) that weave together at least two of: a feeling, a thought or belief, a concrete behavior, and a relationship situation, so the counselor has to choose what to respond to. No stage directions, analysis, feedback, or markdown.`;
 
+// Gemini 3.8 through OpenRouter (one OPENROUTER_API_KEY for persona, coder and voice).
+export const PERSONA_MODEL = "google/gemini-3.8-flash";
+export const OPENROUTER_TTS_MODEL = "google/gemini-3.8-flash-tts";
+const personaModel = (env) => clean(env.PERSONA_MODEL, 80) || PERSONA_MODEL;
+const coderModel = (env) => clean(env.CODER_MODEL, 80) || personaModel(env);
+
 const PERSONAS = {
+  ...LEGACY_PERSONAS,
   "workplace-anxiety-01": `You are Kim Ji-hye (김지혜), 32, in a first session for workplace anxiety. Work feels suffocating, especially around a team leader after public criticism. You check tasks repeatedly, sometimes consider resigning, and have not told family. You initially fear distress means weakness. Use polite 존댓말 and restrained disclosure.`,
   "adolescent-pressure-01": `You are Park Seo-yoon (박서윤), 16, a Korean-born high-school student from a multicultural Muslim family, in school counseling for academic pressure. Your grades dropped, your mother says you have just become lazy, and you hide report cards because you fear disappointing your father. Classmates keep asking about the headscarf you wear, so you tire of explaining and eat lunch alone. Faith and identity are part of you, not the problem; if the counselor treats religion or culture as the cause, become guarded. Adult authority makes you cautious: ask whether what you say will be told to your parents before disclosing much. Once the counselor has clearly explained confidentiality and its limits, accept it and move on to school, your parents and friends; ask about it again at most once, and only if the counselor gives you a new reason to worry. Speak like a Korean teenager, not in adult-office language. Short answers and looking away can mean uncertainty, not defiance.`,
   "career-transition-01": `You are Choi Min-jun (최민준), 39, conflicted between leaving a stable job and supporting family. Work makes you feel erased, but risk feels irresponsible. Your core themes are seeing yourself as weak and lacking willpower (나약하고 의지가 없는 나), not wanting to burden your family, and a heavy sense of responsibility for them. Do not repeat the same "family responsibility" line; deepen it instead: what responsibility means to you, where you learned it, and what you fear would happen if you let it slip. You may expect advice, yet premature prescriptions increase distance. Explore values, control, and ambivalence before plans. Use polite adult Korean.`,
@@ -170,7 +181,7 @@ function liveVoice(caseId, env) {
     }
   }
   const candidate = map && typeof map === "object" ? map[caseId] : undefined;
-  return typeof candidate === "string" && /^[A-Za-z]{2,24}$/.test(candidate) ? candidate : LIVE_VOICES[caseId] || "Achernar";
+  return typeof candidate === "string" && /^[A-Za-z]{2,24}$/.test(candidate) ? candidate : LIVE_VOICES[caseId] || LEGACY_VOICES[caseId] || "Achernar";
 }
 
 const TAGS = {
@@ -323,7 +334,9 @@ async function handleTurn(req, b, env, o) {
       "X-Title": "CounselCue",
     },
     body: JSON.stringify({
-      model: env.OPENROUTER_MODEL || "openai/gpt-5.6-terra",
+      model: personaModel(env),
+      // Fast spoken replies: keep Gemini's thinking light.
+      reasoning: { effort: "low" },
       messages: [
         { role: "system", content: `${SHARED_PERSONA}\n\nCASE\n${PERSONAS[caseId]}${phaseSuffix(caseId, phase)}` },
         { role: "user", content: JSON.stringify(input) },
@@ -368,7 +381,7 @@ async function handleCode(req, b, env, o) {
     previous_client_line: clean(b.clientLine, MAX_REPLY_CHARS),
     counselor_utterance: utterance,
   };
-  const model = env.OPENROUTER_CODER_MODEL || env.OPENROUTER_MODEL || "openai/gpt-5.6-terra";
+  const model = coderModel(env);
   const r = await upstream("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -459,10 +472,14 @@ async function handleLiveToken(req, b, env, o) {
 export const TTS_MODEL = "gemini-3.8-flash-tts";
 
 function voiceProvider(b, env) {
-  const available = { gemini: !!env.GEMINI_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY };
+  const available = {
+    openrouter: !!env.OPENROUTER_API_KEY,
+    gemini: !!env.GEMINI_API_KEY,
+    elevenlabs: !!env.ELEVENLABS_API_KEY,
+  };
   const asked = clean(b.provider, 20) || clean(env.VOICE_PROVIDER, 20);
   if (available[asked]) return asked;
-  return available.gemini ? "gemini" : available.elevenlabs ? "elevenlabs" : "";
+  return ["openrouter", "gemini", "elevenlabs"].find((p) => available[p]) || "";
 }
 
 async function handleVoice(req, b, env, o) {
@@ -488,6 +505,11 @@ async function handleVoice(req, b, env, o) {
     expressionControls(b.expression, env),
     { prepared: b.intensity !== undefined },
   );
+  if (provider === "openrouter") {
+    const audio = await openRouterSpeech(plan, caseId, env);
+    if (audio) return audioResponse(audio, "audio/mpeg", "openrouter", plan, o);
+    if (!env.ELEVENLABS_API_KEY) return json({ error: "voice_unavailable" }, 502, o);
+  }
   if (provider === "gemini") {
     const audio = await geminiSpeech(plan, caseId, env);
     if (audio) return audioResponse(audio, "audio/wav", "gemini", plan, o);
@@ -527,6 +549,34 @@ async function geminiSpeech(plan, caseId, env) {
   if (isWav) return bytes;
   const rate = Number((/rate=(\d+)/.exec(inline.mimeType || "") || [])[1]) || 24000;
   return pcmToWav(bytes, rate);
+}
+
+// Gemini 3.8 Flash TTS through OpenRouter's speech endpoint. It takes plain input text, so
+// the plan's delivery rides in a short director line before the words (Gemini TTS follows a
+// "Say ...:" instruction and speaks only what comes after it); vocal tags stay inline.
+async function openRouterSpeech(plan, caseId, env) {
+  const r = await upstream("https://openrouter.ai/api/v1/audio/speech", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + env.OPENROUTER_API_KEY,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://educatian.github.io/counselcue/",
+      "X-Title": "CounselCue",
+    },
+    body: JSON.stringify({
+      model: clean(env.OPENROUTER_TTS_MODEL, 80) || OPENROUTER_TTS_MODEL,
+      input: ttsInput(plan, env.TTS_STYLE_PREFIX !== "off"),
+      voice: liveVoice(caseId, env),
+      response_format: "mp3",
+    }),
+  });
+  if (!r) return null;
+  if (!r.ok) {
+    console.error("OpenRouter TTS", r.status, (await r.text()).slice(0, 500));
+    return null;
+  }
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  return bytes.length > 0 ? bytes : null;
 }
 
 async function elevenLabsSpeech(text, plan, caseId, env, o) {
@@ -594,7 +644,7 @@ export default {
             persona: !!env.OPENROUTER_API_KEY,
             coder: !!env.OPENROUTER_API_KEY,
             live: !!env.GEMINI_API_KEY,
-            voice: !!(env.GEMINI_API_KEY || env.ELEVENLABS_API_KEY),
+            voice: !!(env.OPENROUTER_API_KEY || env.GEMINI_API_KEY || env.ELEVENLABS_API_KEY),
           },
         },
         200,

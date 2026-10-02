@@ -7,7 +7,7 @@ const limiter = { limit: async () => ({ success: true }) };
 const env = {
   OPENROUTER_API_KEY: "test-openrouter",
   ELEVENLABS_API_KEY: "test-eleven",
-  OPENROUTER_MODEL: "test-model",
+  PERSONA_MODEL: "test-model",
   ELEVENLABS_VOICE_ID: "voice",
   TURN_LIMITER: limiter,
   VOICE_LIMITER: limiter,
@@ -99,7 +99,7 @@ test("voice prepends a bounded Eleven v3 emotion tag", async () => {
       headers: { Origin: origin, "Content-Type": "application/json" },
       body: JSON.stringify({ text: "조금 안심돼요.", emotion: "relieved" }),
     });
-    const r = await worker.fetch(req, env);
+    const r = await worker.fetch(req, { ...env, VOICE_PROVIDER: "elevenlabs" });
     assert.equal(r.status, 200);
     assert.equal(r.headers.get("x-ai-generated-voice"), "true");
     assert.equal(outbound.model_id, "eleven_v3");
@@ -218,10 +218,10 @@ test("voice uses the case-specific voice map and falls back safely", async () =>
       return new Response(new Uint8Array([1]), { status: 200 });
     },
     async () => {
-      const voiceEnv = { ...env, ELEVENLABS_VOICE_IDS: JSON.stringify(map), ELEVENLABS_VOICE_ID: "DefaultVoice01" };
+      const voiceEnv = { ...env, VOICE_PROVIDER: "elevenlabs", ELEVENLABS_VOICE_IDS: JSON.stringify(map), ELEVENLABS_VOICE_ID: "DefaultVoice01" };
       await worker.fetch(post("/voice", { text: "네", caseId: "adolescent-pressure-01" }), voiceEnv);
       await worker.fetch(post("/voice", { text: "네", caseId: "career-transition-01" }), voiceEnv);
-      await worker.fetch(post("/voice", { text: "네" }), { ...env, ELEVENLABS_VOICE_IDS: map });
+      await worker.fetch(post("/voice", { text: "네" }), { ...env, VOICE_PROVIDER: "elevenlabs", ELEVENLABS_VOICE_IDS: map });
     },
   );
   assert.match(urls[0], /text-to-speech\/TeenVoice12345\//);
@@ -252,7 +252,7 @@ test("missing upstream credentials return 503 without calling out", async () => 
     async () => ((called = true), personaOk()),
     async () => {
       const t = await worker.fetch(post("/turn", { sessionId: "s", counselorUtterance: "네" }), { ...env, OPENROUTER_API_KEY: "" });
-      const v = await worker.fetch(post("/voice", { text: "네" }), { ...env, ELEVENLABS_API_KEY: "" });
+      const v = await worker.fetch(post("/voice", { text: "네" }), { ...env, OPENROUTER_API_KEY: "", ELEVENLABS_API_KEY: "" });
       assert.equal(t.status, 503);
       assert.equal(v.status, 503);
     },

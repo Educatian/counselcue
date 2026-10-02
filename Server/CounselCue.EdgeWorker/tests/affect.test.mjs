@@ -141,6 +141,65 @@ test("voice uses Gemini 3.8 Flash TTS with the plan's style and returns WAV", as
   }
 });
 
+test("voice uses Gemini 3.8 Flash TTS through OpenRouter with a director line", async () => {
+  const old = globalThis.fetch;
+  let url, sent;
+  globalThis.fetch = async (u, init) => {
+    url = u;
+    sent = JSON.parse(init.body);
+    return new Response(new Uint8Array([0xff, 0xfb, 1, 2]), { headers: { "Content-Type": "audio/mpeg" } });
+  };
+  try {
+    const r = await worker.fetch(
+      post("/voice", { text: "괜찮아요.", spoken: "<sigh> 괜찮아요.", emotion: "guarded", intensity: 0.6, delivery: "quiet", caseId: "career-transition-01" }),
+      { OPENROUTER_API_KEY: "k", VOICE_LIMITER: limiter },
+    );
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get("X-Voice-Provider"), "openrouter");
+    assert.equal(r.headers.get("Content-Type"), "audio/mpeg");
+    assert.equal(url, "https://openrouter.ai/api/v1/audio/speech");
+    assert.equal(sent.model, "google/gemini-3.8-flash-tts");
+    assert.equal(sent.voice, "Iapetus");
+    assert.equal(sent.response_format, "mp3");
+    assert.match(sent.input, /^Say in natural conversational Korean, as a 39-year-old Korean man.*noticeably guarded.*, quiet: <sigh> 괜찮아요\.$/);
+    const plain = await worker.fetch(post("/voice", { text: "네.", caseId: "career-transition-01" }), {
+      OPENROUTER_API_KEY: "k",
+      VOICE_LIMITER: limiter,
+      TTS_STYLE_PREFIX: "off",
+    });
+    assert.equal(plain.status, 200);
+    assert.equal(sent.input, "네.");
+  } finally {
+    globalThis.fetch = old;
+  }
+});
+
+test("legacy seven-case build keeps its personas, voices and origin", async () => {
+  const old = globalThis.fetch;
+  let sent;
+  globalThis.fetch = async (u, init) => {
+    sent = JSON.parse(init.body);
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: "네.", emotion: "guarded" }) } }] }));
+  };
+  try {
+    const r = await worker.fetch(
+      new Request("https://worker.test/turn", {
+        method: "POST",
+        headers: { Origin: "https://counselcue-play.jewoong-moon.workers.dev", "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: "s", caseId: "academic-overwhelm-02", counselorUtterance: "안녕하세요", turn: 1, stage: "x", safety: 0.3, guardedness: 0.6, disclosure: 0.2 }),
+      }),
+      { OPENROUTER_API_KEY: "k", TURN_LIMITER: limiter },
+    );
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get("Access-Control-Allow-Origin"), "https://counselcue-play.jewoong-moon.workers.dev");
+    assert.match(sent.messages[0].content, /Lee Do-yoon/);
+    assert.equal(sent.model, "google/gemini-3.8-flash");
+    assert.deepEqual(sent.reasoning, { effort: "low" });
+  } finally {
+    globalThis.fetch = old;
+  }
+});
+
 test("voice falls back to ElevenLabs when Gemini TTS fails", async () => {
   const old = globalThis.fetch;
   const calls = [];

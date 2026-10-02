@@ -60,7 +60,7 @@ namespace AdieLab.AffectCounsel
         private void Start()
         {
 #if UNITY_WEBGL && !UNITY_EDITOR
-            WebGLInput.captureAllKeyboardInput = false;
+            ReleaseBrowserKeyboard();
             WebGlHudLayout.ApplyBrowserInputLayout(
                 unityInputCard,
                 unityInputAccent,
@@ -70,6 +70,21 @@ namespace AdieLab.AffectCounsel
             SyncFeedback();
             CounselCueWeb_SetEnabled(0);
 #endif
+        }
+
+        /// <summary>
+        /// Lets the browser input bar receive Korean IME, spacing and punctuation keys
+        /// (WebGLInput.captureAllKeyboardInput = false). Set through reflection because the Unity
+        /// 6.3 Web platform does not expose WebGLInput to player scripts at compile time.
+        /// </summary>
+        private static void ReleaseBrowserKeyboard()
+        {
+            System.Type input = System.Type.GetType("UnityEngine.WebGLInput, UnityEngine.WebGLModule")
+                ?? System.Type.GetType("UnityEngine.WebGLInput, UnityEngine.CoreModule")
+                ?? System.Type.GetType("UnityEngine.WebGLInput, UnityEngine");
+            System.Reflection.PropertyInfo capture = input?.GetProperty("captureAllKeyboardInput");
+            if (capture != null && capture.CanWrite) capture.SetValue(null, false);
+            else Debug.Log("CounselCue: WebGLInput unavailable; the browser input bar stops key events itself.");
         }
 
         private void OnEnable() => CounselingLanguageToggle.LanguageChanged += OnLanguageChanged;

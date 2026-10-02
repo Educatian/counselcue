@@ -162,6 +162,46 @@ namespace AdieLab.AffectCounsel.Editor
             EditorApplication.Exit(0);
         }
 
+        /// <summary>
+        /// WebGL build from inside a running editor (automation bridge "invoke"), without
+        /// quitting: rebuilds the scene, builds to Builds/WebGL and writes
+        /// Logs/webgl-build-report.txt with the result, duration and file sizes.
+        /// </summary>
+        public static void BuildWebGLInEditor()
+        {
+            Build();
+            Directory.CreateDirectory("Builds/WebGL");
+            Directory.CreateDirectory("Logs");
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+            PlayerSettings.WebGL.decompressionFallback = false;
+            PlayerSettings.WebGL.template = "PROJECT:CounselCue";
+            System.DateTime started = System.DateTime.UtcNow;
+            BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = new[] { ScenePath },
+                locationPathName = "Builds/WebGL",
+                target = BuildTarget.WebGL,
+                options = BuildOptions.None
+            });
+            var lines = new System.Collections.Generic.List<string>
+            {
+                $"result={report.summary.result}",
+                $"started={started:O}",
+                $"seconds={(System.DateTime.UtcNow - started).TotalSeconds:0}",
+                $"errors={report.summary.totalErrors} warnings={report.summary.totalWarnings}",
+                $"totalSize={report.summary.totalSize}",
+            };
+            if (Directory.Exists("Builds/WebGL/Build"))
+            {
+                foreach (string file in Directory.GetFiles("Builds/WebGL/Build"))
+                    lines.Add($"{Path.GetFileName(file)} {new FileInfo(file).Length}");
+            }
+            File.WriteAllLines("Logs/webgl-build-report.txt", lines);
+            Debug.Log("COUNSELCUE_WEBGL_BUILD " + string.Join(" | ", lines));
+            if (report.summary.result != BuildResult.Succeeded)
+                throw new System.InvalidOperationException($"CounselCue WebGL build failed: {report.summary.result}");
+        }
+
         private static void BuildArchitecture(Transform parent)
         {
             CreateCube("OakFloor", new Vector3(0f, -0.08f, 0f), new Vector3(6.4f, 0.16f, 7.4f), oakFloor, parent);

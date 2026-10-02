@@ -21,9 +21,11 @@ counselor turn
    │  AffectPlan { policy, affect, intensity, valence, arousal, style, spoken, events, … }
    ▼
 3 Renderers
-  · Voice: /voice → Gemini 3.8 Flash TTS (gemini-3.8-flash-tts), with speech_metadata.style
-    and inline tags; the case's prebuilt Gemini voice (the same voice as live mode); WAV.
-    Falls back to ElevenLabs v3 if Gemini fails.
+  · Voice: /voice → Gemini 3.8 Flash TTS. Default route: OpenRouter
+    (google/gemini-3.8-flash-tts, /api/v1/audio/speech, MP3), with the plan in a "Say …:" director
+    line followed by the tagged words. With GEMINI_API_KEY: the Gemini API directly, with
+    speech_metadata.style (WAV). Both use the case's prebuilt Gemini voice (the same as live mode).
+    Falls back to ElevenLabs v3 on failure.
   · Face: ClientAvatarController.SetAffect + SetAffectIntensity: the FACS layer's gain
     (Docs/FACIAL_BEHAVIOR.md).
   · Record: clientAffect, clientAffectIntensity, expressionPolicy, expressivity (DATA_SCHEMA.md).
@@ -43,7 +45,12 @@ Gemini 3.8 Live has no affective-dialog switch; Google removed `enable_affective
 
 Every value is bounded on the server. The browser never sends a free-form prompt to the TTS model: `/voice` re-derives the style from the plan with the same policy and re-validates the tagged text.
 
-## Secrets
-- `GEMINI_API_KEY`: Gemini 3.8 Flash TTS and Gemini 3.8 Live.
+## Models and secrets
+- `OPENROUTER_API_KEY` covers everything except Live:
+  - persona and coder: `google/gemini-3.8-flash`, with `reasoning.effort = low`; override with `PERSONA_MODEL` / `CODER_MODEL`;
+  - voice: `google/gemini-3.8-flash-tts`; override with `OPENROUTER_TTS_MODEL`; `TTS_STYLE_PREFIX=off` sends the words alone.
+- `GEMINI_API_KEY` is needed only for Gemini 3.8 Live, since OpenRouter does not relay the Live WebSocket. Without it, the briefing's live mode falls back to text.
 - `ELEVENLABS_API_KEY`: optional fallback voice.
-- `OPENROUTER_API_KEY`: persona and coder.
+
+## Earlier seven-case build
+`src/legacy.js` keeps the personas of the earlier seven-case WebGL build (counselcue-play / counselcue-webgl), so that build keeps working against this worker. It now also uses Gemini 3.8 and the expression policy.

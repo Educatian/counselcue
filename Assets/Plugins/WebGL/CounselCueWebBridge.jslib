@@ -95,6 +95,11 @@ mergeInto(LibraryManager.library, {
       if (S.on && value) SendMessage(S.o, "OnWebTextSubmitted", value);
     };
     S.x.oninput = changed;
+    // Keys typed into the input bar (Korean IME, space, punctuation) must not reach Unity's
+    // keyboard handlers, whatever the engine's keyboard-capture setting.
+    ["keydown", "keyup", "keypress"].forEach(function (type) {
+      S.x.addEventListener(type, function (event) { event.stopPropagation(); });
+    });
     S.x.onkeydown = function (event) {
       if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
         event.preventDefault();
