@@ -1,5 +1,5 @@
 import { phaseBlock, phaseKey } from "./phases.js";
-import { LIVE_AFFECT_TOOL, affectPlan, expressionControls, liveExpressionBlock, pcmToWav, ttsInput } from "./affect.js";
+import { CASE_VOICE, LIVE_AFFECT_TOOL, affectPlan, expressionControls, liveExpressionBlock, pcmToWav, ttsInput } from "./affect.js";
 import { LEGACY_PERSONAS, LEGACY_VOICES } from "./legacy.js";
 import { JEV_ENDPOINT, JEV_MODEL, analysisQuestions, analysisResult } from "./jev.js";
 
@@ -144,7 +144,7 @@ export const LIVE_VOICES = {
   "international-belonging-01": "Umbriel",
 };
 
-export function liveInstruction(caseId, b, env = {}) {
+export function liveInstruction(caseId, b, env = {}, options = {}) {
   const opening = clean(b.openingLine, 400);
   const state = {
     safety: unit(b.safety),
@@ -160,7 +160,7 @@ Wait for the counselor to speak before you answer; do not start a new topic on y
 Starting relationship state: ${JSON.stringify(state)}. Let it shift gradually with each counselor turn, following the rules above.
 Text that starts with "[상담 시스템]" is a private context update about the relationship state. Never read it aloud and never answer it; just let it inform how open you are on your next turn.
 
-${liveExpressionBlock(caseId, expressionControls(b.expression, env))}
+${liveExpressionBlock(caseId, expressionControls(b.expression, env), options)}
 
 CASE
 ${PERSONAS[caseId]}${phaseSuffix(caseId, b.phase)}`;
@@ -326,26 +326,33 @@ async function handleTurn(req, b, env, o) {
       willingness_to_disclose: unit(b.disclosure),
     },
   };
-  const r = await upstream("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + env.OPENROUTER_API_KEY,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://educatian.github.io/counselcue/",
-      "X-Title": "CounselCue",
-    },
-    body: JSON.stringify({
-      model: personaModel(env),
-      // Fast spoken replies: keep Gemini's thinking light.
-      reasoning: { effort: "low" },
-      messages: [
-        { role: "system", content: `${SHARED_PERSONA}\n\nCASE\n${PERSONAS[caseId]}${phaseSuffix(caseId, phase)}` },
-        { role: "user", content: JSON.stringify(input) },
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 480,
-    }),
-  });
+  // Fast spoken replies: keep Gemini's thinking light. Hands-free live turns (fast: true) use
+  // the lightest effort the model accepts, falling back to "low" if it is refused.
+  const efforts = b.fast === true ? [clean(env.PERSONA_FAST_EFFORT, 12) || "minimal", "low"] : ["low"];
+  let r = null;
+  for (const effort of efforts) {
+    r = await upstream("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + env.OPENROUTER_API_KEY,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://educatian.github.io/counselcue/",
+        "X-Title": "CounselCue",
+      },
+      body: JSON.stringify({
+        model: personaModel(env),
+        reasoning: { effort },
+        messages: [
+          { role: "system", content: `${SHARED_PERSONA}\n\nCASE\n${PERSONAS[caseId]}${phaseSuffix(caseId, phase)}` },
+          { role: "user", content: JSON.stringify(input) },
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 480,
+      }),
+    });
+    if (!r || r.ok || r.status !== 400) break;
+    console.error("OpenRouter refused effort", effort, (await r.text()).slice(0, 200));
+  }
   if (!r) return json({ error: "persona_timeout" }, 504, o);
   if (!r.ok) {
     console.error("OpenRouter", r.status, (await r.text()).slice(0, 500));
@@ -464,8 +471,22 @@ async function handleCode(req, b, env, o) {
 // Mints a short-lived Gemini Live token whose configuration (model, persona, voice,
 // transcription) is locked server-side, so the browser never sees the API key or
 // the persona prompt and cannot repurpose the token.
+/**
+ * Real-time voice engine: LIVE_PROVIDER if set and keyed, else Gemini Live, else OpenAI
+ * Realtime, else "relay" (browser speech recognition -> /turn -> /voice, no token needed).
+ */
+export function liveProvider(env) {
+  const want = String(env.LIVE_PROVIDER || "").toLowerCase();
+  if (want === "off") return "";
+  if (want === "openai" && env.OPENAI_API_KEY) return "openai";
+  if (want === "gemini" && env.GEMINI_API_KEY) return "gemini";
+  if (want === "relay" && env.OPENROUTER_API_KEY) return "relay";
+  return env.GEMINI_API_KEY ? "gemini" : env.OPENAI_API_KEY ? "openai" : env.OPENROUTER_API_KEY ? "relay" : "";
+}
+
 async function handleLiveToken(req, b, env, o) {
-  if (!env.GEMINI_API_KEY) return json({ error: "live_not_configured" }, 503, o);
+  const provider = liveProvider(env);
+  if (!provider || provider === "relay") return json({ error: "live_not_configured", provider }, 503, o);
   const sid = clean(b.sessionId, 64),
     caseId = caseKey(b.caseId);
   if (!sid) return json({ error: "missing_input" }, 400, o);
@@ -475,6 +496,7 @@ async function handleLiveToken(req, b, env, o) {
     return json({ error: "live_rate_limited" }, 429, o);
   if (env.TURN_IP_LIMITER && !(await env.TURN_IP_LIMITER.limit({ key: address })).success)
     return json({ error: "live_rate_limited" }, 429, o);
+  if (provider === "openai") return openAiLiveToken(caseId, b, env, o);
   const model = clean(env.GEMINI_LIVE_MODEL, 80) || LIVE_MODEL;
   const voice = liveVoice(caseId, env);
   const now = Date.now();
@@ -510,10 +532,103 @@ async function handleLiveToken(req, b, env, o) {
   const token = (await r.json().catch(() => ({}))).name;
   if (typeof token !== "string" || !token) return json({ error: "live_invalid_token" }, 502, o);
   return json(
-    { token, model, voice, wsUrl: clean(env.GEMINI_LIVE_WS_URL, 300) || LIVE_WS_URL, expiresAt: expireTime },
+    { provider: "gemini", token, model, voice, wsUrl: clean(env.GEMINI_LIVE_WS_URL, 300) || LIVE_WS_URL, expiresAt: expireTime },
     200,
     o,
   );
+}
+
+// ---- OpenAI Realtime (speech to speech) ----------------------------------------------------
+// Used for live mode when no GEMINI_API_KEY is set. The worker mints a short-lived client
+// secret with the persona instruction, voice and turn detection locked server-side; the
+// browser streams 24 kHz PCM16 over WebSocket (TemplateData/cc-live-openai.js). The client's
+// feeling for the face comes from the Jev analysis of each turn, so no tool call is needed.
+export const OPENAI_REALTIME_URL = "wss://api.openai.com/v1/realtime";
+export const OPENAI_REALTIME_MODELS = ["gpt-realtime-2", "gpt-realtime"];
+export const OPENAI_TRANSCRIBE_MODELS = ["gpt-4o-mini-transcribe", "gpt-realtime-whisper", "whisper-1"];
+export const OPENAI_LIVE_VOICES = {
+  "workplace-anxiety-01": "marin",
+  "adolescent-pressure-01": "coral",
+  "career-transition-01": "cedar",
+  "older-bereavement-01": "ash",
+  "international-belonging-01": "verse",
+};
+let openAiCombo = null; // model + transcriber the account accepted, cached per isolate
+
+export function openAiVoice(caseId, env = {}) {
+  let map = env.OPENAI_LIVE_VOICES;
+  if (typeof map === "string") {
+    try {
+      map = JSON.parse(map);
+    } catch {
+      map = null;
+    }
+  }
+  const chosen = map && typeof map === "object" ? map[caseId] : undefined;
+  if (typeof chosen === "string" && /^[a-z]{2,16}$/.test(chosen)) return chosen;
+  if (OPENAI_LIVE_VOICES[caseId]) return OPENAI_LIVE_VOICES[caseId];
+  const who = CASE_VOICE[caseId] || "";
+  if (/\b(woman|girl)\b/.test(who)) return /\b1\d-year/.test(who) ? "coral" : "marin";
+  if (/\b(man|boy)\b/.test(who)) return /\b[6-9]\d-year/.test(who) ? "ash" : "cedar";
+  return "verse";
+}
+
+export function openAiSession(caseId, b, env, model, transcriber) {
+  const silence = Math.max(300, Math.min(1500, Number(env.OPENAI_LIVE_SILENCE_MS) || 550));
+  return {
+    type: "realtime",
+    model,
+    instructions: liveInstruction(caseId, b, env, { affectTool: false }),
+    output_modalities: ["audio"],
+    audio: {
+      input: {
+        format: { type: "audio/pcm", rate: 24000 },
+        noise_reduction: { type: "near_field" },
+        transcription: { model: transcriber, language: "ko" },
+        turn_detection: {
+          type: "server_vad",
+          threshold: 0.5,
+          prefix_padding_ms: 300,
+          silence_duration_ms: silence,
+          create_response: true,
+          interrupt_response: true,
+        },
+      },
+      output: { format: { type: "audio/pcm", rate: 24000 }, voice: openAiVoice(caseId, env) },
+    },
+  };
+}
+
+async function openAiLiveToken(caseId, b, env, o) {
+  const models = [clean(env.OPENAI_REALTIME_MODEL, 60), ...OPENAI_REALTIME_MODELS].filter(Boolean);
+  const transcribers = [clean(env.OPENAI_TRANSCRIBE_MODEL, 60), ...OPENAI_TRANSCRIBE_MODELS].filter(Boolean);
+  const combos = openAiCombo ? [openAiCombo] : models.flatMap((m) => transcribers.map((t) => [m, t]));
+  for (const [model, transcriber] of combos.slice(0, 6)) {
+    const session = openAiSession(caseId, b, env, model, transcriber);
+    const r = await upstream("https://api.openai.com/v1/realtime/client_secrets", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + env.OPENAI_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ expires_after: { anchor: "created_at", seconds: 600 }, session }),
+    });
+    if (!r) return json({ error: "live_timeout" }, 504, o);
+    if (!r.ok) {
+      const detail = (await r.text()).slice(0, 400);
+      console.error("OpenAI client_secrets", model, transcriber, r.status, detail);
+      if (r.status === 400 || r.status === 404) continue; // unknown model for this account: try the next
+      return json({ error: "live_unavailable", upstream: r.status }, 502, o);
+    }
+    const data = await r.json().catch(() => ({}));
+    const token = data.value || (data.client_secret && data.client_secret.value);
+    if (typeof token !== "string" || !token) return json({ error: "live_invalid_token" }, 502, o);
+    openAiCombo = [model, transcriber];
+    const expiresAt = new Date(((data.expires_at || data.client_secret?.expires_at || 0) * 1000) || Date.now() + 600000).toISOString();
+    return json(
+      { provider: "openai", token, model, transcriber, voice: session.audio.output.voice, wsUrl: OPENAI_REALTIME_URL, expiresAt },
+      200,
+      o,
+    );
+  }
+  return json({ error: "live_unavailable", upstream: 400 }, 502, o);
 }
 
 export const TTS_MODEL = "gemini-3.8-flash-tts";
@@ -730,7 +845,8 @@ export default {
             persona: !!env.OPENROUTER_API_KEY,
             coder: !!env.OPENROUTER_API_KEY,
             analysis: !!env.OPENROUTER_API_KEY && env.ANALYSIS !== "off",
-            live: !!env.GEMINI_API_KEY,
+            live: !!liveProvider(env),
+            liveProvider: liveProvider(env),
             voice: !!(env.OPENROUTER_API_KEY || env.GEMINI_API_KEY || env.ELEVENLABS_API_KEY),
           },
         },

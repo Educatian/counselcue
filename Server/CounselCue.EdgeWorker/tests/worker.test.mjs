@@ -22,7 +22,7 @@ test("health never exposes credentials", async () => {
   assert.equal(r.status, 200);
   assert.deepEqual(await r.json(), {
     ok: true,
-    services: { persona: true, coder: true, analysis: true, live: false, voice: true },
+    services: { persona: true, coder: true, analysis: true, live: true, liveProvider: "relay", voice: true },
   });
 });
 
@@ -576,4 +576,42 @@ test("codingResult sanitizes focus_options and alternative", () => {
   const odd = codingResult('{"code":"advice","quality":0,"alternative":["배열"]}', "x");
   assert.equal(odd.alternative, "");
   assert.deepEqual(odd.focus_options, []);
+});
+
+test("live-token falls back to OpenAI Realtime with a locked session and no affect tool", async () => {
+  const old = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    calls.push({ url, auth: new Headers(init.headers).get("Authorization"), body });
+    if (body.session.model === "gpt-realtime-2") return new Response('{"error":{"message":"bad model"}}', { status: 400 });
+    return new Response(JSON.stringify({ value: "ek_test", expires_at: 1900000000, session: body.session }), { status: 200 });
+  };
+  try {
+    const r = await worker.fetch(post("/live-token", { sessionId: "s-oai", caseId: "career-transition-01", openingLine: "안녕하세요" }), {
+      ...env,
+      OPENAI_API_KEY: "sk-test",
+    });
+    assert.equal(r.status, 200);
+    const out = await r.json();
+    assert.equal(out.provider, "openai");
+    assert.equal(out.token, "ek_test");
+    assert.equal(out.model, "gpt-realtime");
+    assert.equal(out.voice, "cedar");
+    assert.equal(out.wsUrl, "wss://api.openai.com/v1/realtime");
+    assert.ok(!JSON.stringify(out).includes("sk-test"));
+    const last = calls.at(-1);
+    assert.equal(last.url, "https://api.openai.com/v1/realtime/client_secrets");
+    assert.equal(last.auth, "Bearer sk-test");
+    assert.equal(last.body.session.audio.input.format.rate, 24000);
+    assert.equal(last.body.session.audio.input.transcription.language, "ko");
+    assert.ok(last.body.session.instructions.includes("LIVE VOICE MODE"));
+    assert.ok(!last.body.session.instructions.includes("set_client_affect"));
+    assert.equal(last.body.session.tools, undefined);
+    const health = await (await worker.fetch(new Request("https://worker.test/health", { headers: { Origin: origin } }), { ...env, OPENAI_API_KEY: "k" })).json();
+    assert.equal(health.services.liveProvider, "openai");
+    assert.equal(health.services.live, true);
+  } finally {
+    globalThis.fetch = old;
+  }
 });

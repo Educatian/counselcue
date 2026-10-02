@@ -156,13 +156,13 @@ export function ttsInput(plan, withStyle = true) {
 }
 
 /** Expression guidance for the real-time (Gemini Live) persona instruction. */
-export function liveExpressionBlock(caseId, controls) {
+export function liveExpressionBlock(caseId, controls, { affectTool = true } = {}) {
   const c = controls || expressionControls();
   const lock = c.lockAffect ? ` Keep your underlying feeling ${c.lockAffect} for the whole session; only its intensity may change.` : "";
   return `EXPRESSION
 Your voice is ${CASE_VOICE[caseId] || "a Korean adult"}${CASE_UNDERTONE[caseId] ? ", " + CASE_UNDERTONE[caseId] : ""}. ${EXPRESSIVITY[c.expressivity].label}${lock}
-Let feeling show through pace, pauses, breath and softness rather than by naming it.${c.vocalEvents ? "" : " Do not sigh or laugh audibly."}
-At the start of every spoken turn, call set_client_affect once with your current feeling (one of ${AFFECTS.join(", ")}) and its intensity from 0 to 1${c.maxIntensity < 1 ? ` (never above ${c.maxIntensity})` : ""}. It is silent bookkeeping for the simulation: never mention it and never wait for its result.`;
+Let feeling show through pace, pauses, breath and softness rather than by naming it.${c.vocalEvents ? "" : " Do not sigh or laugh audibly."}${affectTool ? `
+At the start of every spoken turn, call set_client_affect once with your current feeling (one of ${AFFECTS.join(", ")}) and its intensity from 0 to 1${c.maxIntensity < 1 ? ` (never above ${c.maxIntensity})` : ""}. It is silent bookkeeping for the simulation: never mention it and never wait for its result.` : ""}`;
 }
 
 /** Function declaration the Live session uses to report affect to the face layer. */

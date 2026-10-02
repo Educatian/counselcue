@@ -97,3 +97,16 @@ within 25 minutes (a 15-minute voice session plus reconnects with session resump
 - Privacy: in live mode the learner's microphone audio goes to Google in real time. The
   briefing says so before the learner chooses the mode; CounselCue stores transcripts only
   when research logging is on, never audio. Update consent/IRB wording before a study.
+
+## Live engines (`/health` → `services.liveProvider`)
+
+Live mode picks the first engine that is keyed (or `LIVE_PROVIDER` = `gemini` | `openai` | `relay` | `off`):
+
+| Engine | Needs | How it talks |
+| --- | --- | --- |
+| `gemini` | `GEMINI_API_KEY` | Gemini Live, speech to speech (jslib client). |
+| `openai` | `OPENAI_API_KEY` | OpenAI Realtime, speech to speech. `/live-token` mints a 10-minute client secret with the persona, voice (`OPENAI_LIVE_VOICES`), Korean transcription and server VAD locked; the browser streams 24 kHz PCM16 (`TemplateData/cc-live-openai.js`). The model and transcriber fall back through `OPENAI_REALTIME_MODELS` / `OPENAI_TRANSCRIBE_MODELS`. |
+| `relay` | `OPENROUTER_API_KEY` | Hands-free: browser speech recognition ends a turn on a short pause, `/turn` writes the reply, `/voice` streams it (ElevenLabs MP3 through MediaSource). About 3.5 s from the end of the counselor's turn to the client's voice. |
+
+If the realtime key is rejected upstream, the page falls back to `relay` for the rest of the visit. Every engine sends `OnLiveTurn` to Unity, so each counselor turn is analysed by Jev against the client's line while the reply is still playing. `/turn` also accepts `fast: true` (lighter reasoning, `PERSONA_FAST_EFFORT`).
+
