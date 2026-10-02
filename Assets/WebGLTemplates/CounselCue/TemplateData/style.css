@@ -1,43 +1,96 @@
+/* CounselCue web shell — hanji paper, ink glass, celadon (청자) and lamp amber,
+   matching UiTheme in the Unity build. */
 :root {
-  color-scheme: light;
-  font-family: "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
-  background: #18231f;
+  color-scheme: dark;
+  --ink: #101211;
+  --ink-2: #161a18;
+  --paper: #f6f1e7;
+  --paper-dim: #c9c4b8;
+  --muted: #9ea39b;
+  --celadon: #7fb8a0;
+  --celadon-deep: #2c6352;
+  --amber: #efbe74;
+  --vermilion: #b84a38;
+  --sans: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+  --serif: "Noto Serif KR", "Nanum Myeongjo", "AppleMyungjo", serif;
+  font-family: var(--sans);
+  background: var(--ink);
 }
 
 * { box-sizing: border-box; }
-html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #18231f; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--ink); }
 body { min-height: 100dvh; }
 
-#unity-container { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; background: #1f1f20; }
-#unity-canvas { display: block; width: 100%; height: 100%; background: #1f1f20; outline: none; }
+#unity-container { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; background: var(--ink); }
+#unity-canvas { display: block; width: 100%; height: 100%; background: var(--ink); outline: none; }
 
+/* ---- Loading / first screen ---------------------------------------------------------- */
 #unity-loading-bar {
-  position: absolute; inset: 0; z-index: 20; display: none; flex-direction: column;
-  align-items: center; justify-content: center; gap: 12px; background: #17211e;
+  position: absolute; inset: 0; z-index: 20; display: none; align-items: center;
+  padding: clamp(24px, 6vw, 96px);
+  color: var(--paper);
+  /* Optional Higgsfield still: TemplateData/loading-hero.jpg (see Docs/HIGGSFIELD_ASSET_PACK.md). */
+  background:
+    linear-gradient(90deg, #0e1110f7 0%, #0e1110e6 38%, #0e11108c 70%, #0e111059 100%),
+    radial-gradient(ellipse at 78% 40%, #efbe7424 0%, transparent 55%),
+    url("loading-hero.jpg") center / cover no-repeat, var(--ink);
+  transition: opacity .45s ease;
 }
-#unity-logo { display: flex; align-items: center; justify-content: center; width: 240px; height: 72px; color: #edf5ef; font-size: 30px; font-weight: 800; letter-spacing: -.03em; }
-#unity-logo::before { content: "CounselCue"; }
-#unity-progress-bar-empty { width: min(240px, 66vw); height: 10px; overflow: hidden; border: 1px solid #dce9e1; border-radius: 999px; }
-#unity-progress-bar-full { width: 0; height: 100%; background: #82c3a1; transition: width .15s linear; }
-#unity-loading-label { color: #edf5ef; font-size: 14px; }
+#unity-loading-bar.is-done { opacity: 0; pointer-events: none; }
 
-#unity-warning { position: fixed; z-index: 200; left: 50%; top: max(12px, env(safe-area-inset-top)); width: min(680px, calc(100vw - 24px)); transform: translateX(-50%); }
+.cc-intro { width: min(760px, 100%); animation: cc-rise .8s cubic-bezier(.2, .7, .2, 1) both; }
+.cc-brand { display: flex; align-items: center; gap: 14px; }
+.cc-seal {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 9px;
+  background: var(--vermilion); color: var(--ink); font: 700 27px/1 var(--serif);
+  box-shadow: inset 0 0 0 2px #0000001f;
+}
+#unity-logo { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+.cc-eyebrow { margin: 34px 0 14px; color: var(--celadon); font-size: 12.5px; font-weight: 700; letter-spacing: .08em; }
+.cc-headline { margin: 0; font: 700 clamp(32px, 4vw, 54px)/1.2 var(--serif); letter-spacing: -.02em; word-break: keep-all; }
+.cc-lede { margin: 20px 0 0; max-width: 520px; color: var(--paper-dim); font-size: 16px; line-height: 1.7; word-break: keep-all; }
+.cc-lede span { color: var(--muted); font-size: 14px; }
+.cc-points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 640px; margin: 34px 0 0; padding: 0; list-style: none; }
+.cc-points li { padding: 14px 16px; border-radius: 14px; background: #ffffff0d; box-shadow: inset 0 0 0 1px #ffffff14; }
+.cc-points b { display: block; font-size: 14px; font-weight: 700; }
+.cc-points span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.5; word-break: keep-all; }
+
+.cc-progress { margin-top: 40px; max-width: 420px; }
+#unity-progress-bar-empty { width: 100%; height: 3px; overflow: hidden; border-radius: 999px; background: #ffffff1f; }
+#unity-progress-bar-full { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--celadon), var(--amber)); transition: width .2s linear; }
+.cc-progress-row { display: flex; justify-content: space-between; margin-top: 10px; font-size: 13px; }
+#unity-loading-label { color: var(--paper-dim); }
+#unity-loading-percent { color: var(--amber); font-weight: 700; font-variant-numeric: tabular-nums; }
+#unity-loading-note { max-width: 460px; margin: 26px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; word-break: keep-all; }
+
+@keyframes cc-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* ---- Banners ------------------------------------------------------------------------ */
+#unity-warning { position: fixed; z-index: 200; left: 50%; top: max(12px, env(safe-area-inset-top)); width: min(680px, calc(100vw - 24px)); transform: translateX(-50%); font-family: var(--sans); }
 #unity-warning:empty { display: none; }
-#unity-warning > div { margin-bottom: 8px; padding: 10px 14px; border-radius: 10px; background: #fff4d8; color: #3a3021; box-shadow: 0 8px 28px #0005; }
-#unity-warning > .error { background: #7f2828; color: white; }
+#unity-warning > div { margin-bottom: 8px; padding: 11px 16px; border-radius: 12px; background: var(--paper); color: #1e211f; box-shadow: 0 10px 30px #0006; font-size: 14px; }
+#unity-warning > .error { background: #7d2a22; color: white; }
 
 #orientation-message { display: none; }
+
+@media (max-width: 760px), (max-height: 560px) {
+  .cc-points { display: none; }
+  .cc-eyebrow { margin-top: 18px; }
+  .cc-lede { font-size: 14px; }
+  .cc-progress { margin-top: 22px; }
+  #unity-loading-note { margin-top: 14px; }
+}
 
 @media (orientation: portrait) and (max-width: 800px) {
   #unity-container { filter: brightness(.32); pointer-events: none; }
   #cci, #cct, #cch { display: none !important; }
   #orientation-message {
     position: fixed; z-index: 500; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 10px; padding: 32px; text-align: center;
-    background: #173029f2; color: white;
+    align-items: center; justify-content: center; gap: 12px; padding: 32px; text-align: center;
+    background: #101211f5; color: var(--paper); font-family: var(--sans);
   }
-  #orientation-message strong { font-size: 21px; }
-  #orientation-message span { max-width: 320px; color: #d8ebe0; font-size: 14px; line-height: 1.55; }
+  #orientation-message strong { font: 700 22px/1.35 var(--serif); }
+  #orientation-message span { max-width: 320px; color: var(--paper-dim); font-size: 14px; line-height: 1.6; word-break: keep-all; }
 }
 
 @media (prefers-reduced-motion: reduce) {

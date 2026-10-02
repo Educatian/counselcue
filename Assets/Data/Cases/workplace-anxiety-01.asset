@@ -76,3 +76,14 @@ MonoBehaviour:
   counselingDomain: "\uC9C1\uC5C5\xB7\uC131\uC778\uC0C1\uB2F4"
   difficultyLabel: "\uAE30\uCD08"
   personaPromptKey: workplace-anxiety-01
+  briefingPortrait: {fileID: 0}
+  english:
+    title: Workplace anxiety
+    clientName: Jihye Kim
+    clientProfile: "32 \xB7 Career & adult counseling"
+    presentingConcern: Lately she feels short of breath before going to work and
+      doubts her own competence.
+    learningObjectives:
+    - Build relational safety.
+    - Explore the situations, meanings and effects of her anxiety.
+    - Put the client's choices ahead of solutions.

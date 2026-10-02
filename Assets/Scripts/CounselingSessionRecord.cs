@@ -5,6 +5,10 @@ namespace AdieLab.AffectCounsel
     [Serializable]
     internal sealed class CounselingSessionRecord
     {
+        public int schemaVersion = ResearchRecord.SchemaVersion;
+        public string appVersion;
+        public string caseId;
+        public string lexiconVersion;
         public string sessionId;
         public string timestampUtc;
         public string trainingMode;
@@ -44,5 +48,43 @@ namespace AdieLab.AffectCounsel
         public float au45;
         public float deliveryModifier;
         public string conversationEngine;
+
+        // Schema v3: skill coding provenance and the model that produced the state change.
+        public string skillCode;
+        public string codebookVersion;
+        public string codingSource;
+        public string codingModel;
+        public float codingConfidence;
+        public string codingRationale;
+        public string codingEvidence;
+        public string lexiconCode;
+        public int lexiconQuality;
+        public string relationalModelVersion;
+        public float safetyBefore;
+        public float guardednessBefore;
+        public float disclosureBefore;
+        /// <summary>Gemini Live only: the counselor spoke over the client's reply (barge-in).</summary>
+        public bool liveInterrupted;
+        /// <summary>Counseling phase practised: intake, goal_setting, middle, termination.</summary>
+        public string sessionPhase = "intake";
+        /// <summary>Client affect and intensity the expression pipeline rendered for this reply.</summary>
+        public string clientAffect;
+        public float clientAffectIntensity;
+        /// <summary>Expression policy version (e.g. expr-1), "live-report" or empty for local replies.</summary>
+        public string expressionPolicy;
+        /// <summary>Expressivity setting in force: restrained, natural or vivid.</summary>
+        public string expressivity;
+        /// <summary>Real-time analysis mode: off, shadow (Jev provisional, LLM decides) or jev (Jev decides when confident).</summary>
+        public string analysisMode;
+        /// <summary>Jev's skill code for this counselor turn, its calibrated confidence and quality (-1 = no analysis).</summary>
+        public string jevCode;
+        public float jevConfidence;
+        public int jevQuality = -1;
+        /// <summary>Jev: probability the counselor acknowledged a feeling the client expressed.</summary>
+        public float jevAttendsToFeeling;
+        public int jevLatencyMs;
+        public string jevModel;
+        /// <summary>Live mode: Jev's reading of the client's spoken reply.</summary>
+        public string jevClientAffect;
     }
 }

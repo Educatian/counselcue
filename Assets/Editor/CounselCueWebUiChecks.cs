@@ -33,7 +33,8 @@ namespace AdieLab.AffectCounsel.Editor
             string webPlugin = ReadAssetText("Plugins/WebGL/CounselCueWebBridge.jslib");
             string webTemplate = ReadAssetText("WebGLTemplates/CounselCue/index.html");
             string webStyles = ReadAssetText("WebGLTemplates/CounselCue/TemplateData/style.css");
-            bool releasesBrowserKeyboard = bridgeSource.Contains("WebGLInput.captureAllKeyboardInput = false;");
+            bool releasesBrowserKeyboard = bridgeSource.Contains("\"captureAllKeyboardInput\"") && bridgeSource.Contains("ReleaseBrowserKeyboard();") &&
+                webPlugin.Contains("event.stopPropagation();");
             bool usesResponsiveCanvas =
                 webTemplate.Contains("viewport-fit=cover") &&
                 webStyles.Contains("#unity-container { position: fixed; inset: 0;") &&

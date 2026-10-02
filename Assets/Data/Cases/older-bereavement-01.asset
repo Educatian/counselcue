@@ -73,3 +73,14 @@ MonoBehaviour:
   counselingDomain: "\uB178\uC778\uC0C1\uB2F4"
   difficultyLabel: "\uC911\uAE09"
   personaPromptKey: older-bereavement-01
+  briefingPortrait: {fileID: 0}
+  english:
+    title: Late-life bereavement and isolation
+    clientName: Jeongho Lee
+    clientProfile: "68 \xB7 Older-adult counseling"
+    presentingConcern: Since his spouse died his meals and sleep have become irregular,
+      and he avoids help so as not to burden his children.
+    learningObjectives:
+    - Respect the pace of grief and silence.
+    - Explore loneliness separately from daily functioning.
+    - Avoid assumptions about his relationship with his children.

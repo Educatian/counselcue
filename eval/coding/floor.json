@@ -1,0 +1,1 @@
+{ "lexiconKappa": 0.55, "note": "Regression floor for the lexicon against eval/coding/gold-ko.csv. Raise it when the reference labels or the lexicon improve." }

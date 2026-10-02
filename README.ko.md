@@ -18,7 +18,7 @@
 |---|---|
 | ![한국 1:1 상담실 생성 레퍼런스](Assets/Art/References/KoreanCounselingRoomReference.png) | ![레퍼런스를 반영한 Unity 상담실](Screenshots/progress-35-reference-room.png) |
 
-UI는 CC0 라이선스의 Kenney UI Pack 2.0에서 고해상도 9-slice 패널·버튼·구분선을 선별하고 상담실 팔레트로 틴트했습니다. 상단 언어 버튼은 상담 시나리오의 원문을 바꾸지 않고 고정 UI 문구만 전환합니다.
+UI는 한지·먹빛 유리·청자색·등불 호박색 토큰(`UiTheme`)과 절차적으로 만든 9-slice 스프라이트(`Assets/Art/UI`, 談 낙관 포함)로 구성하고, 작은 한글도 선명하도록 Noto Sans KR 정적 Regular/Bold 서체를 사용합니다. 상단 언어 버튼은 상담 시나리오의 원문을 바꾸지 않고 고정 UI 문구만 전환합니다.
 
 | 한국어 UI | English UI |
 |---|---|
@@ -139,7 +139,7 @@ UI는 CC0 라이선스의 Kenney UI Pack 2.0에서 고해상도 9-slice 패널·
 - WebGL 빌드: `Builds/WebGL/index.html`
 - 공개 웹 데모: https://educatian.github.io/counselcue/
 
-웹 데모는 브라우저 네이티브 한글 입력, 한국어 마이크 받아쓰기, 스팟라이트 튜토리얼, ElevenLabs v3 감정 음성을 지원합니다. 서버 페르소나 API가 사용 가능하면 LLM 내담자 응답을 사용하고, 실패하면 기존 로컬 사례 엔진으로 안전하게 대체합니다. API 키는 Unity와 JavaScript에 포함하지 않습니다. UDP AU 브리지는 데스크톱 전용입니다.
+웹 데모는 브라우저 네이티브 한글 입력, 한국어 마이크 받아쓰기, 스팟라이트 튜토리얼, ElevenLabs v3 감정 음성을 지원합니다. 서버 페르소나 API가 사용 가능하면 LLM 내담자 응답을 사용하고, 실패하면 기존 로컬 사례 엔진으로 안전하게 대체합니다. 매 턴마다 사례의 첫 발화와 최근 8개 교환을 함께 보내 내담자가 이미 한 말을 기억하고 점진적으로 개방하도록 합니다. 내담자 음성은 사례별 ElevenLabs 음성 매핑(`ELEVENLABS_VOICE_IDS`)으로 나이·성별에 맞게 지정할 수 있습니다. API 키는 Unity와 JavaScript에 포함하지 않습니다. UDP AU 브리지는 데스크톱 전용입니다.
 
 에디터 메뉴 `Tools > CounselCue > Build Korean Counseling Room`으로 씬을 다시 생성할 수 있습니다.
 
@@ -148,7 +148,7 @@ UI는 CC0 라이선스의 Kenney UI Pack 2.0에서 고해상도 9-slice 패널·
 - 웹캠 원본 영상은 저장하지 않습니다.
 - 현재 웹캠 기능은 얼굴 감정 분류기가 아니라 조명 품질과 움직임 안정성을 계산하는 입력 어댑터입니다.
 - 움직임 신호는 상담 능력이나 감정을 판정하지 않으며, 훈련자에게 자기 점검 단서로만 제시해야 합니다.
-- 세션 기록에는 상담자 입력 문장과 파생 신호가 포함됩니다. 실제 교육 배포 전 명시적 동의, 보존 기간, 삭제 기능, 가명화 정책이 필요합니다.
+- 세션 기록에는 상담자 입력 문장과 파생 신호가 포함됩니다. 로컬 기록은 브리핑 카드에서 학습자가 동의해야만 남고, "로컬 기록 삭제"로 이 기기의 기록 파일을 모두 지울 수 있습니다. 실제 교육 배포 전 보존 기간과 가명화 정책이 추가로 필요합니다.
 - 턴 기록: Unity `Application.persistentDataPath/counseling-sessions.jsonl`
 - 회기 요약: Unity `Application.persistentDataPath/counseling-session-summaries.jsonl`
 - 자기평가: Unity `Application.persistentDataPath/counseling-self-assessments.jsonl`
@@ -158,7 +158,7 @@ UI는 CC0 라이선스의 Kenney UI Pack 2.0에서 고해상도 9-slice 패널·
 1. GPT Realtime 대화 어댑터와 로컬 데모 어댑터를 공통 인터페이스로 분리
 2. 백엔드에서 Realtime 임시 토큰을 발급하고 Unity는 WebRTC로 연결
 3. 전문가 저작용 ScriptableObject 사례 편집기와 루브릭 버전 관리 추가
-4. 웹캠 처리의 온디바이스 보장, 동의 화면, 즉시 삭제 기능 구현
+4. 웹캠 처리의 온디바이스 보장(동의 화면·즉시 삭제는 로컬 기록 기준으로 구현됨)
 5. 교육자 대시보드와 세션 리플레이에는 원본 영상 대신 이벤트·점수 타임라인만 사용
 6. 상담 전문가/학습자 대상 사용성 연구와 채점자 간 신뢰도 검증
 
@@ -213,3 +213,7 @@ Unity 캐시, Windows 빌드, 로컬 로그와 세션 데이터는 Git 저장소
 ## 제3자 자산
 
 Microsoft Rocketbox 자산은 `Assets/ThirdParty/MicrosoftRocketbox/LICENSE.md`의 라이선스를 따릅니다. UI 패널·버튼·구분선은 [Kenney UI Pack 2.0](https://kenney.nl/assets/ui-pack)의 CC0 에셋이며 원문은 `Assets/ThirdParty/Kenney/UI/LICENSE.txt`에 포함했습니다. Noto Sans KR은 SIL Open Font License 1.1로 배포되며 원문은 `Assets/Fonts/OFL.txt`에 포함했습니다.
+
+## 2D 비주얼 에셋 (Higgsfield)
+
+사례 브리핑 일러스트, 창밖 풍경, 벽 액자 그림, WebGL 로딩·튜토리얼·링크 미리보기 이미지는 정해진 경로에 파일을 넣으면 빌더와 WebGL 템플릿이 자동으로 반영합니다. 파일이 없으면 현재 모습이 유지됩니다. 프롬프트, 규격, 검수 기준, 홍보 영상 촬영 구성은 [Docs/HIGGSFIELD_ASSET_PACK.md](Docs/HIGGSFIELD_ASSET_PACK.md)에 있습니다.

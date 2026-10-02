@@ -47,10 +47,10 @@ System evidence remains hidden until the learner records a self-assessment. A se
 
 | Status | Scope |
 |---|---|
-| **Implemented** | Five selectable counseling cases with distinct Rocketbox avatars, FACS/viseme facial layers, five-state gaze behavior, Korean viseme planning, micro-blinks/breath/head motion, face-observation zoom and diagnostics, full and focused sessions, replay, relational trajectory, local JSONL logging, Korean/English UI, browser-native Korean input, microphone dictation, spotlight onboarding, and ElevenLabs v3 client speech through a server proxy |
-| **Experimental** | Case-specific Korean client personas through OpenRouter, bounded relational-state prompting, four-state emotional voice direction, thirteen MediaPipe-derived counselor AU proxies, personal baseline calibration, and deterministic local fallback |
-| **Planned** | Audio-aligned phoneme timing, expert case-authoring tools, consent and deletion flows, an educator dashboard, and multi-site user research |
-| **Requires validation** | Agreement between AU proxies and human FACS coding, expert inter-rater reliability for feedback rules, culture-specific cue interpretation, learning transfer, and change in counseling competence |
+| **Implemented** | Five selectable counseling cases with distinct Rocketbox avatars, FACS/viseme facial layers, five-state gaze behavior, Korean viseme planning, micro-blinks/breath/head motion, face-observation zoom and diagnostics, full and focused sessions, replay, relational trajectory, local JSONL logging, Korean/English UI, browser-native Korean input, microphone dictation, spotlight onboarding, ElevenLabs v3 client speech through a server proxy, opt-in local research logging with one-click deletion, a learner export file, and an instructor dashboard (`/dashboard/`) that reads exports in the browser |
+| **Experimental** | A **real-time voice mode with Gemini 3.8 Live** (full-duplex speech, barge-in, streamed transcripts coded like typed turns; opt-in on the briefing, web only); an LLM skill coder (`POST /code`, codebook ko-codebook-1) with the Korean lexicon as fallback and both codes logged per turn; a versioned relational model (`avp-prior-1`, exploration weighted ~3× a single empathy component on disclosure) that can be refit from expert ratings; case-specific Korean client personas through OpenRouter, bounded relational-state prompting, four-state emotional voice direction, thirteen MediaPipe-derived counselor AU proxies, personal baseline calibration, and deterministic local fallback |
+| **Planned** | Audio-aligned phoneme timing, expert case-authoring tools, server-side retention and pseudonymization policies, and multi-site user research |
+| **Requires validation** | Expert-coded Korean reference labels for skill coding (the shipped set is a draft), LLM-coder agreement with those experts, relational weights fitted to Korean ratings, agreement between AU proxies and human FACS coding, culture-specific cue interpretation, learning transfer, and change in counseling competence |
 
 ## Interface
 
@@ -98,8 +98,9 @@ The local case-based counseling flow works without a webcam. AU input requires t
 ## Privacy and interpretation boundaries
 
 - Raw webcam video is not saved; only derived signals are processed and logged locally.
+- In the optional live voice mode the microphone audio streams to Google (Gemini Live) in real time; the briefing states this before the learner chooses it. CounselCue stores no audio, and transcripts only when research logging is on. Studies must cover this in their consent wording.
 - AU values are proxies derived from MediaPipe blendshapes, not certified FACS coding or emotion labels.
-- Counselor input and derived signals are written to local JSONL, so educational deployment requires explicit consent, retention limits, deletion, and pseudonymization policies.
+- Local JSONL logging of counselor input and derived signals is off until the learner opts in on the briefing card, and "Delete local records" removes every record file on the device. Institutional deployment still needs retention limits and pseudonymization policies.
 - Feedback is candidate evidence for reflection. It must not be used for diagnosis, clinical evaluation, counselor selection, or automated competency assessment.
 - The LLM client cannot replace real counseling and requires safety controls, latency handling, deterministic fallback, and expert supervision.
 
@@ -116,8 +117,8 @@ The complete construct model, cultural interpretation principles, and validation
 ## License and asset boundaries
 
 - Microsoft Rocketbox assets follow [`Assets/ThirdParty/MicrosoftRocketbox/LICENSE.md`](Assets/ThirdParty/MicrosoftRocketbox/LICENSE.md).
-- UI sprites come from the CC0-licensed [Kenney UI Pack 2.0](https://kenney.nl/assets/ui-pack).
-- Noto Sans KR is distributed under the SIL Open Font License 1.1; the license is included at [`Assets/Fonts/OFL.txt`](Assets/Fonts/OFL.txt).
+- The interface uses procedural sprites in `Assets/Art/UI` (rounded surfaces, soft shadows, scrims and the 談 seal) and the `UiTheme` tokens: hanji paper, ink glass, celadon actions and lamp amber. The CC0 [Kenney UI Pack 2.0](https://kenney.nl/assets/ui-pack) remains in `Assets/ThirdParty` but is no longer referenced.
+- Noto Sans KR (static Regular and Bold cuts subset from Noto Sans CJK KR: Hangul syllables, jamo, Latin and punctuation) is distributed under the SIL Open Font License 1.1; the license is included at [`Assets/Fonts/OFL.txt`](Assets/Fonts/OFL.txt).
 - No root open-source license currently covers the entire repository. Do not assume redistribution rights for project code or generated assets until a project license is declared.
 
 ## Documentation
@@ -125,6 +126,14 @@ The complete construct model, cultural interpretation principles, and validation
 - [Korean documentation](README.ko.md): session flow, LXD loop, AU calibration, GPT Realtime architecture, and privacy boundaries
 - [English documentation](README.en.md): capabilities, architecture, build workflow, privacy, and validation boundaries
 - [GAME_CONCEPT.md](GAME_CONCEPT.md): research framing, cultural profile, and validation plan
+- [Docs/DATA_SCHEMA.md](Docs/DATA_SCHEMA.md): opt-in local research records (schema v3), the learner export bundle, join keys, and handling guidance
+- Skill-coding agreement: [eval/coding/README.md](eval/coding/README.md) — codebook, expert coding protocol, `node eval/coding-agreement.mjs` (κ, per-code F1, confusion; add `WORKER_URL` to score the LLM coder)
+- Relational model calibration: [eval/calibration/README.md](eval/calibration/README.md) — refit weights from expert ratings or coded transcripts with `node eval/calibrate-relational.mjs`
+- Instructor dashboard: [Dashboard/dashboard.html](Dashboard/dashboard.html) (built into the WebGL template by `Tools/build-dashboard.sh`, served at `/dashboard/`); learners use **기록 내보내기 / Export records** on the briefing card
+- Skill lexicon: **Tools → CounselCue → Export Skill Lexicon JSON** writes the pilot term lists to `Assets/Resources/CounselCue/skill-lexicon.json` so counseling experts can revise them; rerun the Response Evaluator Checks after edits
+- Persona evaluation: `WORKER_URL=… npm run eval` in `Server/CounselCue.EdgeWorker` checks role consistency, memory, safety and latency on a deployed worker
+- CI (`.github/workflows/ci.yml`) runs the worker tests, the Mono-compiled skill-detector, codebook, relational-model and export checks, the coding-agreement regression floor, the calibration pipeline, and case/persona/web-bridge consistency checks without a Unity license
+- [Docs/HIGGSFIELD_ASSET_PACK.md](Docs/HIGGSFIELD_ASSET_PACK.md): Higgsfield prompts and drop-in file slots for case illustrations, room art, loading/onboarding visuals, and an honest promo-video shot list
 
 ---
 

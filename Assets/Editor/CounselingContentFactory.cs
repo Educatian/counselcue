@@ -8,6 +8,17 @@ namespace AdieLab.AffectCounsel.Editor
     {
         public const string CatalogPath = "Assets/Data/CaseCatalog.asset";
 
+        // Per case: a licensed Reallusion ActorCore actor when it is installed locally
+        // (Tools/art/import_actorcore.py; not redistributed), otherwise the Rocketbox avatar.
+        private static readonly string[] ActorCoreIds =
+        {
+            "business-f-0017",  // 김지혜 32 · workplace
+            "casual-f-0192",    // 박서윤 16 · adolescent
+            "business-m-0079",  // 최민준 39 · career transition
+            "casual-m-0192",    // 이정호 68 · late-life bereavement
+            "casual-m-0119"     // 왕하오 24 · international student
+        };
+
         private static readonly string[] AvatarPaths =
         {
             "Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Female_Adult_05/Export/Female_Adult_05_facial.fbx",
@@ -16,6 +27,9 @@ namespace AdieLab.AffectCounsel.Editor
             "Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Male_Adult_14/Export/Male_Adult_14_facial.fbx",
             "Assets/ThirdParty/MicrosoftRocketbox/Avatars/Adults/Male_Adult_09/Export/Male_Adult_09_facial.fbx"
         };
+
+        /// <summary>True when every case resolved to an installed ActorCore actor on the last build.</summary>
+        public static bool UsingActorCore { get; private set; }
 
         [MenuItem("Tools/CounselCue/Create Sprint Case Catalog")]
         public static CaseCatalog CreateOrUpdate()
@@ -27,6 +41,7 @@ namespace AdieLab.AffectCounsel.Editor
 
             CaseSpec[] specs = BuildSpecs();
             CounselingCaseDefinition[] cases = new CounselingCaseDefinition[specs.Length];
+            UsingActorCore = true;
             for (int i = 0; i < specs.Length; i++) cases[i] = CreateCase(specs[i], i);
 
             CaseCatalog catalog = LoadOrCreate<CaseCatalog>(CatalogPath);
@@ -41,21 +56,62 @@ namespace AdieLab.AffectCounsel.Editor
             ClientProfileDefinition profile = LoadOrCreate<ClientProfileDefinition>($"Assets/Data/Profiles/{spec.Id}.asset");
             profile.Configure(spec.Id, spec.Name, spec.Age, spec.Domain, spec.CulturalContext, spec.NonverbalStyle, spec.GazeComfort, spec.DisclosurePace);
 
-            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AvatarPaths[avatarIndex]);
+            string source = "actorcore";
+            GameObject prefab = ActorCoreLibrary.Load(ActorCoreIds[avatarIndex]);
+            if (prefab == null)
+            {
+                source = "rocketbox";
+                UsingActorCore = false;
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AvatarPaths[avatarIndex]);
+            }
             if (prefab == null) throw new InvalidOperationException($"Rocketbox facial avatar is missing: {AvatarPaths[avatarIndex]}");
             AvatarPresentationDefinition presentation = LoadOrCreate<AvatarPresentationDefinition>($"Assets/Data/Presentations/{spec.Id}.asset");
-            presentation.Configure($"rocketbox-{spec.Id}", prefab, new Vector3(0f, 0.08f, 1.02f), new Vector3(0f, 180f, 0f), Vector3.one,
+            presentation.Configure($"{source}-{spec.Id}", prefab, new Vector3(0f, 0.08f, 1.02f), new Vector3(0f, 180f, 0f), Vector3.one,
                 spec.VoiceStyle, spec.ExpressionIntensity, spec.GazeIntensity);
 
             CounselingCaseDefinition definition = LoadOrCreate<CounselingCaseDefinition>($"Assets/Data/Cases/{spec.Id}.asset");
             definition.Configure(spec.Id, spec.Title, spec.Name, $"{spec.Age} · {spec.Domain}", spec.Concern, spec.InitialLine,
                 900f, 180f, 3, spec.Objectives, BuildLadder(spec.Supportive, spec.Guarded), DefaultFocusSkills());
             definition.ConfigurePresentation(profile, presentation, spec.Domain, spec.Difficulty, spec.Id);
+            definition.ConfigurePortrait(HiggsfieldAssetSlots.LoadPortrait(spec.Id));
+            definition.ConfigureEnglish(EnglishFor(spec.Id));
             EditorUtility.SetDirty(profile);
             EditorUtility.SetDirty(presentation);
             EditorUtility.SetDirty(definition);
             return definition;
         }
+
+        private static CaseEnglishText EnglishFor(string caseId)
+        {
+            switch (caseId)
+            {
+                case "workplace-anxiety-01":
+                    return English("Workplace anxiety", "Jihye Kim", "32 · Career & adult counseling",
+                        "Lately she feels short of breath before going to work and doubts her own competence.",
+                        "Build relational safety.", "Explore the situations, meanings and effects of her anxiety.", "Put the client's choices ahead of solutions.");
+                case "adolescent-pressure-01":
+                    return English("Academic pressure · multicultural teen", "Seoyoon Park", "16 · Youth & school counseling",
+                        "A Korean-born Muslim teenager from a multicultural family, worn down between falling grades, her parents' expectations and classmates' questions about her religious dress. She has started keeping to herself at school.",
+                        "Explain confidentiality and the client's choices in counseling.", "Explore academic pressure and belonging in the client's own words.", "Avoid cultural assumptions and respect silence.");
+                case "career-transition-01":
+                    return English("Career transition and burnout", "Minjun Choi", "39 · Career counseling",
+                        "Torn between wanting to leave a stable job and his responsibility to support his family.",
+                        "Reflect both sides of the ambivalence together.", "Explore values separately from role responsibilities.", "Avoid prescribing a career decision too early.");
+                case "older-bereavement-01":
+                    return English("Late-life bereavement and isolation", "Jeongho Lee", "68 · Older-adult counseling",
+                        "Since his spouse died his meals and sleep have become irregular, and he avoids help so as not to burden his children.",
+                        "Respect the pace of grief and silence.", "Explore loneliness separately from daily functioning.", "Avoid assumptions about his relationship with his children.");
+                case "international-belonging-01":
+                    return English("International student belonging", "Wang Hao", "24 · University counseling",
+                        "In graduate school in Korea he carries the weight of the language and a sense of exclusion, but hesitates to say so for fear of seeming oversensitive.",
+                        "Check cultural explanations with the client.", "Do not confuse language fluency with emotional depth.", "Keep both possible discrimination and personal interpretation open.");
+                default:
+                    return new CaseEnglishText();
+            }
+        }
+
+        private static CaseEnglishText English(string title, string name, string profile, string concern, params string[] objectives) =>
+            new CaseEnglishText { title = title, clientName = name, clientProfile = profile, presentingConcern = concern, learningObjectives = objectives };
 
         private static CounselingDisclosureStep[] BuildLadder(string[] supportive, string[] guarded)
         {
@@ -76,35 +132,35 @@ namespace AdieLab.AffectCounsel.Editor
         {
             new CaseSpec("workplace-anxiety-01", "직장 불안", "김지혜", "32세", "직업·성인상담", "기초",
                 "최근 회사에 가려고 하면 숨이 막히고 자신의 역량을 의심합니다.",
-                "요즘 회사에 가려고 하면 숨이 막히는 것 같아요.\n제가 너무 약한 사람인가 싶기도 하고요.",
+                "요즘 회사에 가려고 하면 숨이 막히는 것 같아요. 아침에 회사 건물 앞에서 한참 서 있다가 들어가는 날도 있어요.\n제가 너무 약한 사람인가 싶기도 하고, 이런 걸로 상담을 받아도 되는 건지 모르겠어요.",
                 "존댓말과 간접 표현을 사용하며, 상담자의 조언보다 먼저 안전한 반응을 확인한다.", "초반에는 시선을 짧게 피하고 손을 모은다. 안전감이 생기면 재접촉과 공개가 늘어난다.", .52f, .48f, "soft-contemporary-korean", .72f, .70f,
                 new[]{"관계 안전감을 형성한다.","불안의 상황·의미·영향을 탐색한다.","해결책보다 내담자의 선택을 앞세운다."},
                 new[]{"누군가에게 말하니 조금 정리가 되는 느낌이에요.","회사에 들어가는 순간부터 가슴이 답답해져요.","특히 팀장님과 이야기할 때 더 심해져요.","회의에서 실수를 지적받은 뒤 시선이 무서워졌어요.","가족에게는 걱정시킬까 봐 말하지 못했어요.","당장 답보다 안전하게 일할 수 있다는 느낌이 필요해요."},
                 new[]{"그냥 제가 알아서 해야 하는 문제 같아요.","그렇게 간단한 문제는 아닌 것 같아요.","무슨 말을 해야 할지 모르겠어요.","그 얘기는 아직 자세히 하고 싶지 않아요.","가족 이야기는 하고 싶지 않아요.","오늘은 여기까지만 이야기하고 싶어요."}),
             new CaseSpec("adolescent-pressure-01", "다문화 청소년 학업 압박", "박서윤", "16세", "청소년·다문화·학교상담", "중급",
                 "한국에서 성장한 다문화 가정의 무슬림 청소년으로, 성적 하락과 부모 기대, 종교적 복장에 대한 또래의 시선 사이에서 지치고 학교에서도 혼자 있으려 합니다.",
-                "엄마는 제가 그냥 게을러진 거래요. 학교에서는 제 옷을 보고 계속 물어보는 것도 지쳐요.",
+                "엄마는 제가 그냥 게을러진 거래요. 저도 책상에 앉아 있긴 한데 머리에 하나도 안 들어와요.\n학교에서는 제 옷 보고 계속 물어보는 것도 지치고요. 근데 여기서 한 얘기, 엄마한테 전해지는 거 아니죠?",
                 "성인 권위에 대한 경계를 고려하고 존댓말을 강요하지 않는다. 종교·문화 정체성을 문제의 원인으로 단정하지 않고 내담자의 의미를 확인하며 비밀보장의 한계를 투명하게 설명한다.", "직접 눈맞춤이 길면 부담을 느끼고 옆을 보며 생각한다. 재촉하지 않으면 짧게 재접촉한다.", .34f, .34f, "young-soft-korean", .64f, .56f,
                 new[]{"상담의 비밀보장과 선택권을 설명한다.","학업 압박과 소속감 경험을 내담자의 언어로 탐색한다.","문화적 가정을 피하고 침묵을 존중한다."},
                 new[]{"제 말을 바로 판단하지 않으니까 조금 편해요.","시험지를 받으면 심장이 빨리 뛰어요.","친구들이 제 스카프를 또 물어볼까 봐 점심도 혼자 먹어요.","아빠가 실망할까 봐 성적표를 숨겼어요.","가끔 그냥 사라지고 싶다는 생각까지 들어요.","누구 한 명이라도 제 편이라고 느끼고 싶어요."},
                 new[]{"선생님도 결국 부모님한테 말할 거잖아요.","그냥 공부하기 싫은 것뿐이에요.","친구 얘기는 별로 하고 싶지 않아요.","집 얘기는 하지 않을래요.","그런 생각까지는 아니에요.","이제 그만 물어보면 안 돼요?"}),
             new CaseSpec("career-transition-01", "경력 전환과 번아웃", "최민준", "39세", "진로·직업상담", "중급",
                 "안정적인 직장을 그만두고 싶은 마음과 가족 부양 책임 사이에서 갈등합니다.",
-                "남들이 보기엔 괜찮은 직장인데, 저는 아침마다 제가 없어지는 기분이 듭니다.",
+                "남들이 보기엔 괜찮은 직장인데, 저는 아침마다 제가 없어지는 기분이 듭니다. 그만두고 싶다가도, 이 나이에 그런 생각을 하는 게 무책임한 것 같고요.\n어떻게 해야 할지 답을 좀 듣고 싶어서 왔습니다.",
                 "조언 중심 기대가 있을 수 있으나 가치와 양가감정을 먼저 탐색한다.", "생각할 때 위쪽을 보고, 불편한 질문에는 몸을 굳힌다. 존중을 느끼면 고개를 끄덕인다.", .58f, .46f, "calm-adult-korean", .68f, .72f,
                 new[]{"양가감정을 동시에 반영한다.","가치와 역할 책임을 분리해 탐색한다.","즉각적인 진로 처방을 피한다."},
                 new[]{"두 마음이 같이 있다는 표현이 맞는 것 같아요.","일 자체보다 제가 통제할 수 없는 게 힘들어요.","예전에는 만드는 일이 즐거웠어요.","아이들 때문에 모험하면 안 된다고 생각해요.","배우자에게는 아직 솔직히 말하지 못했어요.","작은 실험부터 해볼 수 있다면 덜 막막할 것 같아요."},
                 new[]{"그래서 어디로 이직하라는 건가요?","그냥 다들 이 정도는 참고 살죠.","옛날 얘기는 별로 도움이 안 될 것 같아요.","가족 책임은 당연한 거죠.","배우자 얘기는 넘어가죠.","구체적인 답이 없다면 의미가 있나요?"}),
             new CaseSpec("older-bereavement-01", "노년기 사별과 고립", "이정호", "68세", "노인상담", "중급",
                 "배우자 사별 후 식사와 수면이 흐트러졌고 자녀에게 짐이 될까 도움을 피합니다.",
-                "집에 들어가면 너무 조용합니다. 자식들한테 이런 말까지 할 수는 없고요.",
+                "집에 들어가면 너무 조용합니다. 요즘은 밤에 잠도 잘 안 오고요.\n자식들한테 이런 말까지 할 수는 없어서… 여기 오긴 왔는데, 무슨 말부터 해야 할지 모르겠습니다.",
                 "연령 존중과 존댓말을 유지하되 과도한 권위적 태도나 유아화를 피한다.", "긴 침묵과 아래쪽 시선이 자연스러운 회상 과정일 수 있다. 고개 끄덕임은 동의보다 경청 신호일 수 있다.", .44f, .31f, "warm-older-korean", .58f, .60f,
                 new[]{"사별의 속도와 침묵을 존중한다.","외로움과 일상 기능을 구분해 탐색한다.","자녀 관계에 대한 가정을 피한다."},
                 new[]{"기다려 주시니 그 사람 생각을 조금 해볼 수 있네요.","아침에 눈뜨는 시간이 제일 힘듭니다.","같이 마시던 차를 아직 두 잔 준비할 때가 있어요.","아이들은 바빠 보여서 전화를 망설입니다.","요즘은 끼니를 자주 거릅니다.","누군가와 일주일에 한 번이라도 이야기하면 좋겠습니다."},
                 new[]{"나이 들면 다 그런 거죠.","그 사람 얘기는 그만하겠습니다.","별일 아닙니다.","아이들은 바쁩니다. 괜히 귀찮게 하면 안 되죠.","밥은 알아서 먹습니다.","도움을 받을 정도는 아닙니다."}),
             new CaseSpec("international-belonging-01", "유학생 소속감과 적응", "왕하오", "24세", "다문화·대학상담", "중급",
                 "한국 대학원 생활 중 언어 부담과 배제감을 느끼지만 민감한 사람으로 보일까 말하지 못합니다.",
-                "회의에서 제가 말하면 잠깐 조용해져요. 제가 한국말을 이상하게 해서 그런지 모르겠어요.",
+                "회의에서 제가 말하면 잠깐 조용해져요. 제가 한국말을 이상하게 해서 그런지 모르겠어요.\n음… 그래서 요즘은 회의 때 거의 말을 안 하게 돼요. 제가 너무 예민한 건가 싶기도 하고요.",
                 "문화적 차이를 단정하지 않고 이름 발음, 선호 언어, 설명 방식과 직접 시선의 편안함을 확인한다.", "정확한 한국어를 찾을 때 시선이 옆으로 이동한다. 이를 회피나 거짓으로 해석하지 않는다.", .46f, .38f, "gentle-international-korean", .64f, .62f,
                 new[]{"문화적 설명을 내담자에게 확인한다.","언어 유창성과 정서 깊이를 혼동하지 않는다.","차별 가능성과 개인 해석을 모두 열어 둔다."},
                 new[]{"틀린 말을 해도 기다려 주셔서 편해요.","회의 전에 할 말을 여러 번 연습해요.","농담을 못 알아들으면 다 같이 웃는데 저만 멈춰 있어요.","한 번은 제 의견을 다른 사람이 다시 말하자 받아들여졌어요.","그 뒤로 말하기 전에 제가 틀렸다고 먼저 말해요.","제 경험이 실제였다고 인정받고 싶어요."},

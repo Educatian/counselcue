@@ -5,15 +5,38 @@
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <title>{{{ PRODUCT_NAME }}}</title>
+  <meta name="description" content="한국어 1:1 상담자 훈련 시뮬레이션 — 상담 미세기술과 표정·시선·자세 전달을 함께 연습합니다. 감정 분류기가 아닌 연구용 프로토타입입니다.">
+  <meta property="og:title" content="CounselCue · 상담자 관계 전달 연습">
+  <meta property="og:description" content="Korean counselor-training simulation for relational delivery, multimodal feedback, and reflective practice.">
+  <meta property="og:image" content="https://educatian.github.io/counselcue/TemplateData/social-card.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap">
   <link rel="stylesheet" href="TemplateData/style.css">
 </head>
 <body>
   <main id="unity-container" aria-label="CounselCue counseling simulation">
     <canvas id="unity-canvas" tabindex="-1"></canvas>
     <div id="unity-loading-bar" role="status" aria-live="polite">
-      <div id="unity-logo"></div>
-      <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
-      <div id="unity-loading-label">CounselCue 불러오는 중…</div>
+      <section class="cc-intro">
+        <div class="cc-brand"><span class="cc-seal" aria-hidden="true">談</span><span id="unity-logo">CounselCue</span></div>
+        <p class="cc-eyebrow">관계 전달 연습 스튜디오 · Relational Delivery Studio</p>
+        <h1 class="cc-headline">말보다 먼저<br>전해지는 것을 연습합니다.</h1>
+        <p class="cc-lede">표정·시선·자세와 상담 언어를 함께 살피는 한국어 1:1 상담자 훈련 시뮬레이션.<br><span lang="en">Practice what reaches a client before your words do.</span></p>
+        <ul class="cc-points">
+          <li><b>5명의 AI 내담자</b><span>직장·청소년·진로·노년·유학생</span></li>
+          <li><b>턴마다 전달 피드백</b><span>언어 기술과 얼굴 전달의 정합</span></li>
+          <li><b>먼저 자기평가</b><span>시스템 근거는 그다음에 공개</span></li>
+        </ul>
+        <div class="cc-progress">
+          <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
+          <div class="cc-progress-row"><span id="unity-loading-label">상담실을 준비하고 있어요</span><span id="unity-loading-percent">0%</span></div>
+        </div>
+        <p id="unity-loading-note">연구·훈련용 프로토타입입니다. 진단이나 역량 평가 도구가 아니며, 웹캠 영상은 저장하지 않습니다.</p>
+      </section>
     </div>
     <div id="unity-warning" aria-live="assertive"></div>
   </main>
@@ -21,6 +44,7 @@
     <strong>가로 화면으로 전환해 주세요</strong>
     <span>내담자의 표정과 상담 도구를 함께 관찰하려면 가로 화면이 필요합니다.</span>
   </div>
+  <script src="TemplateData/cc-live-openai.js"></script>
   <script>
     const canvas = document.querySelector('#unity-canvas');
     const loadingBar = document.querySelector('#unity-loading-bar');
@@ -34,7 +58,17 @@
       warning.hidden = false;
       if (type !== 'error') setTimeout(() => { item.remove(); warning.hidden = !warning.children.length; }, 5000);
     }
-    const buildUrl = 'Build';
+    // CC_BUILD_SOURCE: the hosted demo loads the build from Cloudflare R2 through the API worker
+    // (GET /webgl/<version>/Build/*), so Pages only carries the HTML. ?build=vN picks another
+    // uploaded version; ?build=local, localhost and file:// use the Build folder next to this page.
+    const CC_BUILD_REMOTE = 'https://counselcue-api.jewoong-moon.workers.dev/webgl/';
+    const CC_BUILD_VERSION = 'v2';
+    const buildUrl = (() => {
+      const pick = new URLSearchParams(location.search).get('build') || '';
+      const local = pick === 'local' || location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+      if (local) return 'Build';
+      return CC_BUILD_REMOTE + (/^v[0-9][0-9a-z.-]{0,30}$/.test(pick) ? pick : CC_BUILD_VERSION) + '/Build';
+    })();
     const config = {
       arguments: [],
       dataUrl: buildUrl + '/{{{ DATA_FILENAME }}}',
@@ -51,16 +85,44 @@
       productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
       productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
       showBanner: unityShowBanner,
+      autoSyncPersistentDataPath: true,
       devicePixelRatio: Math.min(window.devicePixelRatio || 1, 1.5)
     };
     loadingBar.style.display = 'flex';
     const loader = document.createElement('script');
     loader.src = buildUrl + '/{{{ LOADER_FILENAME }}}';
-    loader.onload = () => createUnityInstance(canvas, config, progress => {
+    const loadingPercent = document.querySelector('#unity-loading-percent');
+    // Static hosts cap file size (Cloudflare: 25 MiB). Tools/web/package_webgl.py splits large
+    // build files into parts listed in Build/parts.json; join them here before Unity loads.
+    // CC_PARTS_LOADER
+    async function resolveParts(onProgress) {
+      let manifest = null;
+      try { const r = await fetch(buildUrl + '/parts.json', { cache: 'no-cache' }); if (r.ok) manifest = await r.json(); } catch (e) {}
+      if (!manifest) return;
+      const total = Object.values(manifest).reduce((n, f) => n + f.size, 0) || 1;
+      let loaded = 0;
+      for (const [name, file] of Object.entries(manifest)) {
+        const chunks = await Promise.all(file.parts.map(async part => {
+          const r = await fetch(buildUrl + '/' + part);
+          if (!r.ok) throw new Error('missing ' + part);
+          const reader = r.body.getReader(), pieces = [];
+          for (;;) { const { done, value } = await reader.read(); if (done) break; pieces.push(value); loaded += value.length; onProgress(loaded / total); }
+          return new Blob(pieces);
+        }));
+        const url = URL.createObjectURL(new Blob(chunks));
+        for (const key of ['dataUrl', 'codeUrl', 'frameworkUrl']) if (config[key] === buildUrl + '/' + name) config[key] = url;
+      }
+    }
+    const showProgress = progress => {
       progressBarFull.style.width = (progress * 100) + '%';
-    }).then(instance => {
+      loadingPercent.textContent = Math.round(progress * 100) + '%';
+    };
+    loader.onload = () => resolveParts(p => showProgress(p * 0.9)).then(() => createUnityInstance(canvas, config, progress => {
+      showProgress(0.9 + progress * 0.1);
+    })).then(instance => {
       window.CounselCueUnity = instance;
-      loadingBar.style.display = 'none';
+      loadingBar.classList.add('is-done');
+      setTimeout(() => { loadingBar.style.display = 'none'; }, 450);
     }).catch(message => unityShowBanner(String(message), 'error'));
     document.body.appendChild(loader);
   </script>

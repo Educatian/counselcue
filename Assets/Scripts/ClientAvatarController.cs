@@ -32,6 +32,7 @@ namespace AdieLab.AffectCounsel
         private ClientGazeController gazeController;
         private ClientFacialExpressionDriver facialDriver;
         private ClientRenderingController renderingController;
+        private ClientGestureController gestureController;
 
         public string GazeStateLabel => gazeController == null ? "Unavailable" : gazeController.State.ToString();
         public float GazeContactWeight => gazeController == null ? 0f : gazeController.ContactWeight;
@@ -40,10 +41,11 @@ namespace AdieLab.AffectCounsel
         public int SuppressedCombinedShapeCount => facialDriver == null ? 0 : facialDriver.SuppressedCombinedShapeCount;
         public string ActiveFacialCue => facialDriver == null ? "Unavailable" : facialDriver.ActiveCueSummary;
         public void CycleDebugGaze() => gazeController?.CycleDebugState();
+        public ClientGestureController Gestures => gestureController;
 
         public bool TryGetObservationAnchors(out Vector3 bodyAnchor, out Vector3 faceAnchor)
         {
-            animator ??= GetComponentInChildren<Animator>(true);
+            if (animator == null) animator = GetComponentInChildren<Animator>(true);
             if (animator != null && animator.isHuman)
             {
                 Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
@@ -88,13 +90,13 @@ namespace AdieLab.AffectCounsel
             lookTarget = configuredLookTarget;
             clientProfile = configuredProfile;
             avatarPresentation = configuredPresentation;
-            animator ??= GetComponentInChildren<Animator>(true);
+            if (animator == null) animator = GetComponentInChildren<Animator>(true);
             InitializeDrivers();
         }
 
         private void Awake()
         {
-            animator ??= GetComponentInChildren<Animator>();
+            if (animator == null) animator = GetComponentInChildren<Animator>();
             InitializeDrivers();
             SetAffect(ClientAffect.Anxious, true);
         }
@@ -103,13 +105,15 @@ namespace AdieLab.AffectCounsel
         {
             if (animator != null)
             {
-                gazeController = animator.GetComponent<ClientGazeController>() ?? animator.gameObject.AddComponent<ClientGazeController>();
-                facialDriver = animator.GetComponent<ClientFacialExpressionDriver>() ?? animator.gameObject.AddComponent<ClientFacialExpressionDriver>();
+                gazeController = animator.gameObject.GetOrAddComponent<ClientGazeController>();
+                facialDriver = animator.gameObject.GetOrAddComponent<ClientFacialExpressionDriver>();
                 if (animator.GetComponent<ClientMicroMotionController>() == null) animator.gameObject.AddComponent<ClientMicroMotionController>();
+                gestureController = animator.gameObject.GetOrAddComponent<ClientGestureController>();
                 gazeController.Initialize(lookTarget, clientProfile, avatarPresentation);
-                facialDriver.Initialize(avatarPresentation);
+                facialDriver.Initialize(avatarPresentation, clientProfile);
+                gestureController.Initialize(clientProfile);
             }
-            renderingController = GetComponent<ClientRenderingController>() ?? gameObject.AddComponent<ClientRenderingController>();
+            renderingController = gameObject.GetOrAddComponent<ClientRenderingController>();
             renderingController.ApplyReadableFaceMaterials();
             if (animator != null && animator.layerCount > GestureLayer)
             {
@@ -122,6 +126,7 @@ namespace AdieLab.AffectCounsel
         {
             gazeController?.SetContext(affect, relationalState, speechRoutine != null);
             facialDriver?.SetContext(affect, relationalState);
+            gestureController?.SetContext(affect, relationalState);
             UpdateGestureLayer();
         }
 
@@ -137,6 +142,9 @@ namespace AdieLab.AffectCounsel
                 animator.SetLayerWeight(GestureLayer, 0f);
             }
         }
+
+        /// <summary>0..1 from the expression plan: scales how strongly the affect shows on the face.</summary>
+        public void SetAffectIntensity(float value) => facialDriver?.SetIntensity(value);
 
         public void SetAffect(ClientAffect value, bool immediate = false)
         {
@@ -192,6 +200,7 @@ namespace AdieLab.AffectCounsel
             StopSpeaking();
             float duration = Mathf.Clamp((text ?? string.Empty).Length * 0.055f, 1.2f, 8f);
             facialDriver?.BeginSpeech(text, duration);
+            gestureController?.BeginSpeech(text, duration, false);
             speechRoutine = StartCoroutine(SpeechRoutine(duration, emotion, (text ?? string.Empty).Length));
         }
 
@@ -199,57 +208,51 @@ namespace AdieLab.AffectCounsel
         {
             StopSpeaking();
             facialDriver?.BeginSpeech(text, 60f);
+            gestureController?.BeginSpeech(text, 60f, false);
             speechRoutine = StartCoroutine(SpeechRoutine(60f, emotion, (text ?? string.Empty).Length));
         }
+
+        public void BeginExternalSpeech(string emotion)
+        {
+            StopSpeaking();
+            facialDriver?.BeginExternalSpeech();
+            gestureController?.BeginSpeech(string.Empty, 60f, true);
+            speechRoutine = StartCoroutine(SpeechRoutine(60f, emotion, 40));
+        }
+
+        public void SetSpeechLevel(float level)
+        {
+            facialDriver?.SetExternalLevel(level);
+            gestureController?.SetSpeechLevel(level);
+        }
+
+        /// <summary>Listening backchannel (nod) when the counselor finishes a turn.</summary>
+        public void Acknowledge() => gestureController?.Acknowledge();
 
         public void StopSpeaking()
         {
             if (speechRoutine != null) StopCoroutine(speechRoutine);
             speechRoutine = null;
             facialDriver?.EndSpeech();
+            gestureController?.EndSpeech();
             gestureLayerTarget = 0f;
         }
 
         private IEnumerator SpeechRoutine(float duration, string emotion, int textLength)
         {
-            float elapsed = 0f;
-            float nextGesture = Random.Range(0.55f, 0.95f);
-            float gestureEnd = float.PositiveInfinity;
-            bool useGesture = textLength >= 18 && (duration > 10f || Random.value < 0.72f);
-            bool gestureActive = false;
-            int gestureVariant = Random.Range(0, 12);
+            // Arm gestures come from ClientGestureController (seated IK, research-informed); the
+            // Rocketbox standing talk clips on the upper-body layer are no longer blended in.
             gestureLayerTarget = 0f;
-
+            float elapsed = 0f;
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                if (useGesture && !gestureActive && elapsed >= nextGesture && duration - elapsed >= 1.3f &&
-                    animator != null && animator.layerCount > GestureLayer)
-                {
-                    string gestureState = GestureStateFor(emotion, gestureVariant++);
-                    animator.CrossFadeInFixedTime(
-                        gestureState,
-                        0.65f,
-                        GestureLayer,
-                        Random.Range(0.05f, 0.18f));
-                    gestureLayerTarget = GestureLayerWeight;
-                    gestureActive = true;
-                    gestureEnd = elapsed + Random.Range(2.4f, 3.4f);
-                }
-
-                if (gestureActive && elapsed >= gestureEnd)
-                {
-                    gestureActive = false;
-                    gestureLayerTarget = 0f;
-                    nextGesture = elapsed + Random.Range(1.6f, 2.8f);
-                }
-
                 yield return null;
             }
 
             speechRoutine = null;
             facialDriver?.EndSpeech();
-            gestureLayerTarget = 0f;
+            gestureController?.EndSpeech();
         }
 
         private void UpdateGestureLayer()

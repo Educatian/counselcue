@@ -15,7 +15,20 @@ namespace AdieLab.AffectCounsel
                 {
                     Material material = materials[index];
                     string materialName = material.name.ToLowerInvariant();
-                    if (materialName.Contains("head"))
+                    if (IsActorCoreSkin(material))
+                    {
+                        // Warm, lifted skin: a slight warm tint, softer cavity occlusion, less oily
+                        // sheen and a faint warm self-glow from the albedo standing in for the
+                        // subsurface scattering the Standard shader lacks.
+                        material.SetColor("_Color", new Color(1.07f, 1.0f, 0.95f));
+                        SetFloat(material, "_OcclusionStrength", 0.5f);
+                        SetFloat(material, "_GlossMapScale", 0.55f);
+                        material.SetTexture("_EmissionMap", material.mainTexture);
+                        material.SetColor("_EmissionColor", new Color(0.11f, 0.075f, 0.055f));
+                        material.EnableKeyword("_EMISSION");
+                        material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                    }
+                    else if (materialName.Contains("head"))
                     {
                         SetFloat(material, "_Smoothness", 0.22f);
                         SetFloat(material, "_Glossiness", 0.22f);
@@ -29,6 +42,12 @@ namespace AdieLab.AffectCounsel
                 }
                 renderer.materials = materials;
             }
+        }
+
+        private static bool IsActorCoreSkin(Material material)
+        {
+            return material.HasProperty("_MainTex") && material.mainTexture != null &&
+                   material.mainTexture.name == "Albedo" && material.name.StartsWith("M_", System.StringComparison.Ordinal);
         }
 
         private static void SetFloat(Material material, string property, float value)

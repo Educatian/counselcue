@@ -1,0 +1,50 @@
+name: CI
+
+# Checks that run without a Unity license. Unity editor checks (scene build, animation,
+# asset pack) still run locally via Tools > CounselCue > Review > Run All Checks.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  worker:
+    name: Edge worker tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Server/CounselCue.EdgeWorker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+
+  logic:
+    name: Skill detector and relational model (Mono)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Mono compiler
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq mono-mcs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: Tools/ci/run-csharp-checks.sh
+      - name: Skill-coding agreement (lexicon vs reference labels, regression floor)
+        run: node eval/coding-agreement.mjs --floor --out /tmp/coding-report
+      - name: Relational model calibration pipeline
+        run: node eval/calibrate-relational.mjs --check
+
+  consistency:
+    name: Case, persona and web bridge consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: python3 Tools/ci/check_case_consistency.py
+      - name: WebGL bridge parses and exports every DllImport
+        run: node Tools/ci/check_jslib.mjs

@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- Built from Dashboard/dashboard.html by Tools/build-dashboard.sh; edit the source, not this file. -->
+</head>
+<body>
+<title>CounselCue 강사 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: one working column — load bar, filter row, summary tiles, class chart, then roster
+   table beside a learner drill-down (stacks on narrow screens). Hanji paper + ink, celadon
+   actions, the CounselCue 談 seal; chart hues are the validated three-slot categorical set. */
+:root {
+  --paper: #fbf8f2;
+  --surface: #ffffff;
+  --sunk: #f2eee5;
+  --ink: #1d201e;
+  --ink-2: #4b4f4a;
+  --muted: #7a7d76;
+  --line: #e4dfd4;
+  --axis: #c9c3b6;
+  --accent: #2c6352;
+  --accent-soft: #dcebe3;
+  --seal: #b84a38;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s-other: #b9b4a8;
+  --warn-bg: #fbe9dc;
+  --warn-ink: #8a3b17;
+  --ok-bg: #e2f1e8;
+  --ok-ink: #1f5c3e;
+  --shadow: 0 1px 2px rgba(29, 32, 30, .06), 0 8px 24px rgba(29, 32, 30, .06);
+  --sans: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121412; --surface: #171a18; --sunk: #1e221f; --ink: #f1eee7; --ink-2: #c6c7bf;
+    --muted: #8f928a; --line: #2b302c; --axis: #3a403b; --accent: #7fb8a0; --accent-soft: #1f3a30;
+    --seal: #c95a46; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s-other: #5b5f58;
+    --warn-bg: #3a2418; --warn-ink: #f2b596; --ok-bg: #173226; --ok-ink: #9fd6b8;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #121412; --surface: #171a18; --sunk: #1e221f; --ink: #f1eee7; --ink-2: #c6c7bf;
+  --muted: #8f928a; --line: #2b302c; --axis: #3a403b; --accent: #7fb8a0; --accent-soft: #1f3a30;
+  --seal: #c95a46; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s-other: #5b5f58;
+  --warn-bg: #3a2418; --warn-ink: #f2b596; --ok-bg: #173226; --ok-ink: #9fd6b8;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: clamp(16px, 3vw, 36px); padding-block: 28px 64px; display: grid; gap: 22px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+button, select, input { font: inherit; color: inherit; }
+button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+header.top { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.seal { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 9px; background: var(--seal); color: var(--paper); font: 700 24px/1 "Noto Serif KR", serif; }
+.brand h1 { font-size: 22px; letter-spacing: -.01em; }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.loader { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { border: 0; border-radius: 10px; padding: 9px 14px; font-weight: 700; font-size: 14px; cursor: pointer; background: var(--sunk); color: var(--ink); }
+.btn:hover { filter: brightness(.97); }
+.btn.primary { background: var(--accent); color: var(--paper); }
+.btn.ghost { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+.btn[disabled] { opacity: .5; cursor: default; }
+
+.drop { border: 1.5px dashed var(--axis); border-radius: 14px; padding: 14px 18px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; justify-content: space-between; background: var(--surface); }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop p { margin: 0; color: var(--ink-2); font-size: 14px; }
+.drop small { color: var(--muted); display: block; }
+.source-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px; font-size: 12.5px; font-weight: 700; background: var(--warn-bg); color: var(--warn-ink); }
+.source-pill.real { background: var(--ok-bg); color: var(--ok-ink); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; }
+.filters label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
+.filters select { min-width: 150px; border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 7px 10px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 7px 12px; cursor: pointer; font-size: 14px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--paper); font-weight: 700; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); display: grid; gap: 2px; align-content: start; }
+.tile .label { font-size: 12.5px; color: var(--muted); font-weight: 700; }
+.tile .value { font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
+.tile .note { font-size: 12.5px; color: var(--ink-2); }
+
+.card { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); padding: 18px 20px; display: grid; gap: 14px; min-width: 0; }
+.card-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; }
+.card-head h2 { font-size: 17px; }
+.card-head p { margin: 0; color: var(--muted); font-size: 13px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.key { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.key.line { height: 3px; border-radius: 2px; width: 16px; }
+
+.chart-scroll { overflow-x: auto; }
+svg text { fill: var(--ink-2); font-family: var(--sans); }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--paper); border-radius: 10px; padding: 8px 11px; font-size: 13px; line-height: 1.45; box-shadow: var(--shadow); max-width: 280px; }
+.tip b { font-size: 14px; }
+.tip .row { display: flex; gap: 8px; align-items: center; }
+.tip .row i { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+.detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px 24px; align-items: start; }
+@media (max-width: 980px) { .detail-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 700; white-space: nowrap; }
+th button { all: unset; cursor: pointer; }
+th button:focus-visible { outline: 2px solid var(--accent); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr.learner { cursor: pointer; }
+tbody tr.learner:hover { background: var(--sunk); }
+tbody tr.learner[aria-selected="true"] { background: var(--accent-soft); }
+.who { font-weight: 700; white-space: nowrap; }
+.who small { display: block; font-weight: 400; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 2px 8px; background: var(--warn-bg); color: var(--warn-ink); white-space: nowrap; }
+.chip.ok { background: var(--ok-bg); color: var(--ok-ink); }
+.mini { display: flex; height: 10px; width: 120px; gap: 2px; }
+.mini i { display: block; height: 100%; }
+.mini i:first-child { border-radius: 3px 0 0 3px; }
+.mini i:last-child { border-radius: 0 3px 3px 0; }
+
+.detail h3 { font-size: 18px; }
+.sessions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sessions button { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 7px 10px; cursor: pointer; text-align: left; font-size: 12.5px; line-height: 1.35; }
+.sessions button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.sessions b { display: block; font-size: 13px; }
+.turns td:nth-child(2) { min-width: 220px; }
+.turns td:nth-child(5), .turns td:nth-child(6) { white-space: nowrap; }
+.code { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 700; font-size: 12.5px; }
+.code i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.src { font-size: 11px; color: var(--muted); font-weight: 700; }
+.rationale { color: var(--ink-2); font-size: 12.5px; margin-top: 4px; }
+.q { font-variant-numeric: tabular-nums; letter-spacing: 1px; color: var(--accent); }
+.empty { color: var(--muted); font-size: 14px; padding: 16px 4px; }
+.privacy { color: var(--muted); font-size: 12.5px; }
+.agreement { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.agreement .tile { box-shadow: none; background: var(--sunk); }
+.status { font-size: 13px; color: var(--ink-2); min-height: 1.4em; }
+@media (prefers-reduced-motion: no-preference) { .tile, .card { transition: opacity .2s ease; } }
+.busy .tile, .busy .card { opacity: .55; }
+  .pattern { margin: 4px 0 14px; padding: 10px 14px; border-radius: 12px; background: var(--paper-deep, #efe8da); font-size: 14px; line-height: 1.5; }
+</style>
+
+<div class="wrap" id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="seal" aria-hidden="true">談</div>
+      <div>
+        <h1>CounselCue 강사 대시보드</h1>
+        <p>학습자가 내보낸 연습 기록으로 학급 전체와 개인의 상담 미세기술을 검토합니다.</p>
+      </div>
+    </div>
+    <div class="loader">
+      <span class="source-pill" id="sourcePill">예시 학급 · 가상 데이터</span>
+      <button class="btn ghost" id="sampleBtn" type="button">예시 학급 다시 보기</button>
+      <label class="btn primary" for="fileInput" tabindex="0">기록 파일 불러오기</label>
+      <input id="fileInput" type="file" accept=".json,.jsonl,application/json" multiple hidden>
+    </div>
+  </header>
+
+  <div class="drop" id="drop">
+    <p><b>학습자 기록 파일(.json)을 여기로 끌어다 놓으세요.</b>
+      <small>CounselCue 브리핑 화면의 “기록 내보내기”로 만든 파일, 또는 counseling-*.jsonl 원본 파일. 여러 개를 한 번에 넣을 수 있습니다.</small></p>
+    <span class="privacy">파일은 이 브라우저 안에서만 읽습니다. 서버로 전송되지 않습니다.</span>
+  </div>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+
+  <div class="filters" role="group" aria-label="필터">
+    <label for="caseFilter">사례<select id="caseFilter"></select></label>
+    <label for="modeFilter">모드<select id="modeFilter"></select></label>
+    <label>기간
+      <span class="seg" id="periodSeg">
+        <button type="button" data-days="0" aria-pressed="true">전체</button>
+        <button type="button" data-days="7" aria-pressed="false">최근 7일</button>
+        <button type="button" data-days="30" aria-pressed="false">최근 30일</button>
+      </span>
+    </label>
+    <button class="btn ghost" id="copyCsv" type="button">학습자 표 CSV 복사</button>
+    <button class="btn ghost" id="saveCsv" type="button">CSV 저장</button>
+  </div>
+
+  <section class="tiles" id="tiles" aria-label="학급 요약"></section>
+
+  <section class="card" aria-labelledby="mixTitle">
+    <div class="card-head">
+      <div>
+        <h2 id="mixTitle">학습자별 응답 구성</h2>
+        <p>상담자 턴을 네 묶음으로 나눈 비율. 탐색 비율이 높은 순서입니다.</p>
+      </div>
+      <div class="legend" id="mixLegend"></div>
+    </div>
+    <div class="chart-scroll"><svg id="mixChart" role="img" aria-label="학습자별 응답 구성 누적 막대"></svg></div>
+  </section>
+
+  <div class="split">
+    <section class="card" aria-labelledby="rosterTitle">
+      <div class="card-head">
+        <div><h2 id="rosterTitle">학습자</h2><p>행을 선택하면 아래에 세션 궤적과 턴 기록이 열립니다. 열 제목으로 정렬합니다.</p></div>
+      </div>
+      <div class="table-wrap"><table id="roster"></table></div>
+    </section>
+    <section class="card detail" id="detail" aria-live="polite"></section>
+  </div>
+
+  <section class="card" aria-labelledby="agreeTitle">
+    <div class="card-head">
+      <div><h2 id="agreeTitle">코더 일치도 (현장 데이터)</h2>
+        <p>AI 코더가 판정한 턴에서, 같은 발화를 규칙(렉시콘)이 어떻게 판정했는지 비교합니다. 전문가 기준 일치도는 eval/coding-agreement.mjs로 산출합니다.</p></div>
+    </div>
+    <div class="agreement" id="agreement"></div>
+  </section>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(() => {
+  "use strict";
+  // ---- Codebook (ko-codebook-1) and families -------------------------------------------
+  const CODE_LABEL = {
+    reflection_exploration: "감정 반영 + 탐색", reflection: "감정 반영", validation: "공감적 반응",
+    open_question: "개방형 질문", closed_question: "닫힌 질문", why_question: "'왜' 질문",
+    advice: "성급한 조언", premature_reassurance: "성급한 안심", neutral: "중립 반응", silence: "침묵",
+  };
+  const FAMILIES = [
+    { id: "explore", label: "탐색", codes: ["reflection_exploration", "open_question"], color: "var(--s1)" },
+    { id: "empathy", label: "공감", codes: ["reflection", "validation"], color: "var(--s2)" },
+    { id: "directive", label: "지시·닫힘", codes: ["advice", "premature_reassurance", "why_question", "closed_question"], color: "var(--s3)" },
+    { id: "other", label: "기타", codes: ["neutral", "silence"], color: "var(--s-other)" },
+  ];
+  const familyOf = (code) => FAMILIES.find((f) => f.codes.includes(code)) || FAMILIES[3];
+  const MOVE_CODE = {
+    ReflectionAndExploration: "reflection_exploration", Reflection: "reflection", Validation: "validation",
+    OpenQuestion: "open_question", ClosedQuestion: "closed_question", Advice: "advice",
+    PrematureReassurance: "premature_reassurance", Silence: "silence", Neutral: "neutral",
+  };
+  const CASES = {
+    "workplace-anxiety-01": "직장 불안", "adolescent-pressure-01": "다문화 청소년 학업 압박",
+    "career-transition-01": "경력 전환과 번아웃", "older-bereavement-01": "노년기 사별과 고립",
+    "international-belonging-01": "유학생 소속감과 적응",
+  };
+  const MODES = { Practice: "코칭 연습", Evaluation: "평가 모드", FocusedPractice: "집중연습", SceneReplay: "장면 재연습" };
+  const SERIES = [
+    { key: "safety", label: "안전", color: "var(--s1)" },
+    { key: "guardedness", label: "경계", color: "var(--s2)" },
+    { key: "disclosure", label: "공개", color: "var(--s3)" },
+  ];
+
+  // ---- State ---------------------------------------------------------------------------
+  const state = { learners: [], source: "sample", caseId: "", mode: "", days: 0, sort: { key: "explore", dir: -1 }, selected: null, session: null };
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, attrs = {}, ...children) => {
+    const node = document.createElementNS(tag === "svg" || attrs.svg ? "http://www.w3.org/2000/svg" : "http://www.w3.org/1999/xhtml", tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "svg" || v === undefined || v === null || v === false) continue;
+      if (k === "text") node.textContent = v;
+      else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+      else node.setAttribute(k, v);
+    }
+    for (const c of children.flat()) if (c !== null && c !== undefined) node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    return node;
+  };
+  const s = (tag, attrs = {}, ...children) => el(tag, { ...attrs, svg: true }, ...children);
+  const pct = (v) => (Number.isFinite(v) ? Math.round(v * 100) + "%" : "–");
+  const fmtDate = (iso) => { const d = new Date(iso); return Number.isNaN(+d) ? "–" : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+
+  // ---- Parsing -------------------------------------------------------------------------
+  function codeOf(r) {
+    if (r.skillCode && CODE_LABEL[r.skillCode]) return r.skillCode;
+    if (r.counselingMove === "Neutral" && r.skill === "'왜' 질문") return "why_question";
+    return MOVE_CODE[r.counselingMove] || "neutral";
+  }
+  function normTurn(r) {
+    return {
+      sessionId: String(r.sessionId || "unknown"), caseId: r.caseId || "unknown", mode: r.trainingMode || "Practice",
+      turn: Number(r.turn) || 0, time: r.timestampUtc || "", utterance: r.counselorUtterance || "", reply: r.clientReply || "",
+      code: codeOf(r), quality: Math.max(0, Math.min(3, Number(r.quality) || 0)),
+      alignment: r.deliveryAlignment || "", source: r.codingSource || "lexicon", lexiconCode: r.lexiconCode || "",
+      rationale: r.codingRationale || "", feedback: r.deliveryFeedback || "",
+      safety: Number(r.relationalSafety ?? r.alliance), guardedness: Number(r.guardedness), disclosure: Number(r.willingnessToDisclose),
+      safety0: Number(r.safetyBefore), guardedness0: Number(r.guardednessBefore), disclosure0: Number(r.disclosureBefore),
+    };
+  }
+  function linesOf(text) {
+    return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  }
+  function learnerFromRecords(id, code, turns, summaries, assessments, exported) {
+    const sessions = new Map();
+    for (const t of turns.map(normTurn)) {
+      if (!sessions.has(t.sessionId)) sessions.set(t.sessionId, { id: t.sessionId, caseId: t.caseId, mode: t.mode, turns: [], assessments: [], summary: null });
+      sessions.get(t.sessionId).turns.push(t);
+    }
+    for (const a of assessments) {
+      const sess = sessions.get(String(a.sessionId));
+      if (sess) sess.assessments.push({ turn: Number(a.sourceTurn), judgment: a.selfAssessment, quality: Number(a.quality) });
+    }
+    for (const sm of summaries) {
+      const sess = sessions.get(String(sm.sessionId));
+      if (sess) sess.summary = sm;
+    }
+    for (const sess of sessions.values()) {
+      sess.turns.sort((a, b) => a.turn - b.turn);
+      sess.start = sess.turns[0]?.time || "";
+    }
+    return { id, code: code || "", exported: exported || "", sessions: [...sessions.values()].sort((a, b) => (a.start < b.start ? -1 : 1)) };
+  }
+  function parseFile(name, text) {
+    const trimmed = text.trim();
+    if (trimmed.startsWith("{") && trimmed.includes('"format"')) {
+      const b = JSON.parse(trimmed);
+      if (b.format !== "counselcue-export") throw Error(`${name}: CounselCue 내보내기 파일이 아닙니다.`);
+      return learnerFromRecords(b.learnerId || name, b.learnerCode, b.sessions || [], b.summaries || [], b.assessments || [], b.exportedUtc);
+    }
+    const records = linesOf(text);
+    if (!records.length) throw Error(`${name}: 읽을 수 있는 기록이 없습니다.`);
+    const base = name.replace(/\.(jsonl|json)$/i, "");
+    return learnerFromRecords(base, base,
+      records.filter((r) => "counselorUtterance" in r), records.filter((r) => "finalStage" in r), records.filter((r) => "selfAssessment" in r && "sourceTurn" in r));
+  }
+
+  // ---- Sample class (clearly marked as fictional) --------------------------------------
+  function sampleClass() {
+    let seed = 20260930;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const pick = (weights) => { const total = Object.values(weights).reduce((a, b) => a + b, 0); let r = rnd() * total; for (const [k, w] of Object.entries(weights)) { if ((r -= w) <= 0) return k; } return "neutral"; };
+    const Q = { reflection_exploration: [2, 3], reflection: [1, 3], validation: [1, 3], open_question: [1, 3], closed_question: [0, 1], why_question: [0, 1], advice: [0, 1], premature_reassurance: [0, 1], neutral: [0, 2], silence: [0, 0] };
+    const DS = { reflection_exploration: [0.12, 0.12], reflection: [0.1, 0.03], validation: [0.1, 0.03], open_question: [0.05, 0.09], closed_question: [0, 0], why_question: [-0.02, -0.02], advice: [-0.12, -0.09], premature_reassurance: [-0.08, -0.06], neutral: [0.01, 0], silence: [-0.03, -0.03] };
+    const LINES = {
+      reflection_exploration: "그 순간 많이 긴장되셨겠어요. 그때 어떤 생각이 드셨어요?", reflection: "스스로를 탓하게 되시는 것 같아요.",
+      validation: "그런 상황이면 충분히 그럴 수 있어요.", open_question: "요즘 가장 힘든 순간은 언제인가요?", closed_question: "잠은 잘 주무세요?",
+      why_question: "왜 그렇게 생각하세요?", advice: "팀장님께 솔직하게 말씀드려 보세요.", premature_reassurance: "시간이 지나면 괜찮아질 거예요.",
+      neutral: "네, 그렇군요.", silence: "",
+    };
+    const RAT = {
+      reflection_exploration: "감정을 짚은 뒤 탐색 질문으로 이어 공간을 열었습니다.", reflection: "내담자의 자기비난을 정확히 반영했습니다.",
+      validation: "경험을 타당화했지만 탐색으로 이어지지는 않았습니다.", open_question: "개방형 질문으로 이야기를 넓혔습니다.",
+      closed_question: "예/아니오로 끝나는 질문이라 탐색이 좁아집니다.", why_question: "'왜'는 해명 요구로 들릴 수 있습니다.",
+      advice: "탐색 전에 해결책을 제시했습니다.", premature_reassurance: "이해받기 전에 안심시키면 탐색이 닫힙니다.",
+      neutral: "대화는 이어지지만 반영이 필요합니다.", silence: "응답이 없습니다.",
+    };
+    const profiles = [
+      { id: "L-7F3A", code: "학습자 A", w: { reflection_exploration: 5, reflection: 3, validation: 2, open_question: 4, closed_question: 1, advice: 0.5, neutral: 1 } },
+      { id: "L-21C9", code: "학습자 B", w: { reflection: 5, validation: 4, open_question: 1, advice: 1, premature_reassurance: 2, neutral: 2 } },
+      { id: "L-9B02", code: "학습자 C", w: { open_question: 3, closed_question: 4, why_question: 2, advice: 3, reflection: 1, neutral: 2 } },
+      { id: "L-44E1", code: "학습자 D", w: { reflection_exploration: 3, reflection: 2, validation: 2, open_question: 3, premature_reassurance: 1, neutral: 1 } },
+      { id: "L-0D7E", code: "학습자 E", w: { advice: 4, premature_reassurance: 3, closed_question: 2, reflection: 1, neutral: 2 } },
+      { id: "L-5A6C", code: "학습자 F", w: { reflection_exploration: 2, open_question: 5, reflection: 2, validation: 1, closed_question: 1, neutral: 1 } },
+    ];
+    const caseIds = Object.keys(CASES);
+    const now = Date.UTC(2026, 8, 30, 14, 0);
+    return profiles.map((p, pi) => {
+      const turns = [], assessments = [], summaries = [];
+      const nSessions = 2 + Math.floor(rnd() * 3);
+      for (let si = 0; si < nSessions; si++) {
+        const sid = `${p.id}-s${si + 1}`, caseId = caseIds[(pi + si) % caseIds.length];
+        const mode = si === nSessions - 1 && rnd() > 0.5 ? "Evaluation" : "Practice";
+        let st = { s: 0.38, g: 0.62, d: 0.25 };
+        const start = now - (nSessions - si) * 86400000 * (1 + Math.floor(rnd() * 4)) - pi * 3600000;
+        const nTurns = 5 + Math.floor(rnd() * 6);
+        for (let t = 1; t <= nTurns; t++) {
+          const code = pick(p.w);
+          const [lo, hi] = Q[code];
+          const q = lo + Math.floor(rnd() * (hi - lo + 1));
+          const [ds, dd] = DS[code];
+          const tense = rnd() < 0.15 && ["reflection", "validation", "reflection_exploration", "open_question"].includes(code);
+          const order = ["advice", "premature_reassurance"].includes(code) && st.g >= 0.5;
+          const mod = tense ? -0.04 : order ? 0 : 0.01;
+          const before = { ...st };
+          st = { s: Math.min(1, Math.max(0, st.s + ds + mod)), g: Math.min(1, Math.max(0, st.g - ds * 0.65 - mod)), d: Math.min(1, Math.max(0, st.d + dd + mod * 0.8)) };
+          const llm = rnd() > 0.12;
+          const lexDisagree = rnd() < 0.2;
+          const lexiconCode = lexDisagree ? (code === "closed_question" ? "neutral" : code === "reflection_exploration" ? "open_question" : code === "validation" ? "reflection" : code) : code;
+          turns.push({
+            sessionId: sid, caseId, trainingMode: mode, turn: t, timestampUtc: new Date(start + t * 70000).toISOString(),
+            counselorUtterance: LINES[code], clientReply: st.d > before.d ? "조금 더 말해 볼게요…" : "글쎄요, 잘 모르겠어요.",
+            skillCode: code, skill: CODE_LABEL[code], quality: q, codingSource: llm ? "llm" : "lexicon", lexiconCode, codingRationale: RAT[code],
+            deliveryAlignment: order ? "RelationalOrderMismatch" : tense ? "PossibleMismatch" : "Aligned",
+            relationalSafety: st.s, guardedness: st.g, willingnessToDisclose: st.d, safetyBefore: before.s, guardednessBefore: before.g, disclosureBefore: before.d,
+          });
+          if (rnd() < 0.55) {
+            const optimistic = p.id === "L-0D7E" || p.id === "L-9B02";
+            const says = optimistic ? (rnd() < 0.8 ? "잘된 장면" : "다시 연습 필요") : (q >= 2 ? (rnd() < 0.85 ? "잘된 장면" : "다시 연습 필요") : (rnd() < 0.8 ? "다시 연습 필요" : "잘된 장면"));
+            assessments.push({ sessionId: sid, sourceTurn: t, selfAssessment: says, quality: q, skillCode: code });
+          }
+        }
+        summaries.push({ sessionId: sid, finalStage: "InitialExploration", turnCount: nTurns });
+      }
+      return learnerFromRecords(p.id, p.code, turns, summaries, assessments, new Date(now).toISOString());
+    });
+  }
+
+  // ---- Filtering and metrics -----------------------------------------------------------
+  function latestTime() {
+    let max = 0;
+    for (const l of state.learners) for (const s of l.sessions) for (const t of s.turns) { const v = Date.parse(t.time); if (v > max) max = v; }
+    return max;
+  }
+  function visibleSessions(learner) {
+    const cutoff = state.days ? latestTime() - state.days * 86400000 : -Infinity;
+    return learner.sessions.filter((s) => (!state.caseId || s.caseId === state.caseId) && (!state.mode || s.mode === state.mode) && Date.parse(s.start || 0) >= cutoff);
+  }
+  function metrics(learner) {
+    const sessions = visibleSessions(learner);
+    const turns = sessions.flatMap((s) => s.turns);
+    const n = turns.length;
+    const fam = Object.fromEntries(FAMILIES.map((f) => [f.id, 0]));
+    let quality = 0, mismatch = 0, order = 0, llm = 0;
+    for (const t of turns) {
+      fam[familyOf(t.code).id]++;
+      quality += t.quality;
+      if (t.alignment === "PossibleMismatch" || t.alignment === "RelationalOrderMismatch") mismatch++;
+      if (t.alignment === "RelationalOrderMismatch") order++;
+      if (t.source === "llm") llm++;
+    }
+    const assessments = sessions.flatMap((s) => s.assessments);
+    const agree = assessments.filter((a) => (a.judgment === "잘된 장면") === (a.quality >= 2)).length;
+    const overrate = assessments.filter((a) => a.judgment === "잘된 장면" && a.quality < 2).length;
+    const finals = sessions.map((s) => s.turns[s.turns.length - 1]).filter(Boolean);
+    const last = turns.reduce((m, t) => (t.time > m ? t.time : m), "");
+    const share = (k) => (n ? fam[k] / n : NaN);
+    const flags = [];
+    if (n && share("directive") >= 0.3) flags.push({ text: "지시·닫힘 많음" });
+    if (n && order / n >= 0.15) flags.push({ text: "관계 순서 불일치" });
+    if (assessments.length >= 4 && overrate / assessments.length >= 0.35) flags.push({ text: "자기평가 과대" });
+    if (n && share("explore") >= 0.4 && !flags.length) flags.push({ text: "탐색 우수", ok: true });
+    return {
+      sessions: sessions.length, turns: n, quality: n ? quality / n : NaN,
+      explore: share("explore"), empathy: share("empathy"), directive: share("directive"), other: share("other"),
+      mismatch: n ? mismatch / n : NaN, order: n ? order / n : NaN,
+      disclosure: finals.length ? finals.reduce((a, t) => a + t.disclosure, 0) / finals.length : NaN,
+      selfAgree: assessments.length ? agree / assessments.length : NaN, assessments: assessments.length,
+      llmShare: n ? llm / n : NaN, last, flags, fam,
+    };
+  }
+
+  // ---- Rendering: tiles ---------------------------------------------------------------
+  function renderTiles(rows) {
+    const all = rows.map((r) => r.m);
+    const turns = all.reduce((a, m) => a + m.turns, 0);
+    const sum = (k) => rows.reduce((a, r) => a + (r.m.fam[k] || 0), 0);
+    const assess = all.reduce((a, m) => a + m.assessments, 0);
+    const agreeN = all.reduce((a, m) => a + (Number.isFinite(m.selfAgree) ? m.selfAgree * m.assessments : 0), 0);
+    const tiles = [
+      { label: "학습자", value: rows.filter((r) => r.m.turns).length, note: `세션 ${all.reduce((a, m) => a + m.sessions, 0)}개` },
+      { label: "상담자 턴", value: turns.toLocaleString("ko-KR"), note: `평균 품질 ${turns ? (all.reduce((a, m) => a + (m.quality || 0) * m.turns, 0) / turns).toFixed(1) : "–"} / 3` },
+      { label: "탐색 비율", value: pct(turns ? sum("explore") / turns : NaN), note: `공감 ${pct(turns ? sum("empathy") / turns : NaN)}` },
+      { label: "지시·닫힘 비율", value: pct(turns ? sum("directive") / turns : NaN), note: "조언·성급한 안심·'왜'·닫힌 질문" },
+      { label: "자기평가 ↔ 시스템 일치", value: pct(assess ? agreeN / assess : NaN), note: `자기평가 ${assess}건` },
+    ];
+    $("tiles").replaceChildren(...tiles.map((t) => el("div", { class: "tile" }, el("span", { class: "label", text: t.label }), el("span", { class: "value", text: String(t.value) }), el("span", { class: "note", text: t.note }))));
+  }
+
+  // ---- Rendering: stacked mix chart ---------------------------------------------------
+  const tip = $("tip");
+  function showTip(evt, nodes) {
+    tip.replaceChildren(...nodes);
+    tip.hidden = false;
+    const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = evt.clientX + pad, y = evt.clientY + pad;
+    if (x + w > innerWidth - 8) x = evt.clientX - w - pad;
+    if (y + h > innerHeight - 8) y = evt.clientY - h - pad;
+    tip.style.left = Math.max(8, x) + "px";
+    tip.style.top = Math.max(8, y) + "px";
+  }
+  const hideTip = () => { tip.hidden = true; };
+
+  function renderMix(rows) {
+    $("mixLegend").replaceChildren(...FAMILIES.map((f) => el("span", {}, el("i", { class: "key", style: `background:${f.color}` }), f.label)));
+    const data = rows.filter((r) => r.m.turns).sort((a, b) => b.m.explore - a.m.explore);
+    const svg = $("mixChart");
+    const labelW = 120, bar = 20, gap = 14, right = 56, width = Math.max(560, svg.parentElement.clientWidth || 800);
+    const plotW = width - labelW - right;
+    const height = data.length * (bar + gap) + 34;
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("width", width);
+    svg.setAttribute("height", height);
+    const nodes = [];
+    for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+      const x = labelW + t * plotW;
+      nodes.push(s("line", { x1: x, x2: x, y1: 0, y2: height - 24, stroke: "var(--line)", "stroke-width": 1 }));
+      nodes.push(s("text", { x, y: height - 8, "text-anchor": "middle", "font-size": 11, text: `${t * 100}%` }));
+    }
+    data.forEach((r, i) => {
+      const y = i * (bar + gap) + 6;
+      nodes.push(s("text", { x: 0, y: y + bar / 2 + 4, "font-size": 13, "font-weight": 700, text: r.l.code || r.l.id }));
+      let x = labelW;
+      const parts = FAMILIES.map((f) => ({ f, v: r.m.fam[f.id] / r.m.turns })).filter((p) => p.v > 0);
+      parts.forEach((p, pi) => {
+        const w = Math.max(0, p.v * plotW - (pi < parts.length - 1 ? 2 : 0));
+        const first = pi === 0, last = pi === parts.length - 1;
+        const rx = 4;
+        const d = last
+          ? `M${x},${y} h${Math.max(0, w - rx)} a${rx},${rx} 0 0 1 ${rx},${rx} v${bar - 2 * rx} a${rx},${rx} 0 0 1 -${rx},${rx} h-${Math.max(0, w - rx)} z`
+          : `M${x},${y} h${w} v${bar} h-${w} z`;
+        const seg = s("path", { d, fill: p.f.color, tabindex: 0, role: "img", "aria-label": `${r.l.code} ${p.f.label} ${pct(p.v)}` });
+        const tipNodes = () => [el("b", { text: pct(p.v) }), el("div", { text: `${r.l.code || r.l.id} · ${p.f.label}` }), el("div", { text: `${r.m.fam[p.f.id]} / ${r.m.turns}턴` })];
+        seg.addEventListener("pointermove", (e) => showTip(e, tipNodes()));
+        seg.addEventListener("pointerleave", hideTip);
+        seg.addEventListener("focus", () => { const b = seg.getBoundingClientRect(); showTip({ clientX: b.right, clientY: b.top }, tipNodes()); });
+        seg.addEventListener("blur", hideTip);
+        seg.addEventListener("click", () => select(r.l.id));
+        seg.style.cursor = "pointer";
+        nodes.push(seg);
+        if (first && p.v >= 0.14) nodes.push(s("text", { x: x + 8, y: y + bar / 2 + 4, "font-size": 11.5, "font-weight": 700, fill: "#ffffff", style: "fill:#fff;pointer-events:none", text: pct(p.v) }));
+        x += p.v * plotW;
+      });
+      nodes.push(s("text", { x: labelW + plotW + 8, y: y + bar / 2 + 4, "font-size": 12, text: `${r.m.turns}턴` }));
+    });
+    if (!data.length) nodes.push(s("text", { x: 0, y: 20, "font-size": 13, text: "필터에 맞는 턴이 없습니다." }));
+    svg.replaceChildren(...nodes);
+  }
+
+  // ---- Rendering: roster table ---------------------------------------------------------
+  const COLUMNS = [
+    { key: "code", label: "학습자" }, { key: "sessions", label: "세션", num: true }, { key: "turns", label: "턴", num: true },
+    { key: "mix", label: "응답 구성" }, { key: "quality", label: "평균 품질", num: true }, { key: "explore", label: "탐색", num: true },
+    { key: "directive", label: "지시·닫힘", num: true }, { key: "mismatch", label: "전달 불일치", num: true },
+    { key: "disclosure", label: "최종 공개", num: true }, { key: "selfAgree", label: "자기평가 일치", num: true },
+    { key: "flags", label: "검토 포인트" }, { key: "last", label: "마지막 연습" },
+  ];
+  function sortValue(r, key) {
+    if (key === "code") return r.l.code || r.l.id;
+    if (key === "last") return r.m.last;
+    const v = r.m[key];
+    return Number.isFinite(v) ? v : -1;
+  }
+  function renderRoster(rows) {
+    const { key, dir } = state.sort;
+    const sorted = rows.slice().sort((a, b) => { const x = sortValue(a, key), y = sortValue(b, key); return (x < y ? -1 : x > y ? 1 : 0) * dir; });
+    const head = el("thead", {}, el("tr", {}, COLUMNS.map((c) => el("th", { class: c.num ? "num" : "", scope: "col", "aria-sort": key === c.key ? (dir > 0 ? "ascending" : "descending") : "none" },
+      c.key === "mix" || c.key === "flags" ? c.label : el("button", { type: "button", text: c.label + (key === c.key ? (dir > 0 ? " ▲" : " ▼") : ""), onclick: () => { state.sort = { key: c.key, dir: state.sort.key === c.key ? -state.sort.dir : -1 }; render(); } })))));
+    const body = el("tbody", {}, sorted.map((r) => {
+      const m = r.m;
+      const mini = el("div", { class: "mini", "aria-hidden": "true" }, FAMILIES.filter((f) => m.fam[f.id]).map((f) => el("i", { style: `width:${(m.fam[f.id] / Math.max(1, m.turns)) * 100}%;background:${f.color}` })));
+      const tr = el("tr", { class: "learner", tabindex: 0, "aria-selected": state.selected === r.l.id ? "true" : "false", onclick: () => select(r.l.id), onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(r.l.id); } } },
+        el("td", { class: "who" }, r.l.code || r.l.id, r.l.code && r.l.code !== r.l.id ? el("small", { text: r.l.id }) : null),
+        el("td", { class: "num", text: m.sessions }), el("td", { class: "num", text: m.turns }), el("td", {}, mini),
+        el("td", { class: "num", text: Number.isFinite(m.quality) ? m.quality.toFixed(1) : "–" }),
+        el("td", { class: "num", text: pct(m.explore) }), el("td", { class: "num", text: pct(m.directive) }),
+        el("td", { class: "num", text: pct(m.mismatch) }), el("td", { class: "num", text: Number.isFinite(m.disclosure) ? Math.round(m.disclosure * 100) : "–" }),
+        el("td", { class: "num", text: m.assessments ? `${pct(m.selfAgree)} (${m.assessments})` : "–" }),
+        el("td", {}, el("div", { class: "chips" }, m.flags.map((f) => el("span", { class: "chip" + (f.ok ? " ok" : ""), text: f.text })))),
+        el("td", { text: m.last ? fmtDate(m.last) : "–" }));
+      return tr;
+    }));
+    $("roster").replaceChildren(head, body);
+  }
+
+  // ---- Rendering: learner detail -------------------------------------------------------
+  function trajectory(session) {
+    const t0 = session.turns[0];
+    const pts = [{ turn: 0, safety: Number.isFinite(t0?.safety0) ? t0.safety0 : 0.38, guardedness: Number.isFinite(t0?.guardedness0) ? t0.guardedness0 : 0.62, disclosure: Number.isFinite(t0?.disclosure0) ? t0.disclosure0 : 0.25 }];
+    for (const t of session.turns) pts.push({ turn: t.turn, safety: t.safety, guardedness: t.guardedness, disclosure: t.disclosure, t });
+    const W = 560, H = 230, L = 34, R = 64, T = 12, B = 30;
+    const maxT = Math.max(1, pts[pts.length - 1].turn);
+    const X = (v) => L + (v / maxT) * (W - L - R), Y = (v) => T + (1 - v) * (H - T - B);
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": "세션 관계 궤적: 안전, 경계, 공개" });
+    const nodes = [];
+    for (const v of [0, 0.25, 0.5, 0.75, 1]) {
+      nodes.push(s("line", { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: "var(--line)", "stroke-width": 1 }));
+      nodes.push(s("text", { x: L - 6, y: Y(v) + 4, "text-anchor": "end", "font-size": 10.5, text: Math.round(v * 100) }));
+    }
+    for (const p of pts) nodes.push(s("text", { x: X(p.turn), y: H - 10, "text-anchor": "middle", "font-size": 10.5, text: p.turn === 0 ? "시작" : p.turn }));
+    const ends = [];
+    for (const ser of SERIES) {
+      const d = pts.map((p, i) => `${i ? "L" : "M"}${X(p.turn).toFixed(1)},${Y(p[ser.key]).toFixed(1)}`).join(" ");
+      nodes.push(s("path", { d, fill: "none", stroke: ser.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      const lp = pts[pts.length - 1];
+      nodes.push(s("circle", { cx: X(lp.turn), cy: Y(lp[ser.key]), r: 4, fill: ser.color, stroke: "var(--surface)", "stroke-width": 2 }));
+      ends.push({ ser, y: Y(lp[ser.key]), v: lp[ser.key] });
+    }
+    // End labels with simple collision avoidance (leader-free: labels shift, ≥14px apart).
+    ends.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 14) ends[i].y = ends[i - 1].y + 14;
+    for (const e of ends) nodes.push(s("text", { x: W - R + 10, y: e.y + 4, "font-size": 11.5, "font-weight": 700, text: `${e.ser.label} ${Math.round(e.v * 100)}` }));
+    const cross = s("line", { x1: 0, x2: 0, y1: T, y2: H - B, stroke: "var(--axis)", "stroke-width": 1, visibility: "hidden" });
+    nodes.push(cross);
+    const hit = s("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" });
+    hit.addEventListener("pointermove", (e) => {
+      const box = svg.getBoundingClientRect();
+      const vx = ((e.clientX - box.left) / box.width) * W;
+      const p = pts.reduce((best, q) => (Math.abs(X(q.turn) - vx) < Math.abs(X(best.turn) - vx) ? q : best), pts[0]);
+      cross.setAttribute("x1", X(p.turn)); cross.setAttribute("x2", X(p.turn)); cross.setAttribute("visibility", "visible");
+      showTip(e, [el("div", { text: p.turn === 0 ? "시작 상태" : `${p.turn}턴 · ${CODE_LABEL[p.t.code]}` }),
+        ...SERIES.map((ser) => el("div", { class: "row" }, el("i", { style: `background:${ser.color}` }), el("b", { text: Math.round(p[ser.key] * 100) }), ser.label))]);
+    });
+    hit.addEventListener("pointerleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
+    nodes.push(hit);
+    svg.replaceChildren(...nodes);
+    return svg;
+  }
+
+  // Which responses a learner keeps choosing across sessions: most used, core skills never
+  // used, and the longest run of one response type (reviewer feedback).
+  function patternOf(turns) {
+    const counts = {};
+    let run = 0, prev = null, best = 0, bestCode = "";
+    for (const t of turns) {
+      counts[t.code] = (counts[t.code] || 0) + 1;
+      run = t.code === prev ? run + 1 : 1;
+      prev = t.code;
+      if (run > best) { best = run; bestCode = t.code; }
+    }
+    const core = ["reflection", "reflection_exploration", "validation", "open_question"];
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    return { n: turns.length, top, under: core.filter((c) => !counts[c]), best, bestCode };
+  }
+  function patternLine(turns) {
+    const p = patternOf(turns);
+    if (!p.n) return null;
+    const parts = [`주로 쓴 반응: ${p.top.map(([c, k]) => `${CODE_LABEL[c] || c} ${Math.round((k / p.n) * 100)}%`).join(" · ")}`];
+    parts.push(p.under.length ? `쓰지 않은 핵심 기술: ${p.under.map((c) => CODE_LABEL[c]).join(" · ")}` : "핵심 탐색 기술을 모두 사용");
+    if (p.best >= 3) parts.push(`반복: ${CODE_LABEL[p.bestCode] || p.bestCode} ${p.best}회 연속`);
+    return el("p", { class: "pattern", text: "반응 패턴  " + parts.join("  |  ") });
+  }
+
+  function renderDetail(rows) {
+    const box = $("detail");
+    const row = rows.find((r) => r.l.id === state.selected) || rows.find((r) => r.m.turns);
+    if (!row) { box.replaceChildren(el("p", { class: "empty", text: "학습자를 선택하면 세션 궤적과 턴 기록이 여기에 표시됩니다." })); return; }
+    state.selected = row.l.id;
+    const sessions = visibleSessions(row.l);
+    const session = sessions.find((x) => x.id === state.session) || sessions[sessions.length - 1];
+    state.session = session ? session.id : null;
+    const head = el("div", { class: "card-head" }, el("div", {}, el("h3", { text: row.l.code || row.l.id }),
+      el("p", { text: `세션 ${row.m.sessions} · 턴 ${row.m.turns} · 평균 품질 ${Number.isFinite(row.m.quality) ? row.m.quality.toFixed(1) : "–"} · AI 코딩 ${pct(row.m.llmShare)}` })),
+      el("div", { class: "chips" }, row.m.flags.map((f) => el("span", { class: "chip" + (f.ok ? " ok" : ""), text: f.text }))));
+    const list = el("div", { class: "sessions", role: "group", "aria-label": "세션 선택" }, sessions.map((x) => {
+      const last = x.turns[x.turns.length - 1];
+      return el("button", { type: "button", "aria-pressed": x.id === state.session ? "true" : "false", onclick: () => { state.session = x.id; render(); } },
+        el("b", { text: `${fmtDate(x.start)} · ${CASES[x.caseId] || x.caseId}` }),
+        `${MODES[x.mode] || x.mode} · ${x.turns.length}턴 · 공개 ${last ? Math.round(last.disclosure * 100) : "–"}`);
+    }));
+    if (!session) { box.replaceChildren(head, el("p", { class: "empty", text: "필터에 맞는 세션이 없습니다." })); return; }
+    const legend = el("div", { class: "legend" }, SERIES.map((ser) => el("span", {}, el("i", { class: "key line", style: `background:${ser.color}` }), ser.label)));
+    const judg = new Map(session.assessments.map((a) => [a.turn, a.judgment]));
+    const table = el("table", { class: "turns" },
+      el("thead", {}, el("tr", {}, ["턴", "상담자 응답 · 판정 근거", "코드", "품질", "전달", "자기평가"].map((h, i) => el("th", { scope: "col", class: i === 3 ? "num" : "", text: h })))),
+      el("tbody", {}, session.turns.map((t) => el("tr", {},
+        el("td", { class: "num", text: t.turn }),
+        el("td", {}, t.utterance || "(침묵)", t.rationale ? el("div", { class: "rationale", text: t.rationale }) : null,
+          t.reply ? el("div", { class: "rationale", text: `내담자: ${t.reply}` }) : null),
+        el("td", {}, el("span", { class: "code" }, el("i", { style: `background:${familyOf(t.code).color}` }), CODE_LABEL[t.code]),
+          el("div", { class: "src", text: (t.source === "llm" ? "AI 코딩" : "규칙 코딩") + (t.source === "llm" && t.lexiconCode && t.lexiconCode !== t.code ? ` · 규칙: ${CODE_LABEL[t.lexiconCode] || t.lexiconCode}` : "") })),
+        el("td", { class: "num" }, el("span", { class: "q", "aria-label": `${t.quality} / 3`, text: "●".repeat(t.quality) + "○".repeat(3 - t.quality) })),
+        el("td", { text: { Aligned: "정합", PossibleMismatch: "불일치 가능", RelationalOrderMismatch: "순서 불일치", EvidenceUnavailable: "표정 분석 없음" }[t.alignment] || "–" }),
+        el("td", { text: judg.get(t.turn) || "–" })))));
+    const left = el("div", { style: "display:grid;gap:12px;min-width:0" }, list,
+      el("div", { class: "card-head" }, el("h3", { style: "font-size:15px", text: "관계 궤적" }), legend), trajectory(session));
+    box.replaceChildren(head, patternLine(sessions.flatMap((x) => x.turns)) || "", el("div", { class: "detail-grid" }, left, el("div", { class: "table-wrap" }, table)));
+  }
+
+  // ---- Rendering: field agreement -----------------------------------------------------
+  function renderAgreement(rows) {
+    const pairs = [];
+    for (const r of rows) for (const sess of visibleSessions(r.l)) for (const t of sess.turns) if (t.source === "llm" && t.lexiconCode) pairs.push([t.code, t.lexiconCode]);
+    const n = pairs.length;
+    const box = $("agreement");
+    if (!n) { box.replaceChildren(el("p", { class: "empty", text: "AI 코더가 판정한 턴이 아직 없습니다. 웹 버전에서 AI 코더가 켜져 있으면 매 턴 기록됩니다." })); return; }
+    const agree = pairs.filter(([a, b]) => a === b).length;
+    const codes = Object.keys(CODE_LABEL);
+    const pa = Object.fromEntries(codes.map((c) => [c, 0])), pb = { ...pa };
+    for (const [a, b] of pairs) { pa[a] = (pa[a] || 0) + 1; pb[b] = (pb[b] || 0) + 1; }
+    const pe = codes.reduce((acc, c) => acc + (pa[c] / n) * (pb[c] / n), 0);
+    const kappa = pe === 1 ? 1 : (agree / n - pe) / (1 - pe);
+    const conf = new Map();
+    for (const [a, b] of pairs) if (a !== b) conf.set(`${a}→${b}`, (conf.get(`${a}→${b}`) || 0) + 1);
+    const top = [...conf.entries()].sort((x, y) => y[1] - x[1]).slice(0, 3);
+    box.replaceChildren(
+      el("div", { class: "tile" }, el("span", { class: "label", text: "비교한 턴" }), el("span", { class: "value", text: n }), el("span", { class: "note", text: "AI 코딩 + 규칙 코드가 모두 있는 턴" })),
+      el("div", { class: "tile" }, el("span", { class: "label", text: "일치율" }), el("span", { class: "value", text: pct(agree / n) }), el("span", { class: "note", text: "같은 코드를 준 비율" })),
+      el("div", { class: "tile" }, el("span", { class: "label", text: "Cohen's κ" }), el("span", { class: "value", text: kappa.toFixed(2) }), el("span", { class: "note", text: "우연 일치를 뺀 일치도" })),
+      el("div", { class: "tile" }, el("span", { class: "label", text: "자주 갈린 판정 (AI → 규칙)" }),
+        ...top.map(([k, c]) => { const [a, b] = k.split("→"); return el("span", { class: "note", text: `${CODE_LABEL[a]} → ${CODE_LABEL[b]} · ${c}건` }); })));
+  }
+
+  // ---- CSV -------------------------------------------------------------------------------
+  function csv(rows) {
+    const q = (v) => { const t = String(v ?? ""); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const header = ["learner_id", "learner_code", "sessions", "turns", "avg_quality", "explore_share", "empathy_share", "directive_share", "delivery_mismatch_rate", "final_disclosure_avg", "self_assessment_agreement", "self_assessments", "ai_coded_share", "flags", "last_practice_utc"];
+    const lines = rows.map(({ l, m }) => [l.id, l.code, m.sessions, m.turns, m.quality?.toFixed(2), m.explore?.toFixed(3), m.empathy?.toFixed(3), m.directive?.toFixed(3), m.mismatch?.toFixed(3), m.disclosure?.toFixed(3), m.selfAgree?.toFixed(3), m.assessments, m.llmShare?.toFixed(3), m.flags.map((f) => f.text).join("; "), m.last].map(q).join(","));
+    return [header.join(","), ...lines].join("\n");
+  }
+
+  // ---- Orchestration ---------------------------------------------------------------------
+  function rowsNow() { return state.learners.map((l) => ({ l, m: metrics(l) })); }
+  function fillFilters() {
+    const cases = [...new Set(state.learners.flatMap((l) => l.sessions.map((s) => s.caseId)))];
+    const modes = [...new Set(state.learners.flatMap((l) => l.sessions.map((s) => s.mode)))];
+    $("caseFilter").replaceChildren(el("option", { value: "", text: "모든 사례" }), ...cases.map((c) => el("option", { value: c, text: CASES[c] || c })));
+    $("modeFilter").replaceChildren(el("option", { value: "", text: "모든 모드" }), ...modes.map((m) => el("option", { value: m, text: MODES[m] || m })));
+    $("caseFilter").value = state.caseId;
+    $("modeFilter").value = state.mode;
+  }
+  function render() {
+    const rows = rowsNow();
+    renderTiles(rows);
+    renderMix(rows);
+    renderRoster(rows);
+    renderDetail(rows);
+    renderAgreement(rows);
+    $("sourcePill").textContent = state.source === "sample" ? "예시 학급 · 가상 데이터" : `불러온 기록 · 학습자 ${state.learners.length}명`;
+    $("sourcePill").classList.toggle("real", state.source !== "sample");
+  }
+  function select(id) { state.selected = id; state.session = null; render(); $("detail").scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }
+  function loadSample() {
+    state.learners = sampleClass(); state.source = "sample"; state.selected = null; state.session = null; state.caseId = ""; state.mode = "";
+    fillFilters(); render(); $("status").textContent = "예시 학급(가상 데이터)을 보여주고 있습니다. 실제 기록 파일을 불러오면 교체됩니다.";
+  }
+  async function loadFiles(files) {
+    const list = [...files];
+    if (!list.length) return;
+    document.body.classList.add("busy");
+    const loaded = [], errors = [];
+    for (const f of list) {
+      try { loaded.push(parseFile(f.name, await f.text())); } catch (e) { errors.push(e.message || String(e)); }
+    }
+    document.body.classList.remove("busy");
+    if (!loaded.length) { $("status").textContent = "불러오지 못했습니다. " + errors.join(" "); return; }
+    // Merge by learner id so several exports from one learner combine.
+    const base = state.source === "sample" ? [] : state.learners;
+    const byId = new Map(base.map((l) => [l.id, l]));
+    for (const l of loaded) {
+      const prev = byId.get(l.id);
+      if (!prev) { byId.set(l.id, l); continue; }
+      const seen = new Set(prev.sessions.map((s) => s.id));
+      prev.sessions.push(...l.sessions.filter((s) => !seen.has(s.id)));
+      prev.sessions.sort((a, b) => (a.start < b.start ? -1 : 1));
+      if (l.code) prev.code = l.code;
+    }
+    state.learners = [...byId.values()]; state.source = "files"; state.selected = null; state.session = null;
+    fillFilters(); render();
+    $("status").textContent = `파일 ${loaded.length}개를 불러왔습니다.` + (errors.length ? ` 건너뛴 파일: ${errors.join(" ")}` : "");
+  }
+
+  $("fileInput").addEventListener("change", (e) => { loadFiles(e.target.files); e.target.value = ""; });
+  document.querySelector('label[for="fileInput"]').addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("fileInput").click(); } });
+  $("sampleBtn").addEventListener("click", loadSample);
+  const drop = $("drop");
+  for (const t of ["dragenter", "dragover"]) drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); });
+  for (const t of ["dragleave", "drop"]) drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); });
+  drop.addEventListener("drop", (e) => loadFiles(e.dataTransfer.files));
+  addEventListener("dragover", (e) => e.preventDefault());
+  addEventListener("drop", (e) => { if (!drop.contains(e.target)) { e.preventDefault(); loadFiles(e.dataTransfer.files); } });
+  $("caseFilter").addEventListener("change", (e) => { state.caseId = e.target.value; state.session = null; render(); });
+  $("modeFilter").addEventListener("change", (e) => { state.mode = e.target.value; state.session = null; render(); });
+  $("periodSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    state.days = Number(b.dataset.days); state.session = null;
+    for (const x of $("periodSeg").querySelectorAll("button")) x.setAttribute("aria-pressed", x === b ? "true" : "false");
+    render();
+  });
+  $("copyCsv").addEventListener("click", async () => {
+    const text = csv(rowsNow());
+    try { await navigator.clipboard.writeText(text); $("status").textContent = "학습자 표를 CSV로 복사했습니다. 스프레드시트에 붙여넣으세요."; }
+    catch { $("status").textContent = "클립보드 복사가 막혀 있습니다. ‘CSV 저장’을 사용하세요."; }
+  });
+  $("saveCsv").addEventListener("click", () => {
+    const blob = new Blob(["﻿" + csv(rowsNow())], { type: "text/csv;charset=utf-8" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: `counselcue-class-${new Date().toISOString().slice(0, 10)}.csv` });
+    document.body.append(a); a.click(); a.remove();
+    $("status").textContent = "CSV 저장을 시작했습니다. 저장이 막힌 환경에서는 ‘CSV 복사’를 사용하세요.";
+  });
+  let resizeTimer;
+  addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => renderMix(rowsNow()), 150); });
+
+  loadSample();
+})();
+</script>
+
+</body>
+</html>

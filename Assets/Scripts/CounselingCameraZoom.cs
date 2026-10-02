@@ -28,6 +28,17 @@ namespace AdieLab.AffectCounsel
         private Quaternion faceObservationRotation;
         private bool hasObservationFrame;
         private int framingRefreshFrames;
+        private float glancePitch;
+        private float glanceFieldOfView;
+
+        public float TargetFieldOfView => targetFieldOfView;
+
+        /// <summary>First-person glance down at the counselor's notes (degrees of pitch, extra field of view).</summary>
+        public void SetGlance(float pitchDegrees, float extraFieldOfView)
+        {
+            glancePitch = pitchDegrees;
+            glanceFieldOfView = extraFieldOfView;
+        }
 
         private void Awake()
         {
@@ -81,7 +92,7 @@ namespace AdieLab.AffectCounsel
 
             targetCamera.fieldOfView = Mathf.SmoothDamp(
                 targetCamera.fieldOfView,
-                targetFieldOfView,
+                targetFieldOfView + glanceFieldOfView,
                 ref zoomVelocity,
                 SmoothTime);
 
@@ -89,6 +100,7 @@ namespace AdieLab.AffectCounsel
             {
                 float observationWeight = ObservationWeight(targetFieldOfView);
                 Quaternion desired = Quaternion.Slerp(bodyObservationRotation, faceObservationRotation, observationWeight);
+                if (glancePitch > 0.01f) desired = Quaternion.AngleAxis(glancePitch, desired * Vector3.right) * desired;
                 float rotationBlend = 1f - Mathf.Exp(-10f * Time.unscaledDeltaTime);
                 targetCamera.transform.rotation = Quaternion.Slerp(targetCamera.transform.rotation, desired, rotationBlend);
             }

@@ -76,3 +76,14 @@ MonoBehaviour:
   counselingDomain: "\uB2E4\uBB38\uD654\xB7\uB300\uD559\uC0C1\uB2F4"
   difficultyLabel: "\uC911\uAE09"
   personaPromptKey: international-belonging-01
+  briefingPortrait: {fileID: 0}
+  english:
+    title: International student belonging
+    clientName: Wang Hao
+    clientProfile: "24 \xB7 University counseling"
+    presentingConcern: In graduate school in Korea he carries the weight of the language
+      and a sense of exclusion, but hesitates to say so for fear of seeming oversensitive.
+    learningObjectives:
+    - Check cultural explanations with the client.
+    - Do not confuse language fluency with emotional depth.
+    - Keep both possible discrimination and personal interpretation open.

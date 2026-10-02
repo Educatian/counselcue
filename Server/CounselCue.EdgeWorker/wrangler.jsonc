@@ -6,9 +6,25 @@
   "workers_dev": true,
   "observability": { "enabled": true },
   "vars": {
-    "OPENROUTER_MODEL": "openai/gpt-5.6-terra",
+    // Gemini 3.8 through OpenRouter for the persona, the coder and the voice.
+    "PERSONA_MODEL": "google/gemini-3.8-flash",
     "ELEVENLABS_VOICE_ID": "21m00Tcm4TlvDq8ikWAM",
+    // Per-case client voice overrides (caseId -> ElevenLabs voice id). Cases without
+    // an entry use the worker's built-in age/gender-matched premade voice
+    // (DEFAULT_VOICES), then ELEVENLABS_VOICE_ID, e.g. "adolescent-pressure-01": "<voice id>".
+    "ELEVENLABS_VOICE_IDS": {},
+    // Expression pipeline (src/affect.js). Voice provider: "openrouter" (Gemini 3.8 Flash TTS
+    // via OPENROUTER_API_KEY), "gemini" (direct, needs GEMINI_API_KEY) or "elevenlabs". Defaults apply when the browser sends no controls.
+    "VOICE_PROVIDER": "openrouter",
+    "OPENROUTER_TTS_MODEL": "google/gemini-3.8-flash-tts",
+    "GEMINI_TTS_MODEL": "gemini-3.8-flash-tts",
+    "EXPRESSION_DEFAULTS": { "expressivity": "natural", "vocalEvents": true },
+    // "off": OpenRouter speech has no separate style field and Gemini TTS can read a director
+    // line aloud, so only the tagged words are sent; affect comes from tags and voice choice.
+    "TTS_STYLE_PREFIX": "off",
   },
+  // WebGL build files served at GET /webgl/<version>/Build/<file> (see Docs/WEBGL_HOSTING.md).
+  "r2_buckets": [{ "binding": "WEBGL_BUCKET", "bucket_name": "counselcue-webgl-assets" }],
   "ratelimits": [
     {
       "name": "TURN_LIMITER",
@@ -16,9 +32,21 @@
       "simple": { "limit": 15, "period": 60 },
     },
     {
+      // Ceiling per network address across all sessions (e.g. a classroom NAT).
+      "name": "TURN_IP_LIMITER",
+      "namespace_id": "71019",
+      "simple": { "limit": 240, "period": 60 },
+    },
+    {
       "name": "VOICE_LIMITER",
       "namespace_id": "71018",
       "simple": { "limit": 20, "period": 60 },
+    },
+    {
+      // Ceiling per network address across all pages (e.g. a classroom NAT).
+      "name": "VOICE_IP_LIMITER",
+      "namespace_id": "71020",
+      "simple": { "limit": 300, "period": 60 },
     },
   ],
 }

@@ -93,10 +93,16 @@ namespace AdieLab.AffectCounsel
         }
 
         public void SetAffect(ClientAffect value, bool immediate = false) => activeClient?.SetAffect(value, immediate);
+        public void SetAffectIntensity(float value) => activeClient?.SetAffectIntensity(value);
         public void SetRelationalState(ClientRelationalState state) => activeClient?.SetRelationalState(state);
         public void Speak(string text, string emotion) => activeClient?.Speak(text, emotion);
         public void BeginSpeaking(string text, string emotion) => activeClient?.BeginSpeaking(text, emotion);
         public void StopSpeaking() => activeClient?.StopSpeaking();
+        /// <summary>Speech whose audio arrives as a live stream (Gemini Live): mouth follows the level.</summary>
+        public void BeginExternalSpeech(string emotion) => activeClient?.BeginExternalSpeech(emotion);
+        public void SetSpeechLevel(float level) => activeClient?.SetSpeechLevel(level);
+        public void Acknowledge() => activeClient?.Acknowledge();
+        public ClientGestureController Gestures => activeClient == null ? null : activeClient.Gestures;
         public void CycleDebugGaze() => activeClient?.CycleDebugGaze();
     }
 }

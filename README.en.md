@@ -33,7 +33,7 @@ The room uses a close, barrier-free counseling composition inspired by a contemp
 |---|---|
 | ![Generated Korean counseling-room reference](Assets/Art/References/KoreanCounselingRoomReference.png) | ![Unity room based on the reference](Screenshots/progress-35-reference-room.png) |
 
-The UGUI panels, buttons, inputs, and dividers use selected high-resolution 9-slice sprites from the CC0-licensed Kenney UI Pack 2.0, tinted to the room's sage and ivory palette.
+The UGUI interface is built from procedural 9-slice sprites (`Assets/Art/UI`) and shared `UiTheme` tokens — hanji paper, ink glass, celadon actions and lamp amber — with static Noto Sans KR Regular/Bold cuts so small Hangul stays crisp.
 
 | Korean interface | English interface |
 |---|---|
@@ -76,10 +76,16 @@ The project also exposes command-line editor methods:
 ```text
 AdieLab.AffectCounsel.Editor.CounselingRoomBuilder.BuildWindowsFromCommandLine
 AdieLab.AffectCounsel.Editor.CounselingSessionFlowChecks.RunFromCommandLine
+AdieLab.AffectCounsel.Editor.CounselingResponseEvaluatorChecks.RunFromCommandLine
+AdieLab.AffectCounsel.Editor.RelationalDeliveryModelChecks.RunFromCommandLine
 AdieLab.AffectCounsel.Editor.CounselingRoomBuilder.BuildWebGLFromCommandLine
 ```
 
-Generated Windows output is written to `Builds/CounselCue/`; WebGL output is written to `Builds/WebGL/`. Both are intentionally excluded from Git. The hosted build adds browser-native Korean text input, Korean microphone dictation, spotlight onboarding, and ElevenLabs v3 emotional client speech. A server-owned OpenAI persona endpoint is used when configured, with deterministic local fallback. Provider keys stay on the edge worker. UDP AU input remains desktop-only.
+In the editor, **Tools → CounselCue → Review → Run All Checks** runs every suite without quitting, and **Capture Review Screenshots** plays through the briefing (five cases, Korean and English), two live turns, face observation, and the debrief, saving captures to `Screenshots/review/`.
+
+`CounselingResponseEvaluatorChecks` holds Korean counselor-utterance fixtures for the pilot micro-skill detector (conjugated feeling words, open questions, premature reassurance, advice, and "why" questions). Add a fixture whenever expert reviewers report a misclassification.
+
+Generated Windows output is written to `Builds/CounselCue/`; WebGL output is written to `Builds/WebGL/`. Both are intentionally excluded from Git. The hosted build adds browser-native Korean text input, Korean microphone dictation, spotlight onboarding, and ElevenLabs v3 emotional client speech. A server-owned OpenRouter persona endpoint is used when configured; each turn resends the case opening line and up to eight recent exchanges so the client stays consistent, with deterministic local fallback. Client speech uses a per-case ElevenLabs voice map (see `Server/CounselCue.EdgeWorker/README.md`). Provider keys stay on the edge worker. UDP AU input remains desktop-only.
 
 ## Privacy and validation boundaries
 

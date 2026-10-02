@@ -9,52 +9,67 @@ namespace AdieLab.AffectCounsel
     public sealed class CounselingLanguageToggle : MonoBehaviour
     {
         [SerializeField] private Button toggleButton;
+        [SerializeField] private CounselingSessionOrchestrator orchestrator;
+
+        /// <summary>Raised after the UI language changes (true = English).</summary>
+        public static event System.Action<bool> LanguageChanged;
 
         private readonly Dictionary<Text, string> koreanByText = new Dictionary<Text, string>();
         private readonly Dictionary<Text, string> koreanByDynamicText = new Dictionary<Text, string>();
         private readonly List<Text> dynamicTexts = new List<Text>();
+        private readonly Dictionary<Text, string> lastTranslation = new Dictionary<Text, string>();
         private bool useEnglish;
 
         private static readonly HashSet<string> DynamicKeys = new HashSet<string>
         {
-            "WebcamStatus", "AuStatus", "SessionStatus", "StageLabel", "Alliance", "Feedback"
+            "WebcamStatus", "AuStatus", "SessionStatus", "StageLabel", "Alliance", "Feedback", "DataStatus",
+            "DebriefTitle", "DebriefSummary", "SceneDetail", "AssessmentStatus", "FaceObservation", "ConversationModeNote"
         };
 
         private static readonly Dictionary<string, string> EnglishByKey = new Dictionary<string, string>
         {
             { "SessionEyebrow", "COUNSELING PRACTICE  ·  1:1 INTAKE" },
             { "Privacy", "No video saved · on-device processing" },
-            { "ZoomEyebrow", "OBSERVATION ZOOM" },
-            { "ClientName", "CLIENT  ·  JIHYE KIM, 32" },
+            { "ZoomEyebrow", "ZOOM" },
+            { "CaseListLabel", "CLIENTS" },
+            { "ModeLabel", "CONVERSATION" },
+            { "PhaseLabel", "SESSION PHASE" },
+            { "ModeText", "Text" },
+            { "ModeLive", "Live voice · Gemini Live" },
+            { "CaseBriefEyebrow", "CASE BRIEF" },
+            { "MeterHeading", "RELATIONAL STATE" },
+            { "MeterLabel0", "Safety" },
+            { "MeterLabel1", "Guarded" },
+            { "MeterLabel2", "Disclosure" },
+            { "FaceDebugTitle", "Expression & gaze diagnostics" },
+            { "CycleGazeState", "Cycle gaze state" },
             { "Placeholder", "Enter your counseling response…" },
             { "PauseSession", "Pause" },
             { "EndSession", "End" },
             { "ZoomReset", "Reset" },
+            { "FaceDebugToggle", "Debug" },
             { "SendButton", "Respond" },
-            { "BriefingTitle", "Choose today's practice path" },
-            { "BriefingCase", "Workplace anxiety · Jihye Kim, 32 · Intake" },
-            { "BriefingBody", "Situation\nShe feels short of breath before work and worries that she may be weak.\n\nSession goals\n1. Build relational safety and explain the counseling structure.\n2. Explore experience with reflections and open questions.\n3. Protect response space without rushing to solutions.\n\n15 min · target 10 turns · webcam video not saved" },
-            { "FullSessionLabel", "FULL SESSION · 15 MIN / TARGET 10 TURNS" },
-            { "StartPractice", "Start coached practice" },
-            { "StartEvaluation", "Start assessment mode" },
-            { "FocusedLabel", "MICRO-SKILL PRACTICE · 3 MIN / TARGET 3 TURNS" },
-            { "StartFocusOne", "Emotion reflection · 3 min" },
-            { "StartFocusTwo", "Open questions · 3 min" },
-            { "StartFocusThree", "Delivery alignment · 3 min" },
-            { "PrivacyLine", "Webcam video is not saved · Practice duration is a pilot setting for user research." },
+            { "BriefingTitle", "Choose who\nyou'll meet today" },
+            { "FullSessionLabel", "FULL SESSION  ·  15 MIN · 10 TURNS" },
+            { "BriefingPortraitCaption", "AI-generated case illustration" },
+            { "ConsentLabel", "I agree to local research logging — only response text and derived signals stay on this device (no video)" },
+            { "DeleteLocalData", "Delete local records" },
+            { "ExportLocalData", "Export records" },
+            { "LearnerCodePlaceholder", "Learner code (optional)" },
+            { "StartPractice", "Coached practice\n<size=12><color=#F6F1E7B3>Delivery feedback after every turn</color></size>" },
+            { "StartEvaluation", "Assessment mode\n<size=12><color=#6B6F69>Feedback is revealed after the session</color></size>" },
+            { "FocusedLabel", "MICRO-SKILL DRILLS  ·  3 MIN · 3 TURNS" },
+            { "PrivacyLine", "Webcam video is never saved, and facial analysis stays on this device. A research and training prototype." },
             { "PauseTitle", "Session paused" },
             { "PauseBody", "The timer and counseling input are paused.\nContinue from the same scene when you are ready." },
             { "ResumeSession", "Continue" },
             { "PauseEndSession", "End session" },
-            { "DebriefTitle", "Reflect and retry" },
             { "TimelineHeading", "SCENE TIMELINE · SELECT A SCENE" },
-            { "SceneDetail", "Select a scene to review the counselor response and system evidence." },
-            { "AssessmentStatus", "Choose your own judgment first." },
             { "AssessEffective", "Effective scene" },
             { "AssessRetry", "Needs another try" },
             { "ReplaySelected", "Practice this scene again" },
             { "ReturnToBriefing", "Practice paths" },
-            { "DebriefDisclaimer", "※ Compare system evidence only after self-assessment. Training feedback, not a clinical evaluation." }
+            { "DebriefDisclaimer", "※ Compare system evidence only after self-assessment. Training feedback, not a clinical evaluation.\nIf practice left you uneasy, take a break and talk with your supervisor or instructor." }
         };
 
         private void Awake()
@@ -66,7 +81,7 @@ namespace AdieLab.AffectCounsel
             {
                 string key = GetKey(text);
                 if (EnglishByKey.ContainsKey(key)) koreanByText[text] = text.text;
-                if (!DynamicKeys.Contains(key)) continue;
+                if (!DynamicKeys.Contains(key) && !key.StartsWith("TimelineTurn")) continue;
                 dynamicTexts.Add(text);
                 koreanByDynamicText[text] = text.text;
             }
@@ -83,8 +98,14 @@ namespace AdieLab.AffectCounsel
                     continue;
                 }
 
-                if (ContainsKorean(text.text)) koreanByDynamicText[text] = text.text;
-                text.text = TranslateDynamic(GetKey(text), koreanByDynamicText[text]);
+                // A new source is anything other than our own last output. Utterances inside a
+                // translated scene stay Korean, so "contains Korean" alone would mistake our
+                // output for a new source and later restore half-English text.
+                if (!lastTranslation.TryGetValue(text, out string previous) || text.text != previous)
+                    koreanByDynamicText[text] = text.text;
+                string translated = TranslateDynamic(GetKey(text), koreanByDynamicText[text]);
+                text.text = translated;
+                lastTranslation[text] = translated;
             }
         }
 
@@ -100,13 +121,22 @@ namespace AdieLab.AffectCounsel
             {
                 foreach (KeyValuePair<Text, string> entry in koreanByDynamicText) entry.Key.text = entry.Value;
             }
+            lastTranslation.Clear();
+            // Case title, client name, briefing body, case and focus buttons depend on the
+            // selected case, so the orchestrator renders them instead of a fixed string table.
+            if (orchestrator != null) orchestrator.SetEnglish(useEnglish);
+            LanguageChanged?.Invoke(useEnglish);
             RefreshToggleLabel();
         }
 
         private void RefreshToggleLabel()
         {
             Text label = toggleButton.GetComponentInChildren<Text>();
-            label.text = useEnglish ? "UI: KO" : "UI: EN";
+            // Segmented look: the active language is bright, the other one dimmed.
+            label.supportRichText = true;
+            label.text = useEnglish
+                ? "<color=#FFFFFF66>한국어</color>   EN"
+                : "한국어   <color=#FFFFFF66>EN</color>";
         }
 
         private static string GetKey(Text text)
@@ -121,9 +151,15 @@ namespace AdieLab.AffectCounsel
             return !string.IsNullOrEmpty(value) && Regex.IsMatch(value, "[가-힣]");
         }
 
-        private static string TranslateDynamic(string key, string source)
+        private string TranslateDynamic(string key, string source)
         {
             if (string.IsNullOrEmpty(source)) return source;
+            CounselingCaseDefinition activeCase = orchestrator == null ? null : orchestrator.ActiveCase;
+            if (activeCase != null && !string.IsNullOrEmpty(activeCase.CaseTitle))
+                source = source.Replace(activeCase.CaseTitle, activeCase.LocalizedTitle(true));
+            if (key == "SceneDetail") return UiPhrasebook.TranslateScene(source);
+            if (key == "DebriefTitle" || key == "DebriefSummary" || key == "AssessmentStatus" || key.StartsWith("TimelineTurn"))
+                return UiPhrasebook.Translate(source);
             if (key == "WebcamStatus")
             {
                 if (source == "웹캠 준비 중") return "Webcam starting";
@@ -135,6 +171,29 @@ namespace AdieLab.AffectCounsel
                 if (source == "AU 분석 대기 · 선택 기능") return "AU analysis idle · Optional";
                 if (source == "얼굴을 찾는 중 · 정면을 봐주세요") return "Finding face · Look toward the camera";
                 return source.Replace("중립 보정", "Neutral calibration").Replace("표정을 편안하게", "Relax your expression");
+            }
+            if (key == "DataStatus")
+            {
+                string data = source
+                    .Replace("연구용 로컬 기록 사용", "Local research logging on")
+                    .Replace("연구용 로컬 기록 꺼짐", "Local research logging off")
+                    .Replace("응답 텍스트와 파생 신호만 이 기기에 저장됩니다.", "only response text and derived signals are stored on this device.")
+                    .Replace("새 기록을 남기지 않습니다.", "no new records are written.")
+                    .Replace("일부 로컬 기록을 삭제하지 못했습니다. 다시 시도해 주세요.", "Some local records could not be deleted. Please try again.")
+                    .Replace("삭제할 로컬 기록이 없습니다.", "There are no local records to delete.")
+                    .Replace("내보낼 기록이 없습니다. 기록에 동의한 뒤 연습하면 기록이 쌓입니다.", "Nothing to export yet. Agree to logging, then practise to build records.")
+                    .Replace("기록 파일을 저장하지 못했습니다. 저장 공간과 권한을 확인해 주세요.", "The export could not be saved. Check storage space and permissions.")
+                    .Replace(" · 강사에게 전달하세요.", " · send it to your instructor.")
+                    .Replace("기록 파일을 내려받았습니다 · ", "Downloaded ")
+                    .Replace("기록 파일을 저장했습니다 · ", "Saved ");
+                data = Regex.Replace(data, "이 기기에 기록 파일 (\\d+)개", "$1 record file(s) on this device");
+                return Regex.Replace(data, "로컬 기록 파일 (\\d+)개를 삭제했습니다\\.", "Deleted $1 local record file(s).");
+            }
+            if (key == "ConversationModeNote") return UiPhrasebook.Translate(source);
+            if (key == "FaceObservation")
+            {
+                // CounselingCameraZoom flips this label between the two states.
+                return source.Replace("얼굴 관찰", "Face view").Replace("전체 보기", "Full view");
             }
             if (key == "Alliance")
             {
@@ -150,6 +209,7 @@ namespace AdieLab.AffectCounsel
                     return "Assessment · Delivery feedback appears after the session.";
                 if (source == "GPT 내담자 연결 중…") return "Connecting to the GPT client…";
                 if (source == "응답 처리 중 문제가 발생했습니다. 다시 시도해 주세요.") return "The response could not be processed. Please try again.";
+                return UiPhrasebook.Translate(source);
             }
 
             string translated = source
