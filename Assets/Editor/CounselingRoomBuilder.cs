@@ -177,6 +177,12 @@ namespace AdieLab.AffectCounsel.Editor
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
             PlayerSettings.WebGL.decompressionFallback = true;
             PlayerSettings.WebGL.dataCaching = true;
+            // Unity 6 lets Personal projects skip the splash; it was 2.8 MB of the download.
+            PlayerSettings.SplashScreen.show = false;
+            PlayerSettings.SplashScreen.showUnityLogo = false;
+            // Smallest wasm: disk-size optimisation with link-time optimisation.
+            EditorUserBuildSettings.SetPlatformSettings(BuildPipeline.GetBuildTargetName(BuildTarget.WebGL), "CodeOptimization", "DiskSizeLTO");
+            PlayerSettings.WebGL.debugSymbolMode = WebGLDebugSymbolMode.Off;
             PlayerSettings.WebGL.template = "PROJECT:CounselCue";
             System.DateTime started = System.DateTime.UtcNow;
             BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
